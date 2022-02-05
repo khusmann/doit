@@ -1,35 +1,35 @@
 # doit
 
-## doit-san
+## doit-src
 
 Add a new source:
 
 ```
-doit-san source add
+doit-src add instrument_name [version_name] [uri]
 ```
 
 Re-download sources; set to most recent version
 
 ```
-doit-san source update [source-name]
+doit-src update instrument_name [version_name] [uri]
 ```
 
 List source download versions; set env to version
 
 ```
-doit-san source version [versionId]
+doit-src version [versionId]
 ```
 
-Generate sanitizers
+Generate / update sanitizers
 
 ```
-doit-san sanitizer generate [source-name]
+doit-src sangen 
 ```
 
 Run sanitizers; new bundle in build/sanitized. Only run if repo is clean
 
 ```
-doit-san sanitizer run
+doit-src sanitize
 ```
 
 ## doit
