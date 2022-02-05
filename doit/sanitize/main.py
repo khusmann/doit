@@ -28,7 +28,8 @@ def qualtrics_add():
 def qualtrics_list():
     """List Qualtrics surveys"""
     click.secho()
-    click.secho(qualtrics.list_surveys())
+    for survey in qualtrics.list_surveys():
+        click.secho(" {} : {}".format(click.style(survey.id, fg='bright_cyan'), survey.name))
     click.secho()
 
 @cli.command()

@@ -67,18 +67,9 @@ def toListSurveyResultItem(raw: t.Mapping[str, t.Any]):
     else:
         raise Exception("Unexpected result item: " + str(raw))
 
-class ListSurveysResult():
-    def __init__(self, response: t.Mapping[str, t.Any]):
-        if 'result' in response and 'elements' in response['result']:
-            self.items = pvector([toListSurveyResultItem(item) for item in response['result']['elements']])
-        else:
-            raise Exception("Result doesn't contain elements")
-
-    def __str__(self):
-        return "\n".join(["{}: {}".format(i.id, i.name) for i in self.items])
-
-
 def _list_surveys(impl: QualtricsApi):
-    return ListSurveysResult(impl.get("surveys"))
-
-
+    response = impl.get("surveys")
+    if 'result' in response and 'elements' in response['result']:
+        return pvector([toListSurveyResultItem(item) for item in response['result']['elements']])
+    else:
+        raise Exception("Result doesn't contain elements")
