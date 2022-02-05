@@ -1,13 +1,13 @@
 from pyrsistent import PRecord, field, pvector_field
 
 class InstrumentVersion(PRecord):
-    name = field(type=str)
-    uri = field(type=str)
+    name = field(str)
+    uri = field(str)
 
 class Instrument(PRecord):
-    name = field(type=str)
-    long_name = field(type=str)
-    description = field(type=str)
+    name = field(str)
+    long_name = field(str)
+    description = field(str)
     versions = pvector_field(InstrumentVersion)
 
 class Study(PRecord):
