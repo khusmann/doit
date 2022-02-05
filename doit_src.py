@@ -1,5 +1,7 @@
 import typing as t
 import click
+import yaml
+from pathlib import Path
 from pyrsistent import PRecord, pvector, field, pvector_field
 
 class InstrumentVersion(PRecord):
@@ -14,6 +16,10 @@ class Instrument(PRecord):
 
 class Context(PRecord):
     instruments = pvector_field(Instrument)
+
+
+class DoitSrcEnv(PRecord):
+    qualtrics_api_token = field(type=str)
 
 dummy_context = Context(
     instruments = pvector([
@@ -58,7 +64,18 @@ def complete_instruments(ctx: click.Context, param: click.Argument, incomplete: 
 def complete_versions(ctx: click.Context, param: click.Argument, incomplete: str):
     return [iv.name for i in dummy_context.instruments for iv in i.versions if i.name == ctx.params['instrument'] and iv.name.startswith(incomplete)]
 
-@click.group()
+CONTEXT_SETTINGS: t.Mapping[str, t.Any] = dict()
+
+ENV_FILENAME = Path(".env.yaml")
+
+if ENV_FILENAME.is_file():
+    with open(ENV_FILENAME, "r") as stream:
+        try:
+            CONTEXT_SETTINGS['default_map'] = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 def cli(ctx: click.Context):
     """root doit-src description -- talk about what this thing does"""
@@ -77,10 +94,12 @@ def add(instrument: str, version: str, uri: str):
 @cli.command()
 @click.argument('instrument', required=False, shell_complete=complete_instruments)
 @click.argument('version', required=False, shell_complete=complete_versions)
-def download(instrument: str, version: str):
+@click.option('--qualtrics-api-token')
+def download(instrument: str, version: str, qualtrics_api_token: str):
     """Download instruments"""
     click.secho(instrument)
     click.secho(version)
+    click.secho(qualtrics_api_token)
 
 @cli.command()
 def sangen():
