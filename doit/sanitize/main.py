@@ -1,13 +1,12 @@
+from dotenv import load_dotenv
+load_dotenv('.env')
+
 import click
 
 from .config import load_defaults
 from .utils import complete_instruments, complete_versions
 from .context import load_study_context
-
-from .qualtrics import qualtrics
-
-from dotenv import load_dotenv
-load_dotenv(".env")
+from .qualtrics import api as qualtrics
 
 @click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 def cli():
@@ -20,9 +19,10 @@ def qualtrics_cli():
     pass
 
 @qualtrics_cli.command(name="add")
-def qualtrics_add():
+@click.argument('id')
+def qualtrics_add(id: str):
     """Add a Qualtrics survey"""
-    pass
+    qualtrics.download_survey(id, "build/student_behavior.json")
 
 @qualtrics_cli.command(name="list")
 def qualtrics_list():
