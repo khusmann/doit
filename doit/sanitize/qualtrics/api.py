@@ -1,6 +1,4 @@
 import os
-from pathlib import Path
-
 from . import impl
 
 #    r = re.compile('^SV_.*')
