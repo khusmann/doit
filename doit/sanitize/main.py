@@ -6,7 +6,7 @@ import click
 from .config import load_defaults
 from .utils import complete_instruments, complete_versions
 from .context import load_study_context
-from .qualtrics import api as qualtrics
+from . import io
 
 @click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 def cli():
@@ -22,13 +22,13 @@ def qualtrics_cli():
 @click.argument('id')
 def qualtrics_add(id: str):
     """Add a Qualtrics survey"""
-    qualtrics.download_survey(id, "build/student_behavior.json")
+    io.download_blob("qualtrics://{}".format(id))
 
 @qualtrics_cli.command(name="list")
 def qualtrics_list():
     """List Qualtrics surveys"""
     click.secho()
-    for survey in qualtrics.list_surveys():
+    for survey in io.list_available_schemas('qualtrics'):
         click.secho(" {} : {}".format(click.style(survey.id, fg='bright_cyan'), survey.name))
     click.secho()
 
