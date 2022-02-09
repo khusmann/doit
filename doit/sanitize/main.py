@@ -8,6 +8,8 @@ from .utils import complete_instruments, complete_versions
 from .context import load_study_context
 from . import io
 
+from .domain import helpers
+
 @click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 def cli():
     """root doit-src description -- talk about what this thing does"""
@@ -17,6 +19,13 @@ def cli():
 def qualtrics_cli():
     """Manipulate Qualtrics surveys"""
     pass
+
+@qualtrics_cli.command(name="schema")
+@click.argument('id')
+def qualtrics_schema(id: str):
+    """Add a Qualtrics survey"""
+
+    io.save_instrument_config(helpers.new_instrument_config("student_behavior", "y1w1", io.load_schema("qualtrics://{}".format(id))))
 
 @qualtrics_cli.command(name="add")
 @click.argument('id')

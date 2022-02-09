@@ -1,17 +1,14 @@
-from pyrsistent import pset, pvector
+from pyrsistent import pset
 
 from . import downloadblob
 from . import instrumentconfig
 from . import sanitizer
 from . import helpers
 
-
 def update_instrument_config(i: instrumentconfig.InstrumentConfig, s: downloadblob.Schema ) -> instrumentconfig.InstrumentConfig:
-    assert i.instrument_id == s.instrument_id
-    assert i.version_id == s.version_id
     schema_var_info = pset(map(helpers.to_variable_info, s.entries.values()))
     mutation = instrumentconfig.AddIgnoreVariableMutation(
-        variables = pvector(pset(i.ignore_variables + i.import_variables) - schema_var_info)
+        variables = pset(i.ignore_variables.keys()).update(i.import_variables.keys()) - schema_var_info
     )
     return i.mutate(mutation)
 

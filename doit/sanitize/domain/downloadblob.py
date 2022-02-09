@@ -1,9 +1,18 @@
 from pyrsistent import PClass, field, pmap_field, pvector_field
 
+class TypeInfo(PClass):
+    dtype = field(str)
+    needs_sanitization = True
+
+class CategoryTypeInfo(TypeInfo):
+    needs_sanitization = False
+    categories = pmap_field(str, str)
+
 class SchemaEntry(PClass):
-    variable_id = field(str)
-    type = field(str)
-    desc = field(str)
+    id = field(str)
+    rename_to = field(str)
+    type = field(TypeInfo)
+    description = field(str)
     # Include other things?
 
 class VariableData(PClass):
@@ -18,6 +27,5 @@ class Blob(PClass):
 
 class Schema(PClass):
     uri = field(str)
-    instrument_id = field(str)
-    version_id = field(str)
+    title = field(str)
     entries = pmap_field(str, SchemaEntry)

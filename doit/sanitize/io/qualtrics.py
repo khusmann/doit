@@ -8,10 +8,12 @@ import io
 
 from urllib.parse import urlparse
 
+from itertools import starmap
+
 from abc import ABC, abstractmethod
 from pyrsistent import PClass, field, pvector
 
-#from ..domain import downloadblob
+from ..domain import downloadblob
 
 class QualtricsApi(ABC):
     @abstractmethod
@@ -67,11 +69,44 @@ def toListSurveyResultItem(raw: t.Mapping[str, t.Any]):
     else:
         raise Exception("Unexpected result item: " + str(raw))
 
+def to_type_info(type: str, one_of: t.Sequence[t.Any] | None) -> downloadblob.TypeInfo:
+    if one_of is None:
+        return downloadblob.TypeInfo(
+            dtype=type
+        )
+    else:
+        return downloadblob.CategoryTypeInfo(
+            categories={
+                i['const']: i['label'] for i in one_of
+            }
+        )
+
+def to_schema_entry(id: str, raw: t.Mapping[str, t.Any]):
+    assert 'description' in raw
+    assert 'type' in raw
+    assert 'exportTag' in raw
+    return downloadblob.SchemaEntry(
+        id=id,
+        rename_to=raw['exportTag'],
+        type=to_type_info(raw['type'], raw.get('oneOf')),
+        description=raw['description'],
+    )
+
+
 class QualtricsSchemaRepo(PClass):
     impl = field(QualtricsApi)
     
-#    def load(self, uri: str) -> downloadblob.Schema:
-#        pass
+    def load(self, uri: str) -> downloadblob.Schema:
+        with open(self.impl.uri_to_schema_filename(uri), 'r') as f:
+            schema = json.load(f, parse_float=str, parse_int=str, parse_constant=str)
+            assert 'title' in schema
+            assert 'properties' in schema and 'values' in schema['properties'] and 'properties' in schema['properties']['values']
+            return downloadblob.Schema(
+                title=schema['title'],
+                uri=uri,
+                entries={ e.id: e for e in starmap(to_schema_entry, schema['properties']['values']['properties'].items()) }
+            )
+
     def download(self, uri: str):
         endpoint_prefix = "surveys/{}/response-schema".format(self.impl.uri_to_qualtrics_id(uri))
         response = self.impl.get(endpoint_prefix).json()
