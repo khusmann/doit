@@ -8,12 +8,12 @@ import io
 
 from urllib.parse import urlparse
 
-from itertools import starmap
+from typing import OrderedDict, Optional
+from pydantic import BaseModel
 
 from abc import ABC, abstractmethod
-from pyrsistent import PClass, field, pvector
 
-from ..domain import downloadblob
+from ..domain.schema import Schema, SchemaEntry, TypeInfo, CategoryTypeInfo
 
 class QualtricsApi(ABC):
     @abstractmethod
@@ -35,22 +35,21 @@ class QualtricsApi(ABC):
         return result.netloc
 
 class QualtricsApiImpl(QualtricsApi):
+    api_key: str
+    data_center: str
     API_URL = "https://{data_center}.qualtrics.com/API/v3/{endpoint}"
 
     def __init__(self, api_key: str, data_center: str):
-        class QualtricsApiInfo(PClass):
-            api_key = field(str)
-            data_center = field(str)
-
-        self.info = QualtricsApiInfo(api_key = api_key, data_center = data_center)
+        self.api_key = api_key
+        self.data_center = data_center
 
     def get_endpoint_url(self, endpoint: str):
-        return QualtricsApiImpl.API_URL.format(data_center=self.info.data_center, endpoint=endpoint)
+        return QualtricsApiImpl.API_URL.format(data_center=self.data_center, endpoint=endpoint)
 
     def get_headers(self):
         return {
             "content-type": "application/json",
-            "x-api-token": self.info.api_key,
+            "x-api-token": self.api_key,
         }
 
     def get(self, endpoint: str, stream: bool = False):
@@ -59,9 +58,9 @@ class QualtricsApiImpl(QualtricsApi):
     def post(self, endpoint: str, payload: t.Mapping[str, t.Any]):
         return requests.request("POST", self.get_endpoint_url(endpoint), data=json.dumps(payload), headers=self.get_headers())
 
-class ListSurveysResultItem(PClass):
-    id = field(str)
-    name = field(str)
+class ListSurveysResultItem(BaseModel):
+    id: str
+    name: str
 
 def toListSurveyResultItem(raw: t.Mapping[str, t.Any]):
     if 'id' in raw and 'name' in raw:
@@ -69,43 +68,62 @@ def toListSurveyResultItem(raw: t.Mapping[str, t.Any]):
     else:
         raise Exception("Unexpected result item: " + str(raw))
 
-def to_type_info(type: str, one_of: t.Sequence[t.Any] | None) -> downloadblob.TypeInfo:
-    if one_of is None:
-        return downloadblob.TypeInfo(
-            dtype=type
-        )
-    else:
-        return downloadblob.CategoryTypeInfo(
-            categories={
-                i['const']: i['label'] for i in one_of
-            }
-        )
+class QualtricsSchemaEntryOneOf(BaseModel):
+    label: str
+    const: str
 
-def to_schema_entry(id: str, raw: t.Mapping[str, t.Any]):
-    assert 'description' in raw
-    assert 'type' in raw
-    assert 'exportTag' in raw
-    return downloadblob.SchemaEntry(
-        id=id,
-        rename_to=raw['exportTag'],
-        type=to_type_info(raw['type'], raw.get('oneOf')),
-        description=raw['description'],
+class QualtricsSchemaEntry(BaseModel):
+    type: str
+    exportTag: str
+    description: str
+    oneOf: Optional[list[QualtricsSchemaEntryOneOf]]
+
+class QualtricsSchema(BaseModel):
+    title: str
+    uri: str
+    entries: OrderedDict[str, QualtricsSchemaEntry]
+
+def to_schema_type(se: QualtricsSchemaEntry):
+    match se:
+        case QualtricsSchemaEntry(oneOf=oneOf) if oneOf is not None:
+            return CategoryTypeInfo(
+                categories=OrderedDict({
+                    i.const: i.label for i in oneOf
+                })
+            )
+        case _:
+            return TypeInfo()
+
+def to_schema(schema: QualtricsSchema):
+    return Schema(
+        title=schema.title,
+        uri=schema.uri,
+        entries=OrderedDict({
+            variable_id: SchemaEntry(
+                variable_id=variable_id,
+                rename_to=p.exportTag,
+                type=to_schema_type(p),
+                description=p.description,
+            ) for (variable_id, p) in sorted(schema.entries.items(), key=lambda i: i[0])
+        })
     )
 
+class QualtricsSchemaRepo:
+    impl: QualtricsApi
 
-class QualtricsSchemaRepo(PClass):
-    impl = field(QualtricsApi)
+    def __init__(self, impl: QualtricsApi):
+        self.impl = impl
     
-    def load(self, uri: str) -> downloadblob.Schema:
+    def load(self, uri: str) -> Schema:
         with open(self.impl.uri_to_schema_filename(uri), 'r') as f:
             schema = json.load(f, parse_float=str, parse_int=str, parse_constant=str)
             assert 'title' in schema
             assert 'properties' in schema and 'values' in schema['properties'] and 'properties' in schema['properties']['values']
-            return downloadblob.Schema(
+            return to_schema(QualtricsSchema(
                 title=schema['title'],
                 uri=uri,
-                entries={ e.id: e for e in starmap(to_schema_entry, schema['properties']['values']['properties'].items()) }
-            )
+                entries=schema['properties']['values']['properties']
+            ))
 
     def download(self, uri: str):
         endpoint_prefix = "surveys/{}/response-schema".format(self.impl.uri_to_qualtrics_id(uri))
@@ -118,15 +136,16 @@ class QualtricsSchemaRepo(PClass):
     def list_available(self):
         response = self.impl.get("surveys").json()
         if 'result' in response and 'elements' in response['result']:
-            return pvector([toListSurveyResultItem(item) for item in response['result']['elements']])
+            return [toListSurveyResultItem(item) for item in response['result']['elements']]
         else:
             raise Exception("Result doesn't contain elements")
 
 
 
-class QualtricsBlobRepo(PClass):
-    impl = field(QualtricsApi)
-
+class QualtricsBlobRepo:
+    def __init__(self, impl: QualtricsApi):
+        self.impl = impl
+ 
 #    def load(self, uri: str) -> downloadblob.Blob:
 #        pass
 

@@ -1,23 +1,24 @@
-from pyrsistent import pset
+from typing import OrderedDict
 
-from . import downloadblob
-from . import instrumentconfig
-from . import sanitizer
-from . import helpers
+from .schema import Schema
+from .downloadblob import Blob
+from .instrumentconfig import InstrumentConfig, AddIgnoreVariableMutation
+from .sanitizer import Sanitizer, AddValuesMutation
 
-def update_instrument_config(i: instrumentconfig.InstrumentConfig, s: downloadblob.Schema ) -> instrumentconfig.InstrumentConfig:
-    schema_var_info = pset(map(helpers.to_variable_info, s.entries.values()))
-    mutation = instrumentconfig.AddIgnoreVariableMutation(
-        variables = pset(i.ignore_variables.keys()).update(i.import_variables.keys()) - schema_var_info
+def update_instrument_config(i: InstrumentConfig, s: Schema ) -> InstrumentConfig:
+    existing_keys = list(i.ignore_variables.keys()) + list(i.import_variables.keys())
+    new_keys = set(s.entries.keys()) - set(existing_keys)
+    mutation = AddIgnoreVariableMutation(
+        variables = OrderedDict({key: s.entries[key] for key in new_keys})
     )
     return i.mutate(mutation)
 
-def update_sanitizer(s: sanitizer.Sanitizer, d: downloadblob.Blob) -> sanitizer.Sanitizer:
+def update_sanitizer(s: Sanitizer, d: Blob) -> Sanitizer:
     assert s.instrument_id == d.instrument_id
     assert s.version_id == d.version_id
-    all_unique_values = pset(d.variables[s.variable_id].data)
-    mutation = sanitizer.AddValuesMutation(
-        values = pset(all_unique_values - s.data_map().keys())
+    all_unique_values = d.variables[s.variable_id].data
+    mutation = AddValuesMutation(
+        values = set(all_unique_values) - set(s.data_map.keys())
     )
     return s.mutate(mutation)
 

@@ -1,49 +1,42 @@
 from __future__ import annotations
 
-from pyrsistent import PClass, field, pvector_field, pmap_field
+from typing import OrderedDict
+from pydantic import BaseModel
 
-from .downloadblob import TypeInfo
-
-# VariableInfo
-
-class VariableInfo(PClass):
-    variable_id = field(str)
-    rename_to = field(str)
-    type = field(TypeInfo)
-    description = field(str)
+from .schema import SchemaEntry
 
 # Mutations
 
-class InstrumentConfigMutation(PClass):
+class InstrumentConfigMutation(BaseModel):
     pass
 
 class AddIgnoreVariableMutation(InstrumentConfigMutation):
-    variables = pvector_field(VariableInfo)
+    variables: OrderedDict[str, SchemaEntry]
 
 class RenameDescMutation(InstrumentConfigMutation):
     pass
 
 # Main class
 
-class InstrumentConfig(PClass):
-    instrument_id = field(str)
-    version_id = field(str)
-    title = field(str)
-    uri = field(str)
-    import_variables = pmap_field(str, VariableInfo)
-    ignore_variables = pmap_field(str, VariableInfo)
-    history = pvector_field(InstrumentConfigMutation)
+class InstrumentConfig(BaseModel):
+    instrument_id: str
+    version_id: str
+    title: str
+    uri: str
+    import_variables: OrderedDict[str, SchemaEntry] = OrderedDict({})
+    ignore_variables: OrderedDict[str, SchemaEntry] = OrderedDict({})
+    history: list[InstrumentConfigMutation] = []
 
-    def _mutate(self, cmd: InstrumentConfigMutation) -> InstrumentConfig:
+    def _mutate(self, cmd: InstrumentConfigMutation):
         match cmd:
             case AddIgnoreVariableMutation(variables=variables):
-                return self.set(
-                    ignore_variables=self.ignore_variables.update({ v.variable_id: v for v in variables }) # type: ignore
-                )
+                self.ignore_variables.update(variables)
             case _: # Can remove in next version of pylance
                 return self
 
     def mutate(self, cmd: InstrumentConfigMutation) -> InstrumentConfig:
-        return self._mutate(cmd) \
-                   .set(history=self.history.append(cmd))
-
+        result = self.copy(deep=True)
+        cmd = cmd.copy(deep=True)
+        result._mutate(cmd)
+        result.history.append(cmd)
+        return result

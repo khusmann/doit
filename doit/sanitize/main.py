@@ -24,7 +24,6 @@ def qualtrics_cli():
 @click.argument('id')
 def qualtrics_schema(id: str):
     """Add a Qualtrics survey"""
-
     io.save_instrument_config(helpers.new_instrument_config("student_behavior", "y1w1", io.load_schema("qualtrics://{}".format(id))))
 
 @qualtrics_cli.command(name="add")

@@ -1,41 +1,34 @@
 from __future__ import annotations
-from collections.abc import Mapping
-from pyrsistent import PClass, field, pvector_field, pvector
+from typing import OrderedDict
+from pydantic import BaseModel
 
 # Mutations
 
-class AddValuesMutation(PClass):
-    values = pvector_field(str)
+class SanitizerMutation(BaseModel):
+    pass
 
-SanitizerMutation = AddValuesMutation
-
-# Matching field
-class MatcherField(PClass):
-    key = field(str)
-    value = field(str | None)
+class AddValuesMutation(SanitizerMutation):
+    values: set[str]
 
 # Sanitizer class
 
-class Sanitizer(PClass):
-    instrument_id = field(str)
-    version_id = field(str)
-    variable_id = field(str)
-    data = pvector_field(MatcherField) # Restriction: No duplicate keys!
-    history = pvector_field(SanitizerMutation)
+class Sanitizer(BaseModel):
+    instrument_id: str
+    version_id: str
+    variable_id: str
+    data_map: OrderedDict[str, str | None]
+    history: list[SanitizerMutation]
 
-    def data_map(self) -> Mapping[str, str]:
-        return {d.key: d.value for d in self.data}
-
-    def _mutate(self, cmd: SanitizerMutation) -> Sanitizer:
+    def _mutate(self, cmd: SanitizerMutation):
         match cmd:
             case AddValuesMutation(values=values):
-                return self.set(
-                    data=self.data + pvector([MatcherField(key=i) for i in values]),
-                    modified=True,
-                )
+                self.data_map.update({ v: None for v in values })
             case _: # Can remove in next version of pylance
-                return self
+                pass
 
     def mutate(self, cmd: SanitizerMutation) -> Sanitizer:
-        return self._mutate(cmd) \
-                   .set(history=self.history.append(cmd))
+        result = self.copy(deep=True)
+        cmd = cmd.copy(deep=True)
+        result._mutate(cmd)
+        result.history.append(cmd)
+        return result
