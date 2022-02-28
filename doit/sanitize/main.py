@@ -20,6 +20,16 @@ def qualtrics_cli():
     """Manipulate Qualtrics surveys"""
     pass
 
+@qualtrics_cli.command()
+def blah():
+    import yaml
+    from .domain.instrumentconfig2 import InstrumentConfig
+    with open("./instruments/student_behavior/student_behavior-y2w2.yaml", 'r') as f:
+        zz = yaml.safe_load(f)
+        #print(zz)
+        bb = InstrumentConfig(**zz)
+        print(bb)
+
 @qualtrics_cli.command(name="schema")
 @click.argument('id')
 def qualtrics_schema(id: str):
