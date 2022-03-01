@@ -9,7 +9,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'doit-sanitize = doit.sanitize.main:cli',
+            'doit-sanitize = doit.sanitize2.main:cli',
         ],
     },
 )
