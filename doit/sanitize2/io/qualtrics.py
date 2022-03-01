@@ -215,6 +215,26 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
                 ) for (i, opt) in enumerate(items.oneOf)
             ]
 
+def extract_table(qs: QualtricsSchema, data: QualtricsData) -> UnsafeTable:
+    valid_columns = {
+        key: value for (key, value) in qs.properties.values.properties.items()
+        if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
+    }
+    data_extracted = [
+        extract_responseId(data.responses),
+        *sum([
+            extract_column(data.responses, row_key, schema) for (row_key, schema) in valid_columns.items()
+        ], [])
+    ]
+
+    return UnsafeTable(
+        title = qs.title,
+        columns = {
+            i.column_id: i for i in data_extracted
+        }
+    )
+ 
+
 class QualtricsSourceImpl(InstrumentSourceImpl):
     def __init__(self, impl: QualtricsApi):
         self.impl = impl
@@ -226,27 +246,8 @@ class QualtricsSourceImpl(InstrumentSourceImpl):
 
     def load_data(self, workdir: Path, uri: str) -> UnsafeTable:
         qs = QualtricsSchema.parse_file(self.impl.uri_to_schema_filename(workdir, uri))
-
-        valid_columns = {
-            key: value for (key, value) in qs.properties.values.properties.items()
-            if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
-        }
-
         data = QualtricsData.parse_file(self.impl.uri_to_data_filename(workdir, uri))
-
-        data_extracted = [
-            extract_responseId(data.responses),
-            *sum([
-                extract_column(data.responses, row_key, schema) for (row_key, schema) in valid_columns.items()
-            ], [])
-        ]
-
-        return UnsafeTable(
-            title = qs.title,
-            columns = {
-                i.column_id: i for i in data_extracted
-            }
-        )
+        return extract_table(qs, data)
 
     def fetch_available_desc(self) -> t.List[RemoteInstrumentDesc]:
         response = self.impl.get("surveys").json()
