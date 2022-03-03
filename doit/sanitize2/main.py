@@ -3,7 +3,8 @@ load_dotenv('.env')
 
 import click
 
-from . import io
+from .repo.unsafetable import UnsafeTableRepo
+from .io.remote import fetch_table_listing
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -21,39 +22,41 @@ def source_cli():
 @click.argument('uri')
 def source_add(instrument_id: str, uri: str):
     """Add an instrument source"""
-    io.InstrumentSource(instrument_id=instrument_id, uri=uri).save()
-
+    repo = UnsafeTableRepo()
+    repo.add(instrument_id, uri)
 
 @source_cli.command(name="rm")
 @click.argument('instrument_id')
 def source_rm(instrument_id: str):
     """Remove an instrument source"""
-    io.InstrumentSource.load(instrument_id).rm()
+    repo = UnsafeTableRepo()
+    repo.rm(instrument_id)
 
 @source_cli.command(name="load")
 @click.argument('instrument_id')
 def source_load(instrument_id: str):
     """Remove an instrument source"""
-    print(io.InstrumentSource.load(instrument_id).load_data())
-
-
+    repo = UnsafeTableRepo()
+    print(repo.query(instrument_id))
+    
 @source_cli.command(name="fetch")
 @click.argument('instrument_id', required=False)
 def source_fetch(instrument_id: str | None):
-    instrument_list = (io.InstrumentSource.load_all().values() if instrument_id is None
-                       else [io.InstrumentSource.load(instrument_id)])
-    for i in instrument_list:
-        i.fetch()
+    repo = UnsafeTableRepo()
+    id_list = repo.tables() if instrument_id is None else [instrument_id]
+    for i in id_list:
+        repo.fetch(i)
 
 @source_cli.command(name="list")
 @click.argument('remote', required=False)
 def source_list(remote: str | None):
     """List available instruments"""
+    repo = UnsafeTableRepo()
     click.secho()
     if (remote is None):
-        for (instrument_id, source) in io.InstrumentSource.load_all().items():
-            click.secho(" {} : {}".format(click.style(instrument_id, fg='bright_cyan'), source.uri))
+        for info in map(lambda i: repo.query_source_info(i), repo.tables()):
+            click.secho(" {} : {}".format(click.style(info.instrument_id, fg='bright_cyan'), info.uri))
     else:
-        for desc in io.fetch_remote_instrument_desc(remote):
+        for desc in fetch_table_listing(remote):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))
     click.secho()
