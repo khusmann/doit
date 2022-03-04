@@ -101,8 +101,8 @@ ColumnData = t.Annotated[
 
 class UnsafeTable(BaseModel):
     title: str
-    columns: t.Mapping[str, ColumnData]
+    columns: t.Mapping[ColumnId, ColumnData]
 
 class SafeTable(BaseModel):
     title: str
-    columns: t.Mapping[str, SafeColumnData]
+    columns: t.Mapping[ColumnId, SafeColumnData]
