@@ -3,7 +3,7 @@ import typing as t
 from .api import UnsafeTableIoApi
 from .qualtrics import QualtricsUnsafeTableIo
 
-from ...domain.value import UnsafeTable 
+from ...domain.value import UnsafeTable
 
 from pathlib import Path
 
