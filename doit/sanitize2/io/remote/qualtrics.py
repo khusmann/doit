@@ -13,9 +13,9 @@ import io
 
 from pathlib import Path
 
-from pydantic import BaseModel, BaseSettings, Field
+from pydantic import BaseModel, BaseSettings, Field, parse_obj_as
 
-from ...domain.value import RemoteTableListing, new_union_helper
+from ...domain.value import RemoteTableListing
 
 ### List Surveys API
 class QualtricsSurveyList(BaseModel):
@@ -112,7 +112,7 @@ class QualtricsRemote(RemoteIoApi):
             response = self.get("{}/{}".format(endpoint_prefix, progressId)).json()
             assert 'result' in response
 
-            progressStatus = new_union_helper(QualtricsExportStatus, **response['result'])
+            progressStatus = parse_obj_as(QualtricsExportStatus, response['result'])
             print(progressStatus.status)
 
         if progressStatus.status == "failed":

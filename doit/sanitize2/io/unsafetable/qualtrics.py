@@ -6,7 +6,15 @@ from pydantic import BaseModel, Field
 from pathlib import Path
 
 from .api import UnsafeTableIoApi
-from ...domain.value import ColumnData, new_union_helper, UnsafeTable
+from ...domain.value import (
+    ColumnData,
+    UnsafeTable,
+    SafeTextColumnData,
+    SafeOrdinalColumnData,
+    UnsafeNumericTextColumnData,
+    SafeBoolColumnData,
+    UnsafeTextColumnData,
+)
 
 class QualtricsUnsafeTableIo(UnsafeTableIoApi):
     def read_unsafe_table(self, data_path: Path, schema_path: Path) -> UnsafeTable:
@@ -71,8 +79,7 @@ class QualtricsData(BaseModel):
 
 ## Functions
 def extract_responseId(rows: t.List[QualtricsDataRow]) -> ColumnData:
-    return new_union_helper(
-        ColumnData,
+    return SafeTextColumnData(
         column_id = "responseId",
         prompt = "Qualtrics Response ID",
         type = "text",
@@ -90,10 +97,9 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
             assert str_data == raw_data
             mapping = { i.const: i.label for i in itemList }
 
-            return [new_union_helper(
-                ColumnData,
-                prompt = schema.description,
+            return [SafeOrdinalColumnData(
                 column_id = schema.exportTag,
+                prompt = schema.description,
                 type = "ordinal",
                 status = "safe",
                 codes = {},
@@ -101,20 +107,18 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
             )]
         case QualtricsNumericQuestion():
             assert str_data == raw_data
-            return [new_union_helper(
-                ColumnData,
-                prompt = schema.description,
+            return [UnsafeNumericTextColumnData(
                 column_id = schema.exportTag,
+                prompt = schema.description,
                 type = "numeric_text",
                 status = "unsafe",
                 values = str_data,
             )]
         case QualtricsStringQuestion():
             assert str_data == raw_data
-            return [new_union_helper(
-                ColumnData,
-                prompt = schema.description,
+            return [UnsafeTextColumnData(
                 column_id = schema.exportTag,
+                prompt = schema.description,
                 type = "text",
                 status = "unsafe",
                 values = str_data,
@@ -124,8 +128,7 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
             assert items.oneOf is not None
             mapping = { i.const: i.label for i in items.oneOf }
             return [
-                new_union_helper(
-                    ColumnData,
+                SafeBoolColumnData(
                     column_id = "{}_{}".format(schema.exportTag, i),
                     prompt = "{} {}".format(schema.description, opt.label),
                     type = "bool",

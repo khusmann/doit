@@ -5,6 +5,8 @@ from pathlib import Path
 
 InstrumentId = t.NewType('InstrumentId', str)
 
+ColumnId = t.NewType('ColumnId', str)
+
 FormatType = t.Literal['qualtrics']
 
 RemoteService = t.Literal['qualtrics']
@@ -31,7 +33,7 @@ class UnsafeTableSourceInfo(BaseModel):
         return "{}://{}".format(self.remote_info.service, self.remote_info.id)
 
 class ColumnDataBase(BaseModel):
-    column_id: str
+    column_id: ColumnId
     prompt: str
 
 class SafeBoolColumnData(ColumnDataBase):
@@ -104,9 +106,3 @@ class UnsafeTable(BaseModel):
 class SafeTable(BaseModel):
     title: str
     columns: t.Mapping[str, SafeColumnData]
-
-T = t.TypeVar('T')
-def new_union_helper(cls: t.Type[T], **kwargs: t.Any) -> T:
-    class Helper(BaseModel):
-        __root__: cls
-    return Helper.parse_obj(kwargs).__root__
