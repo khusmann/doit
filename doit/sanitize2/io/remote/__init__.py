@@ -12,7 +12,7 @@ _impl_map: t.Mapping[RemoteService, RemoteIoApi] = {
 }
 
 def fetch_remote_table(remote_info: RemoteInfo, data_path: Path, schema_path: Path) -> None:
-    _impl_map[remote_info.service].fetch_remote_table(remote_info.id, data_path, schema_path)
+    return _impl_map[remote_info.service].fetch_remote_table(remote_info.id, data_path, schema_path)
 
 def fetch_table_listing(remote_service: RemoteService) -> t.List[RemoteTableListing]:
     return _impl_map[remote_service].fetch_table_listing()

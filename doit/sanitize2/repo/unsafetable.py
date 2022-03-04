@@ -12,11 +12,14 @@ from ..io.unsafetable import read_unsafe_table
 class UnsafeTableRepoSettings(BaseSettings):
     repo_dir = Path("./build/unsafe/sources")
 
-    def workdir(self, instrument_id: str):
+    def workdir(self, instrument_id: str) -> Path:
         return self.repo_dir / instrument_id
 
-    def info_file(self, instrument_id: str):
+    def info_file(self, instrument_id: str) -> Path:
         return (self.workdir(instrument_id) / instrument_id).with_suffix(".json")
+
+    class Config(BaseSettings.Config):
+        env_prefix = "unsafetable_"  
 
 class UnsafeTableRepo(BaseModel):
     settings = UnsafeTableRepoSettings()
@@ -28,11 +31,11 @@ class UnsafeTableRepo(BaseModel):
     def query_source_info(self, instrument_id: InstrumentId) -> UnsafeTableSourceInfo:
         return UnsafeTableSourceInfo.parse_file(self.settings.info_file(instrument_id))
 
-    def fetch(self, instrument_id: InstrumentId):
+    def fetch(self, instrument_id: InstrumentId) -> None:
         info = self.query_source_info(instrument_id)
-        fetch_remote_table(info.remote_info, info.data_path, info.schema_path)
+        return fetch_remote_table(info.remote_info, info.data_path, info.schema_path)
 
-    def add(self, instrument_id: InstrumentId, uri: str):
+    def add(self, instrument_id: InstrumentId, uri: str) -> None:
         self.settings.workdir(instrument_id).mkdir(exist_ok=True, parents=True)
         match urlparse(uri):
             case ParseResult(scheme="qualtrics", netloc=remote_id):
@@ -52,7 +55,7 @@ class UnsafeTableRepo(BaseModel):
         with open(self.settings.info_file(instrument_id), 'w') as f:
             f.write(new_source.json())
 
-    def rm(self, instrument_id: InstrumentId):
+    def rm(self, instrument_id: InstrumentId) -> None:
         oldfile = self.settings.workdir(instrument_id)
         newfile = oldfile.with_name(".{}.{}".format(oldfile.name, int(time())))
         oldfile.rename(newfile)

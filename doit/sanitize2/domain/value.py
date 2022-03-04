@@ -29,7 +29,7 @@ class UnsafeTableSourceInfo(BaseModel):
     schema_path: Path
 
     @property
-    def uri(self):
+    def uri(self) -> str:
         return "{}://{}".format(self.remote_info.service, self.remote_info.id)
 
 class ColumnDataBase(BaseModel):

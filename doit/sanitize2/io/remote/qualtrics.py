@@ -62,19 +62,19 @@ class QualtricsRemoteSettings(BaseSettings):
 class QualtricsRemote(RemoteIoApi):
     settings = QualtricsRemoteSettings()
 
-    def get_endpoint_url(self, endpoint: str):
+    def get_endpoint_url(self, endpoint: str) -> str:
         return self.settings.api_url.format(data_center=self.settings.data_center, endpoint=endpoint)
 
-    def get_headers(self):
+    def get_headers(self) -> t.Mapping[str, str]:
         return {
             "content-type": "application/json",
             "x-api-token": self.settings.api_key,
         }
 
-    def get(self, endpoint: str, stream: bool = False):
+    def get(self, endpoint: str, stream: bool = False) -> requests.Response:
         return requests.request("GET", self.get_endpoint_url(endpoint), headers=self.get_headers(), stream=stream)
 
-    def post(self, endpoint: str, payload: t.Mapping[str, t.Any]):
+    def post(self, endpoint: str, payload: t.Mapping[str, t.Any]) -> requests.Response:
         return requests.request("POST", self.get_endpoint_url(endpoint), data=json.dumps(payload), headers=self.get_headers())
 
     def fetch_table_listing(self) -> t.List[RemoteTableListing]:
@@ -93,7 +93,7 @@ class QualtricsRemote(RemoteIoApi):
         self.fetch_remote_table_data(remote_id, data_path)
         self.fetch_remote_table_schema(remote_id, schema_path)
 
-    def fetch_remote_table_data(self, qualtrics_id: str, data_path: Path):
+    def fetch_remote_table_data(self, qualtrics_id: str, data_path: Path) -> None:
         endpoint_prefix = "surveys/{}/export-responses".format(qualtrics_id)
         response = self.post(endpoint_prefix, dict(format='json')).json()
         
@@ -125,7 +125,7 @@ class QualtricsRemote(RemoteIoApi):
             datafile = Path(zip.extract(zip.filelist[0], Path(data_path).parent))
             datafile.rename(data_path)
 
-    def fetch_remote_table_schema(self, qualtrics_id: str, schema_path: Path):
+    def fetch_remote_table_schema(self, qualtrics_id: str, schema_path: Path) -> None:
         endpoint_prefix = "surveys/{}/response-schema".format(qualtrics_id)
         response = self.get(endpoint_prefix).json()
         assert 'result' in response
