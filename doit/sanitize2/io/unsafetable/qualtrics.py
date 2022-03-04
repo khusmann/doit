@@ -153,16 +153,16 @@ def extract_table(qs: QualtricsSchema, data: QualtricsData) -> UnsafeTable:
         key: value for (key, value) in qs.properties.values.properties.items()
         if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
     }
-    data_extracted = [
-        extract_responseId(data.responses),
-        *sum([
+    data_extracted = sorted(
+        sum([
             extract_column(data.responses, row_key, schema) for (row_key, schema) in valid_columns.items()
-        ], [])
-    ]
+        ], []),
+        key=lambda i: i.column_id
+    )
 
     return UnsafeTable(
         title = qs.title,
         columns = {
-            i.column_id: i for i in data_extracted
+            i.column_id: i for i in [extract_responseId(data.responses), *data_extracted]
         }
     )

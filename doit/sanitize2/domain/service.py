@@ -29,7 +29,7 @@ def sanitize_column(column: UnsafeColumnData) -> SafeColumnData:
             return SafeTextColumnData(
                 column_id=column.column_id,
                 prompt=column.prompt,
-                type="integer",
+                type="text",
                 status="safe",
                 values=[None for _ in column.values],
             )
@@ -40,6 +40,6 @@ def sanitize_table(table: UnsafeTable) -> SafeTable:
         title=table.title,
         columns={
             column_id: data if data.status == "safe" else sanitize_column(data)
-                for (column_id, data) in UnsafeTable.columns.items()
+                for (column_id, data) in table.columns.items()
         }
     )
