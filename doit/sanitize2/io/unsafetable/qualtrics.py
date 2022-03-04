@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from pathlib import Path
 
 from .api import UnsafeTableIoApi
-from ...domain.value import UnsafeTable, UnsafeDataColumn
+from ...domain.value import ColumnData, new_column_helper, UnsafeTable
 
 class QualtricsUnsafeTableIo(UnsafeTableIoApi):
     def read_unsafe_table(self, data_path: Path, schema_path: Path) -> UnsafeTable:
@@ -70,15 +70,16 @@ class QualtricsData(BaseModel):
 
 
 ## Functions
-def extract_responseId(rows: t.List[QualtricsDataRow]) -> UnsafeDataColumn:
-    return UnsafeDataColumn(
+def extract_responseId(rows: t.List[QualtricsDataRow]) -> ColumnData:
+    return new_column_helper(
         column_id = "responseId",
         prompt = "Qualtrics Response ID",
-        type = "string",
-        data = [row.responseId for row in rows]
+        type = "text",
+        status = "safe",
+        values = [row.responseId for row in rows]
     )
 
-def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: QualtricsQuestionSchema) -> t.List[UnsafeDataColumn]:
+def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: QualtricsQuestionSchema) -> t.List[ColumnData]:
     raw_data = [row.values.get(row_key) for row in rows]
     list_data = [i for i in raw_data if i is None or isinstance(i, t.List)]
     str_data = [i for i in raw_data if i is None or isinstance(i, str)]
@@ -88,38 +89,43 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
             assert str_data == raw_data
             mapping = { i.const: i.label for i in itemList }
 
-            return [UnsafeDataColumn(
+            return [new_column_helper(
                 prompt = schema.description,
                 column_id = schema.exportTag,
-                type = "category",
-                data = [None if i is None else mapping[i] for i in str_data],
+                type = "ordinal",
+                status = "safe",
+                codes = {},
+                values = [None if i is None else mapping[i] for i in str_data],
             )]
         case QualtricsNumericQuestion():
             assert str_data == raw_data
-            return [UnsafeDataColumn(
+            return [new_column_helper(
                 prompt = schema.description,
                 column_id = schema.exportTag,
-                type = "numeric",
-                data = str_data,
+                type = "numeric_text",
+                status = "unsafe",
+                values = str_data,
             )]
         case QualtricsStringQuestion():
             assert str_data == raw_data
-            return [UnsafeDataColumn(
+            return [new_column_helper(
                 prompt = schema.description,
                 column_id = schema.exportTag,
-                type = "string",
-                data = str_data,
+                type = "text",
+                status = "unsafe",
+                values = str_data,
             )]
         case QualtricsArrayQuestion(items=items):
             assert list_data == raw_data
             assert items.oneOf is not None
             mapping = { i.const: i.label for i in items.oneOf }
             return [
-                UnsafeDataColumn(
+                new_column_helper(
                     column_id = "{}_{}".format(schema.exportTag, i),
                     prompt = "{} {}".format(schema.description, opt.label),
                     type = "bool",
-                    data = [None if i is None else opt.const in i for i in list_data],
+                    status = "safe",
+                    values = [None if i is None else opt.const in i for i in list_data],
                 ) for (i, opt) in enumerate(items.oneOf)
             ]
 
