@@ -3,16 +3,16 @@ import typing as t
 from .api import RemoteIoApi
 from .qualtrics import QualtricsRemote
 
-from ...domain.value import RemoteTableInfo
+from ...domain.value import RemoteTableListing, RemoteInfo, RemoteService
 
 from pathlib import Path
 
-_impl_map: t.Mapping[str, RemoteIoApi] = {
-    "qualtrics": QualtricsRemote()
+_impl_map: t.Mapping[RemoteService, RemoteIoApi] = {
+    "qualtrics": QualtricsRemote(),
 }
 
-def fetch_remote_table(service: str, remote_id: str, data_path: Path, schema_path: Path) -> None:
-    _impl_map[service].fetch_remote_table(remote_id, data_path, schema_path)
+def fetch_remote_table(remote_info: RemoteInfo, data_path: Path, schema_path: Path) -> None:
+    _impl_map[remote_info.service].fetch_remote_table(remote_info.id, data_path, schema_path)
 
-def fetch_table_listing(service: str) -> t.List[RemoteTableInfo]:
-    return _impl_map[service].fetch_table_listing()
+def fetch_table_listing(remote_service: RemoteService) -> t.List[RemoteTableListing]:
+    return _impl_map[remote_service].fetch_table_listing()

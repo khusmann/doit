@@ -3,22 +3,32 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from pathlib import Path
 
-class RemoteTableInfo(BaseModel):
+InstrumentId = t.NewType('InstrumentId', str)
+
+FormatType = t.Literal['qualtrics']
+
+RemoteService = t.Literal['qualtrics']
+
+class RemoteInfo(BaseModel):
+    service: RemoteService
+    id: str
+
+class RemoteTableListing(BaseModel):
     uri: str
     title: str
 
 class UnsafeTableSourceInfo(BaseModel):
-    instrument_id: str
+    instrument_id: InstrumentId
     last_update_check: t.Optional[datetime]
     last_updated: t.Optional[datetime]
-    remote_id: t.Tuple[str, str]
-    format: str
+    remote_info: RemoteInfo
+    format: FormatType
     data_path: Path
     schema_path: Path
 
     @property
     def uri(self):
-        return "{}://{}".format(self.remote_id[0], self.remote_id[1])
+        return "{}://{}".format(self.remote_info.service, self.remote_info.id)
 
 class ColumnDataBase(BaseModel):
     column_id: str
@@ -87,12 +97,6 @@ ColumnData = t.Annotated[
     Field(discriminator='status')
 ]
 
-T = t.TypeVar('T')
-def new_union_helper(cls: t.Type[T], **kwargs: t.Any) -> T:
-    class Helper(BaseModel):
-        __root__: cls
-    return Helper.parse_obj(kwargs).__root__
-
 class UnsafeTable(BaseModel):
     title: str
     columns: t.Mapping[str, ColumnData]
@@ -100,3 +104,9 @@ class UnsafeTable(BaseModel):
 class SafeTable(BaseModel):
     title: str
     columns: t.Mapping[str, SafeColumnData]
+
+T = t.TypeVar('T')
+def new_union_helper(cls: t.Type[T], **kwargs: t.Any) -> T:
+    class Helper(BaseModel):
+        __root__: cls
+    return Helper.parse_obj(kwargs).__root__

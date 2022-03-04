@@ -15,7 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, BaseSettings, Field
 
-from ...domain.value import RemoteTableInfo, new_union_helper
+from ...domain.value import RemoteTableListing, new_union_helper
 
 ### List Surveys API
 class QualtricsSurveyList(BaseModel):
@@ -77,12 +77,12 @@ class QualtricsRemote(RemoteIoApi):
     def post(self, endpoint: str, payload: t.Mapping[str, t.Any]):
         return requests.request("POST", self.get_endpoint_url(endpoint), data=json.dumps(payload), headers=self.get_headers())
 
-    def fetch_table_listing(self) -> t.List[RemoteTableInfo]:
+    def fetch_table_listing(self) -> t.List[RemoteTableListing]:
         response = self.get("surveys").json()
         assert 'result' in response
         survey_list = QualtricsSurveyList(**response['result'])
         return [
-            RemoteTableInfo(
+            RemoteTableListing(
                 uri = "qualtrics://{}".format(i.id),
                 title = i.name
             ) for i in survey_list.elements

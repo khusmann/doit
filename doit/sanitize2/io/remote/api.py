@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 
-from ...domain.value import RemoteTableInfo
+from ...domain.value import RemoteTableListing
 
 from pathlib import Path
 
@@ -13,5 +13,5 @@ class RemoteIoApi(BaseModel, ABC):
         pass
 
     @abstractmethod
-    def fetch_table_listing(self) -> t.List[RemoteTableInfo]:
+    def fetch_table_listing(self) -> t.List[RemoteTableListing]:
         pass

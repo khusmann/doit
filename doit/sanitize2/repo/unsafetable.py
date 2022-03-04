@@ -1,11 +1,11 @@
+import typing as t
 from pydantic import BaseModel, BaseSettings
 
 from urllib.parse import urlparse, ParseResult
 from pathlib import Path
 from time import time
 
-from ..domain.value import UnsafeTable
-from ..domain.value import UnsafeTableSourceInfo
+from ..domain.value import UnsafeTable, UnsafeTableSourceInfo, InstrumentId, RemoteInfo
 from ..io.remote import fetch_remote_table
 from ..io.unsafetable import read_unsafe_table
 
@@ -21,24 +21,27 @@ class UnsafeTableRepoSettings(BaseSettings):
 class UnsafeTableRepo(BaseModel):
     settings = UnsafeTableRepoSettings()
 
-    def query(self, instrument_id: str) -> UnsafeTable:
+    def query(self, instrument_id: InstrumentId) -> UnsafeTable:
         info = self.query_source_info(instrument_id)
         return read_unsafe_table(info.format, info.data_path, info.schema_path)
 
-    def query_source_info(self, instrument_id: str) -> UnsafeTableSourceInfo:
+    def query_source_info(self, instrument_id: InstrumentId) -> UnsafeTableSourceInfo:
         return UnsafeTableSourceInfo.parse_file(self.settings.info_file(instrument_id))
 
-    def fetch(self, instrument_id: str):
+    def fetch(self, instrument_id: InstrumentId):
         info = self.query_source_info(instrument_id)
-        fetch_remote_table(info.remote_id[0], info.remote_id[1], info.data_path, info.schema_path)
+        fetch_remote_table(info.remote_info, info.data_path, info.schema_path)
 
-    def add(self, instrument_id: str, uri: str):
-        self.settings.workdir(instrument_id).mkdir(exist_ok=True)
+    def add(self, instrument_id: InstrumentId, uri: str):
+        self.settings.workdir(instrument_id).mkdir(exist_ok=True, parents=True)
         match urlparse(uri):
             case ParseResult(scheme="qualtrics", netloc=remote_id):
                 new_source =  UnsafeTableSourceInfo(
                     instrument_id=instrument_id,
-                    remote_id=("qualtrics", remote_id),
+                    remote_info=RemoteInfo(
+                        service="qualtrics",
+                        id=remote_id,
+                    ),
                     format="qualtrics",
                     data_path=self.settings.workdir(instrument_id) / "qualtrics-data.json",
                     schema_path=self.settings.workdir(instrument_id) / "qualtrics-schema.json",
@@ -49,10 +52,10 @@ class UnsafeTableRepo(BaseModel):
         with open(self.settings.info_file(instrument_id), 'w') as f:
             f.write(new_source.json())
 
-    def rm(self, instrument_id: str):
+    def rm(self, instrument_id: InstrumentId):
         oldfile = self.settings.workdir(instrument_id)
         newfile = oldfile.with_name(".{}.{}".format(oldfile.name, int(time())))
         oldfile.rename(newfile)
 
-    def tables(self):
-        return { i.name for i in self.settings.repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' }
+    def tables(self) -> t.List[InstrumentId]:
+        return [ InstrumentId(i.name) for i in self.settings.repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
