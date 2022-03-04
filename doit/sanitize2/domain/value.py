@@ -87,10 +87,10 @@ ColumnData = t.Annotated[
     Field(discriminator='status')
 ]
 
-def new_column_helper(**kwargs: t.Any) -> ColumnData:
+T = t.TypeVar('T')
+def new_union_helper(cls: t.Type[T], **kwargs: t.Any) -> T:
     class Helper(BaseModel):
-        __root__: ColumnData
-    print(kwargs)
+        __root__: cls
     return Helper.parse_obj(kwargs).__root__
 
 class UnsafeTable(BaseModel):

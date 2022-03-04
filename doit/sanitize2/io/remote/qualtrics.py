@@ -15,7 +15,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, BaseSettings, Field
 
-from ...domain.value import RemoteTableInfo
+from ...domain.value import RemoteTableInfo, new_union_helper
 
 ### List Surveys API
 class QualtricsSurveyList(BaseModel):
@@ -43,12 +43,13 @@ class QualtricsExportStatusComplete(BaseModel):
 class QualtricsExportStatusFailed(BaseModel):
     status: t.Literal["failed"]
 
-class QualtricsExportStatus(BaseModel):
-    __root__: t.Annotated[t.Union[
+QualtricsExportStatus = t.Annotated[
+    t.Union[
         QualtricsExportStatusComplete,
         QualtricsExportStatusInProgress,
         QualtricsExportStatusFailed
-    ], Field(discriminator='status')]
+    ], Field(discriminator='status')
+]
 
 class QualtricsRemoteSettings(BaseSettings):
     api_key: str
@@ -99,7 +100,11 @@ class QualtricsRemote(RemoteIoApi):
         assert 'result' in response
         progressId = QualtricsExportResponse(**response['result']).progressId
 
-        progressStatus = QualtricsExportStatus.parse_obj(dict(percentComplete = "0%", status="inProgress")).__root__
+        progressStatus = QualtricsExportStatusInProgress(
+            percentComplete = "0%",
+            status="inProgress"
+        )
+
         while progressStatus.status != "complete" and progressStatus.status != "failed":
             print ("progressStatus=", progressStatus.status)
             print("Download is " + progressStatus.percentComplete + " complete")
@@ -107,7 +112,8 @@ class QualtricsRemote(RemoteIoApi):
             response = self.get("{}/{}".format(endpoint_prefix, progressId)).json()
             assert 'result' in response
 
-            progressStatus = QualtricsExportStatus.parse_obj(response['result']).__root__
+            progressStatus = new_union_helper(QualtricsExportStatus, **response['result'])
+            print(progressStatus.status)
 
         if progressStatus.status == "failed":
             raise Exception("export failed")
