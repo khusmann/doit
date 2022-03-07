@@ -2,19 +2,25 @@ from __future__ import annotations
 import typing as t
 from pathlib import Path
 
-from pydantic import BaseModel
+from ..domain.value import (
+    ColumnId,
+    InstrumentId,
+    SafeColumn,
+    SafeTable,
+    SafeTableMeta,
+    SafeColumnMeta,
+    new_safe_column
+)
 
-from ..domain.value import ColumnId, InstrumentId, SafeTable, SafeTableMeta
 from sqlite_utils import Database
 
 SqlData = t.Mapping[ColumnId, t.Union[str, int, float, None]]
 
-class SqlTable(BaseModel):
-    data: t.Iterable[SqlData]
+TABLE_META_NAME = "__table_meta__"
+COLUMN_META_NAME = "__column_meta__"
 
 def flatten_dict(y: t.Mapping[str, t.Any]) -> t.Mapping[str, t.Any]:
     out: t.Mapping[str, t.Any] = {}
-
     def flatten(x: t.Mapping[str, t.Any], name: str=''):
         match x:
             case dict():
@@ -22,10 +28,20 @@ def flatten_dict(y: t.Mapping[str, t.Any]) -> t.Mapping[str, t.Any]:
                     flatten(x[a], name + a + '.')
             case _:
                 out[name[:-1]] = x
-
-
     flatten(y)
     return out
+
+def unflatten_dict(dictionary: t.Mapping[str, str]) -> t.Mapping[str, t.Any]:
+    resultDict: t.Mapping[str, t.Any] = dict()
+    for key, value in dictionary.items():
+        parts = key.split(".")
+        d = resultDict
+        for part in parts[:-1]:
+            if part not in d:
+                d[part] = dict()
+            d = d[part]
+        d[parts[-1]] = value
+    return resultDict
 
 class SafeTableDbWriter:
     def __init__(self, path: Path):
@@ -37,9 +53,9 @@ class SafeTableDbWriter:
 
         table_meta_dict = flatten_dict(table.meta.dict(exclude={'columns'}))
 
-        self.handle["__table_meta__"].insert(table_meta_dict, pk="instrument_id") #type: ignore
+        self.handle[TABLE_META_NAME].insert(table_meta_dict, pk="instrument_id") #type: ignore
 
-        self.handle["__column_meta__"].insert_all( # type: ignore
+        self.handle[COLUMN_META_NAME].insert_all( # type: ignore
             map(lambda i: { 'instrument_id': table.instrument_id, **i.dict() }, table.meta.columns.values()),
             pk=("instrument_id", "column_id") # type: ignore
         )
@@ -50,20 +66,58 @@ class SafeTableDbReader:
         self.handle = Database(path)
 
     def query(self, instrument_id: InstrumentId) -> SafeTable:
-        return SafeTable(
-            title="asdf",
-            columns={}
-        )
+        meta = self.query_meta(instrument_id)
+
+        data_raw: t.Sequence[SqlData] = self.handle[instrument_id].rows # type: ignore
+
+        return from_sql_table_data(meta, data_raw)
 
     def query_meta(self, instrument_id: InstrumentId) -> SafeTableMeta:
-        return SafeTableMeta(
-            title="asdf",
-            columns={}
-        )
+        column_meta_raw: t.Mapping[str, str] = self.handle[COLUMN_META_NAME].rows_where("instrument_id = ?", [instrument_id]) #type: ignore
+        column_meta = { i.column_id: i for i in [SafeColumnMeta.parse_obj(i) for i in column_meta_raw] }
+
+        table_meta_raw = unflatten_dict(self.handle[TABLE_META_NAME].get(instrument_id)) #type: ignore
+
+        return SafeTableMeta.parse_obj({
+            "columns": column_meta,
+            **table_meta_raw,
+        })
 
     def tables(self) -> t.List[InstrumentId]:
-        return []
+        table_names = set(self.handle.table_names()) - { TABLE_META_NAME, COLUMN_META_NAME }
+        return [InstrumentId(i) for i in table_names]
 
 def to_sql_table_data(table: SafeTable) -> t.Iterable[SqlData]:
     by_row = zip(*map(lambda i: i.values, table.columns.values()))
     return map(lambda row: { key: value for (key, value) in zip(table.columns.keys(), row) }, by_row)
+
+def from_sql_column_data(meta: SafeColumnMeta, data: t.List[t.Any]) -> SafeColumn:
+    match meta.type:
+        case 'bool':
+            values=[None if i is None else bool(i) for i in data]
+        case 'integer':
+            values=data
+        case 'text':
+            values=data
+        case 'ordinal':
+            values=data
+        case 'real':
+            values=data
+    return new_safe_column(
+        column_id=meta.column_id,
+        meta=meta,
+        column_type=meta.type,
+        values=values,
+    )
+
+def from_sql_table_data(meta: SafeTableMeta, sql_data: t.Sequence[SqlData]) -> SafeTable:
+    sql_data = tuple(sql_data)
+    by_col = { column_id: [row[column_id] for row in sql_data] for column_id in meta.columns.keys()}
+    columns = {
+        column_id: from_sql_column_data(column_meta, by_col[column_id]) for (column_id, column_meta) in meta.columns.items()
+    }
+    return SafeTable(
+        instrument_id=meta.instrument_id,
+        meta=meta,
+        columns=columns,
+    )
