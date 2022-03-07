@@ -48,12 +48,15 @@ def source_rm(instrument_id: InstrumentId):
     unsafe_repo = UnsafeTableRepo()
     unsafe_repo.rm(instrument_id)
 
-@source_cli.command(name="load")
-@click.argument('instrument_id')
-def source_load(instrument_id: InstrumentId):
-    """Remove an instrument source"""
-    unsafe_repo = UnsafeTableRepo()
-    print(unsafe_repo.query(instrument_id).json(indent=2))
+@cli.command(name="debug")
+def source_load():
+    """Debug"""
+    safe_repo = SafeTableDbRepo()
+    db_reader = safe_repo.query()
+    print(db_reader.query(InstrumentId('student_behavior-y2w2')))
+
+    #unsafe_repo = UnsafeTableRepo()
+    #print(unsafe_repo.query(instrument_id).json(indent=2))
     
 @source_cli.command(name="fetch")
 @click.argument('instrument_id', required=False)
