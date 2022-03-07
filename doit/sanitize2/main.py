@@ -26,7 +26,7 @@ def sanitize():
     for instrument_id in tqdm(unsafe_repo.tables()):
         unsafe_table = unsafe_repo.query(instrument_id)
         safe_table = sanitize_table(unsafe_table)
-        db_writer.insert(instrument_id, safe_table)
+        db_writer.insert(safe_table)
 
 @cli.group('source')
 def source_cli():
@@ -70,8 +70,8 @@ def source_list(remote_service: RemoteService | None):
     unsafe_repo = UnsafeTableRepo()
     click.secho()
     if (remote_service is None):
-        for info in map(lambda i: unsafe_repo.query_source_info(i), unsafe_repo.tables()):
-            click.secho(" {} : {}".format(click.style(info.instrument_id, fg='bright_cyan'), info.uri))
+        for meta in map(lambda i: unsafe_repo.query_meta(i), unsafe_repo.tables()):
+            click.secho(" {} : {}".format(click.style(meta.instrument_id, fg='bright_cyan'), meta.file_info.remote_id.uri))
     else:
         for desc in fetch_table_listing(remote_service):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))

@@ -1,6 +1,15 @@
+from __future__ import annotations
 import typing as t
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    Field,
+    StrictStr,
+    StrictInt,
+    StrictBool,
+    StrictFloat,
+)
+from pydantic.generics import GenericModel
 from pathlib import Path
 
 InstrumentId = t.NewType('InstrumentId', str)
@@ -11,98 +20,108 @@ FormatType = t.Literal['qualtrics']
 
 RemoteService = t.Literal['qualtrics']
 
-class RemoteInfo(BaseModel):
+ColumnImportTypeStr = t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
+
+class RemoteTableId(BaseModel):
     service: RemoteService
     id: str
+
+    @property
+    def uri(self) -> str:
+        return "{}://{}".format(self.service, self.id)
+
 
 class RemoteTableListing(BaseModel):
     uri: str
     title: str
 
-class UnsafeTableSourceInfo(BaseModel):
-    instrument_id: InstrumentId
-    last_update_check: t.Optional[datetime]
-    last_updated: t.Optional[datetime]
-    remote_info: RemoteInfo
+class ColumnImport(BaseModel):
+    type: ColumnImportTypeStr
+    column_id: ColumnId
+    prompt: str
+    values: t.Tuple[t.Any, ...]
+
+class TableImport(BaseModel):
+    title: str
+    columns: t.Mapping[ColumnId, ColumnImport]
+
+class TableSourceInfo(BaseModel):
+    service: RemoteService
+    title: str
+    last_update_check: datetime
+    last_updated: datetime
+    # SHA1?
+
+class TableFileInfo(BaseModel):
     format: FormatType
+    remote_id: RemoteTableId
     data_path: Path
     schema_path: Path
 
-    @property
-    def uri(self) -> str:
-        return "{}://{}".format(self.remote_info.service, self.remote_info.id)
-
-class ColumnDataBase(BaseModel):
-    column_id: ColumnId
-    prompt: str
-
-class SafeBoolColumnData(ColumnDataBase):
-    status: t.Literal['safe']
-    type: t.Literal['bool']
-    values: t.List[t.Optional[bool]]
-
-class SafeOrdinalColumnData(ColumnDataBase):
-    status: t.Literal['safe']
-    type: t.Literal['ordinal']
-    values: t.List[t.Optional[str]]
-    codes: t.Mapping[str, int]
-
-class SafeRealColumnData(ColumnDataBase):
-    status: t.Literal['safe']
-    type: t.Literal['real']
-    values: t.List[t.Optional[float]]
-
-class SafeIntegerColumnData(ColumnDataBase):
-    status: t.Literal['safe']
-    type: t.Literal['integer']
-    values: t.List[t.Optional[int]]
-
-class UnsafeNumericTextColumnData(ColumnDataBase):
-    status: t.Literal['unsafe']
-    type: t.Literal['numeric_text']
-    values: t.List[t.Optional[str]]
-
-class SafeTextColumnData(ColumnDataBase):
-    status: t.Literal['safe']
-    type: t.Literal['text']
-    values: t.List[t.Optional[str]]
-
-class UnsafeTextColumnData(ColumnDataBase):
-    status: t.Literal['unsafe']
-    type: t.Literal['text']
-    values: t.List[t.Optional[str]]
-
-UnsafeColumnData = t.Annotated[
-    t.Union[
-        UnsafeTextColumnData,
-        UnsafeNumericTextColumnData
-    ],
-    Field(discriminator='type')
-]
-
-SafeColumnData = t.Annotated[
-    t.Union[
-        SafeTextColumnData,
-        SafeIntegerColumnData,
-        SafeRealColumnData,
-        SafeOrdinalColumnData,
-        SafeBoolColumnData
-    ],
-    Field(discriminator='type')
-]
-
-ColumnData = t.Annotated[
-    t.Union[
-        UnsafeColumnData,
-        SafeColumnData,
-    ],
-    Field(discriminator='status')
-]
+class UnsafeTableMeta(BaseModel):
+    instrument_id: InstrumentId
+    source_info: t.Optional[TableSourceInfo]
+    file_info: TableFileInfo
 
 class UnsafeTable(BaseModel):
-    title: str
-    columns: t.Mapping[ColumnId, ColumnData]
+    instrument_id: InstrumentId
+    meta: UnsafeTableMeta
+    columns: t.Mapping[ColumnId, ColumnImport]
+
+ColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
+ColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
+
+ColumnT = t.TypeVar('ColumnT', bound=ColumnTypeStr)
+DataT = t.TypeVar('DataT', bound=ColumnDataType)
+
+class SafeColumnMeta(BaseModel):
+    column_id: ColumnId
+    type: ColumnTypeStr
+    prompt: str
+    sanitizer_meta: t.Optional[str]
+
+class SafeColumnBase(GenericModel, t.Generic[ColumnT, DataT]):
+    column_id: ColumnId
+    meta: SafeColumnMeta
+    type: ColumnT
+    values: t.Tuple[DataT | None, ...]
+
+SafeColumn = t.Annotated[
+    t.Union[
+        SafeColumnBase[t.Literal['bool'], StrictBool],
+        SafeColumnBase[t.Literal['ordinal'], StrictStr],
+        SafeColumnBase[t.Literal['real'], StrictFloat],
+        SafeColumnBase[t.Literal['text'], StrictStr],
+        SafeColumnBase[t.Literal['integer'], StrictInt],
+    ], Field(discriminator='type')
+]
+
+def new_safe_column(column_id: ColumnId, meta: SafeColumnMeta, column_type: ColumnTypeStr, values: t.Sequence[t.Any | None]) -> SafeColumn:
+    match column_type:
+        case 'bool':
+            new_func = SafeColumnBase[t.Literal['bool'], StrictBool]
+        case 'ordinal':
+            new_func = SafeColumnBase[t.Literal['ordinal'], StrictStr]
+        case 'real':
+            new_func = SafeColumnBase[t.Literal['real'], StrictFloat]
+        case 'text':
+            new_func = SafeColumnBase[t.Literal['text'], StrictStr]
+        case 'integer':
+            new_func = SafeColumnBase[t.Literal['integer'], StrictInt]
+
+    return new_func(
+        column_id=column_id,
+        meta=meta,
+        type=column_type,
+        values=values
+    )
+
+class SafeTableMeta(BaseModel):
+    instrument_id: InstrumentId
+    source_info: TableSourceInfo
+    columns: t.Mapping[ColumnId, SafeColumnMeta]
 
 class SafeTable(BaseModel):
-    title: str
-    columns: t.Mapping[ColumnId, SafeColumnData]
+    instrument_id: InstrumentId
+    meta: SafeTableMeta
+    columns: t.Mapping[ColumnId, SafeColumn]
