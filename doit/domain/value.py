@@ -12,15 +12,14 @@ from pydantic import (
 from pydantic.generics import GenericModel
 from pathlib import Path
 
-InstrumentId = t.NewType('InstrumentId', str)
+### 
 
+InstrumentId = t.NewType('InstrumentId', str)
 ColumnId = t.NewType('ColumnId', str)
 
-FormatType = t.Literal['qualtrics']
+### Remote Service
 
 RemoteService = t.Literal['qualtrics']
-
-ColumnImportTypeStr = t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
 
 class RemoteTableId(BaseModel):
     service: RemoteService
@@ -30,10 +29,15 @@ class RemoteTableId(BaseModel):
     def uri(self) -> str:
         return "{}://{}".format(self.service, self.id)
 
-
 class RemoteTableListing(BaseModel):
     uri: str
     title: str
+
+
+### ColumnImport
+
+ColumnImportTypeStr = t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
+FormatType = t.Literal['qualtrics']
 
 class ColumnImport(BaseModel):
     type: ColumnImportTypeStr
@@ -67,6 +71,9 @@ class UnsafeTable(BaseModel):
     instrument_id: InstrumentId
     meta: UnsafeTableMeta
     columns: t.Mapping[ColumnId, ColumnImport]
+
+
+### Safe Table
 
 ColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
 ColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
