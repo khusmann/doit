@@ -12,6 +12,16 @@ from pydantic import (
 from pydantic.generics import GenericModel
 from pathlib import Path
 
+###
+
+class ImmutableBaseModel(BaseModel):
+    class Config:
+        allow_mutation=False
+
+class ImmutableGenericModel(GenericModel):
+    class Config:
+        allow_mutation=False
+
 ### 
 
 InstrumentId = t.NewType('InstrumentId', str)
@@ -21,7 +31,7 @@ ColumnId = t.NewType('ColumnId', str)
 
 RemoteService = t.Literal['qualtrics']
 
-class RemoteTableId(BaseModel):
+class RemoteTableId(ImmutableBaseModel):
     service: RemoteService
     id: str
 
@@ -29,7 +39,7 @@ class RemoteTableId(BaseModel):
     def uri(self) -> str:
         return "{}://{}".format(self.service, self.id)
 
-class RemoteTableListing(BaseModel):
+class RemoteTableListing(ImmutableBaseModel):
     uri: str
     title: str
 
@@ -39,35 +49,35 @@ class RemoteTableListing(BaseModel):
 ColumnImportTypeStr = t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
 FormatType = t.Literal['qualtrics']
 
-class ColumnImport(BaseModel):
+class ColumnImport(ImmutableBaseModel):
     type: ColumnImportTypeStr
     column_id: ColumnId
     prompt: str
     values: t.Tuple[t.Any, ...]
 
-class TableImport(BaseModel):
+class TableImport(ImmutableBaseModel):
     title: str
     columns: t.Mapping[ColumnId, ColumnImport]
 
-class TableSourceInfo(BaseModel):
+class TableSourceInfo(ImmutableBaseModel):
     service: RemoteService
     title: str
     last_update_check: datetime
     last_updated: datetime
     # SHA1?
 
-class TableFileInfo(BaseModel):
+class TableFileInfo(ImmutableBaseModel):
     format: FormatType
     remote_id: RemoteTableId
     data_path: Path
     schema_path: Path
 
-class UnsafeTableMeta(BaseModel):
+class UnsafeTableMeta(ImmutableBaseModel):
     instrument_id: InstrumentId
     source_info: t.Optional[TableSourceInfo]
     file_info: TableFileInfo
 
-class UnsafeTable(BaseModel):
+class UnsafeTable(ImmutableBaseModel):
     instrument_id: InstrumentId
     meta: UnsafeTableMeta
     columns: t.Mapping[ColumnId, ColumnImport]
@@ -81,13 +91,13 @@ ColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
 ColumnT = t.TypeVar('ColumnT', bound=ColumnTypeStr)
 DataT = t.TypeVar('DataT', bound=ColumnDataType)
 
-class SafeColumnMeta(BaseModel):
+class SafeColumnMeta(ImmutableBaseModel):
     column_id: ColumnId
     type: ColumnTypeStr
     prompt: str
     sanitizer_meta: t.Optional[str]
 
-class SafeColumnBase(GenericModel, t.Generic[ColumnT, DataT]):
+class SafeColumnBase(ImmutableGenericModel, t.Generic[ColumnT, DataT]):
     column_id: ColumnId
     meta: SafeColumnMeta
     type: ColumnT
@@ -123,12 +133,12 @@ def new_safe_column(column_id: ColumnId, meta: SafeColumnMeta, column_type: Colu
         values=values
     )
 
-class SafeTableMeta(BaseModel):
+class SafeTableMeta(ImmutableBaseModel):
     instrument_id: InstrumentId
     source_info: TableSourceInfo
     columns: t.Mapping[ColumnId, SafeColumnMeta]
 
-class SafeTable(BaseModel):
+class SafeTable(ImmutableBaseModel):
     instrument_id: InstrumentId
     meta: SafeTableMeta
     columns: t.Mapping[ColumnId, SafeColumn]

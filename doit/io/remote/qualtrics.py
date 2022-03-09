@@ -13,15 +13,15 @@ import io
 
 from pathlib import Path
 
-from pydantic import BaseModel, BaseSettings, Field, parse_obj_as
+from pydantic import BaseSettings, Field, parse_obj_as
 
-from ...domain.value import RemoteTableListing
+from ...domain.value import ImmutableBaseModel, RemoteTableListing
 
 ### List Surveys API
-class QualtricsSurveyList(BaseModel):
+class QualtricsSurveyList(ImmutableBaseModel):
     elements: t.List[QualtricsSurveyList.Element]
     
-    class Element(BaseModel):
+    class Element(ImmutableBaseModel):
         id: str
         name: str
 
@@ -29,18 +29,18 @@ QualtricsSurveyList.update_forward_refs()
 
 ### Download Survey API
 
-class QualtricsExportResponse(BaseModel):
+class QualtricsExportResponse(ImmutableBaseModel):
     progressId: str
 
-class QualtricsExportStatusInProgress(BaseModel):
+class QualtricsExportStatusInProgress(ImmutableBaseModel):
     percentComplete: str
     status: t.Literal["inProgress"]
 
-class QualtricsExportStatusComplete(BaseModel):
+class QualtricsExportStatusComplete(ImmutableBaseModel):
     status: t.Literal["complete"]
     fileId: t.Optional[str]
 
-class QualtricsExportStatusFailed(BaseModel):
+class QualtricsExportStatusFailed(ImmutableBaseModel):
     status: t.Literal["failed"]
 
 QualtricsExportStatus = t.Annotated[

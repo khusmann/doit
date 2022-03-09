@@ -1,12 +1,12 @@
 from __future__ import annotations
 import typing as t
 import re
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from pathlib import Path
 
 from .api import UnsafeTableIoApi
-from ...domain.value import TableImport, ColumnImport
+from ...domain.value import ImmutableBaseModel, TableImport, ColumnImport
 
 class QualtricsUnsafeTableIo(UnsafeTableIoApi):
     def read_unsafe_table_data(self, data_path: Path, schema_path: Path) -> TableImport:
@@ -16,27 +16,27 @@ class QualtricsUnsafeTableIo(UnsafeTableIoApi):
 
 ### QualtricsSchema
 
-class QualtricsCategoryItem(BaseModel):
+class QualtricsCategoryItem(ImmutableBaseModel):
     label: str
     const: str
 
-class QualtricsNumericQuestion(BaseModel):
+class QualtricsNumericQuestion(ImmutableBaseModel):
     description: str
     exportTag: str
     type: t.Literal['number']
     oneOf: t.Optional[t.List[QualtricsCategoryItem]]
     dataType: t.Literal['question', 'metadata', 'embeddedData']
 
-class QualtricsStringQuestion(BaseModel):
+class QualtricsStringQuestion(ImmutableBaseModel):
     description: str
     exportTag: str
     type: t.Literal['string']
     dataType: t.Literal['question', 'metadata', 'embeddedData']
 
-class QualtricsArrayItems(BaseModel):
+class QualtricsArrayItems(ImmutableBaseModel):
     oneOf: t.Optional[t.List[QualtricsCategoryItem]]
 
-class QualtricsArrayQuestion(BaseModel):
+class QualtricsArrayQuestion(ImmutableBaseModel):
     description: str
     exportTag: str
     dataType: t.Literal['question', 'metadata', 'embeddedData']
@@ -52,23 +52,23 @@ QualtricsQuestionSchema = t.Annotated[
     Field(discriminator='type')
 ]
 
-class QualtricsSchemaContentValues(BaseModel):
+class QualtricsSchemaContentValues(ImmutableBaseModel):
     properties: t.Mapping[str, QualtricsQuestionSchema]
 
-class QualtricsSchemaContent(BaseModel):
+class QualtricsSchemaContent(ImmutableBaseModel):
     values: QualtricsSchemaContentValues
 
-class QualtricsSchema(BaseModel):
+class QualtricsSchema(ImmutableBaseModel):
     title: str
     properties: QualtricsSchemaContent
 
 ### QualtricsData
 
-class QualtricsDataRow(BaseModel):
+class QualtricsDataRow(ImmutableBaseModel):
     responseId: str
     values: t.Mapping[str, t.Union[str, t.List[str]]]
 
-class QualtricsData(BaseModel):
+class QualtricsData(ImmutableBaseModel):
     responses: t.List[QualtricsDataRow]
 
 

@@ -1,8 +1,9 @@
-from pydantic import BaseSettings, BaseModel
+from pydantic import BaseSettings
 from pathlib import Path
 from time import time
 
 from ..io.safetabledb import SafeTableDbWriter, SafeTableDbReader
+from ..domain.value import ImmutableBaseModel
 
 class SafeTableRepoDbSettings(BaseSettings):
     repo_dir = Path("./build/safe/sanitized")
@@ -15,7 +16,7 @@ class SafeTableRepoDbSettings(BaseSettings):
         env_prefix = "safetable_"
 
 
-class SafeTableDbRepo(BaseModel):
+class SafeTableDbRepo(ImmutableBaseModel):
     settings = SafeTableRepoDbSettings()
 
     def query(self) -> SafeTableDbReader:

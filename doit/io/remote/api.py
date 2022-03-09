@@ -1,13 +1,11 @@
 import typing as t
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
-
-from ...domain.value import RemoteTableListing
+from ...domain.value import ImmutableBaseModel, RemoteTableListing
 
 from pathlib import Path
 
-class RemoteIoApi(BaseModel, ABC):
+class RemoteIoApi(ImmutableBaseModel, ABC):
     @abstractmethod
     def fetch_remote_table(self, remote_id: str, data_path: Path, schema_path: Path) -> None:
         pass

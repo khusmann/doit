@@ -1,12 +1,21 @@
 import typing as t
-from pydantic import BaseModel, BaseSettings
+from pydantic import BaseSettings
 
 from urllib.parse import urlparse, ParseResult
 from pathlib import Path
 from time import time
 from datetime import datetime
 
-from ..domain.value import UnsafeTable, UnsafeTableMeta, InstrumentId, RemoteTableId, TableFileInfo, TableSourceInfo
+from ..domain.value import (
+    ImmutableBaseModel,
+    UnsafeTable,
+    UnsafeTableMeta,
+    InstrumentId,
+    RemoteTableId,
+    TableFileInfo,
+    TableSourceInfo
+)
+
 from ..io.remote import fetch_remote_table
 from ..io.unsafetable import read_unsafe_table_data
 
@@ -22,7 +31,7 @@ class UnsafeTableRepoSettings(BaseSettings):
     class Config(BaseSettings.Config):
         env_prefix = "unsafetable_"  
 
-class UnsafeTableRepo(BaseModel):
+class UnsafeTableRepo(ImmutableBaseModel):
     settings = UnsafeTableRepoSettings()
 
     def query(self, instrument_id: InstrumentId) -> UnsafeTable:
