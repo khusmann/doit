@@ -1,3 +1,4 @@
+from .repo.study import StudyRepo
 from dotenv import load_dotenv
 load_dotenv('.env')
 
@@ -8,7 +9,7 @@ from .repo.unsafetable import UnsafeTableRepo
 from .repo.safetabledb import SafeTableDbRepo
 from .io.remote import fetch_table_listing
 from .domain.value import InstrumentId, RemoteService
-from .domain.service import sanitize_table
+from .domain.service import sanitize_table, stub_instrument
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -48,12 +49,24 @@ def source_rm(instrument_id: InstrumentId):
     unsafe_repo = UnsafeTableRepo()
     unsafe_repo.rm(instrument_id)
 
+@cli.command(name='stub_instrument')
+@click.argument('instrument_id')
+def cli_stub_instrument(instrument_id: InstrumentId):
+    safe_repo = SafeTableDbRepo()
+    safe_reader = safe_repo.query()
+    safe_table = safe_reader.query(instrument_id)
+
+    study_repo = StudyRepo()
+    study_repo.save_instrument(stub_instrument(safe_table))
+
 @cli.command(name="debug")
 def source_load():
     """Debug"""
-    safe_repo = SafeTableDbRepo()
-    db_reader = safe_repo.query()
-    print(db_reader.query(InstrumentId('student_behavior-y2w2')))
+    pass
+
+    #safe_repo = SafeTableDbRepo()
+    #db_reader = safe_repo.query()
+    #print(db_reader.query(InstrumentId('student_behavior-y2w2')))
 
     #unsafe_repo = UnsafeTableRepo()
     #print(unsafe_repo.query(instrument_id).json(indent=2))
@@ -74,7 +87,7 @@ def source_list(remote_service: RemoteService | None):
     click.secho()
     if (remote_service is None):
         for meta in map(lambda i: unsafe_repo.query_meta(i), unsafe_repo.tables()):
-            click.secho(" {} : {}".format(click.style(meta.instrument_id, fg='bright_cyan'), meta.file_info.remote_id.uri))
+            click.secho(" {} : {}".format(click.style(meta.instrument_id, fg='bright_cyan'), meta.file_info.remote.uri))
     else:
         for desc in fetch_table_listing(remote_service):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))

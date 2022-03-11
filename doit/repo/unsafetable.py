@@ -11,7 +11,7 @@ from ..domain.value import (
     UnsafeTable,
     UnsafeTableMeta,
     InstrumentId,
-    RemoteTableId,
+    RemoteTable,
     TableFileInfo,
     TableSourceInfo
 )
@@ -51,15 +51,19 @@ class UnsafeTableRepo(ImmutableBaseModel):
         fetch_remote_table(meta.file_info)
         data = read_unsafe_table_data(meta.file_info) # TODO: Only the schema really needs to be loaded...
 
-        meta.source_info = TableSourceInfo(
-            service = meta.file_info.remote_id.service,
-            last_update_check = datetime.now(),
-            last_updated = datetime.now(),
-            title = data.title,
+        new_meta = meta.copy(
+            update=dict(
+                source_info = TableSourceInfo(
+                    service = meta.file_info.remote.service,
+                    last_update_check = datetime.now(),
+                    last_updated = datetime.now(),
+                    title = data.title,
+                )
+            )
         )
 
         with open(self.settings.meta_file(instrument_id), 'w') as f:
-            f.write(meta.json())
+            f.write(new_meta.json())
 
     def add(self, instrument_id: InstrumentId, uri: str) -> None:
         self.settings.workdir(instrument_id).mkdir(exist_ok=True, parents=True)
@@ -68,7 +72,7 @@ class UnsafeTableRepo(ImmutableBaseModel):
                 new_meta =  UnsafeTableMeta(
                     instrument_id=instrument_id,
                     file_info=TableFileInfo(
-                        remote_id=RemoteTableId(
+                        remote_id=RemoteTable(
                             service="qualtrics",
                             id=remote_id,
                         ),

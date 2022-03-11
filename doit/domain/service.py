@@ -1,5 +1,5 @@
 import typing as t
-
+from itertools import starmap
 from .value import *
 
 def is_integer_text_column(values: t.Sequence[str | None]):
@@ -51,4 +51,31 @@ def sanitize_table(table: UnsafeTable) -> SafeTable:
             source_info=table.meta.source_info,
             columns=column_meta,
         ),
+    )
+
+def stub_instrument_item(column_id: ColumnId, column: SafeColumn) -> InstrumentItem:
+    if column.type == 'ordinal':
+        return QuestionMapInstrumentItem(
+            type='question',
+            remote_id=column_id,
+            measure_id=None,
+            prompt=column.meta.prompt,
+            map={ i: None for i in column.values if i is not None },
+        )
+    else:
+        return QuestionNoMapInstrumentItem(
+            type='question',
+            remote_id=column_id,
+            measure_id=None,
+            prompt=column.meta.prompt,
+        )
+
+
+def stub_instrument(table: SafeTable) -> Instrument:
+    return Instrument(
+        instrument_id=table.instrument_id,
+        title=table.meta.source_info.title,
+        description="description",
+        instructions="instructions",
+        items=list(starmap(stub_instrument_item, table.columns.items()))
     )

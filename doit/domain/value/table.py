@@ -1,37 +1,16 @@
-from __future__ import annotations
 import typing as t
 from datetime import datetime
-from pydantic import (
-    BaseModel,
-    Field,
-    StrictStr,
-    StrictInt,
-    StrictBool,
-    StrictFloat,
-)
-from pydantic.generics import GenericModel
 from pathlib import Path
+from .common import *
+from pydantic import Field
 
-###
+### RemoteTable
 
-class ImmutableBaseModel(BaseModel):
-    class Config:
-        allow_mutation=False
+class RemoteTableListing(ImmutableBaseModel):
+    uri: str
+    title: str
 
-class ImmutableGenericModel(GenericModel):
-    class Config:
-        allow_mutation=False
-
-### 
-
-InstrumentId = t.NewType('InstrumentId', str)
-ColumnId = t.NewType('ColumnId', str)
-
-### Remote Service
-
-RemoteService = t.Literal['qualtrics']
-
-class RemoteTableId(ImmutableBaseModel):
+class RemoteTable(ImmutableBaseModel):
     service: RemoteService
     id: str
 
@@ -39,18 +18,10 @@ class RemoteTableId(ImmutableBaseModel):
     def uri(self) -> str:
         return "{}://{}".format(self.service, self.id)
 
-class RemoteTableListing(ImmutableBaseModel):
-    uri: str
-    title: str
-
-
-### ColumnImport
-
-ColumnImportTypeStr = t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
-FormatType = t.Literal['qualtrics']
+### TableImport
 
 class ColumnImport(ImmutableBaseModel):
-    type: ColumnImportTypeStr
+    type: t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
     column_id: ColumnId
     prompt: str
     values: t.Tuple[t.Any, ...]
@@ -58,6 +29,8 @@ class ColumnImport(ImmutableBaseModel):
 class TableImport(ImmutableBaseModel):
     title: str
     columns: t.Mapping[ColumnId, ColumnImport]
+
+### UnsafeTable
 
 class TableSourceInfo(ImmutableBaseModel):
     service: RemoteService
@@ -68,7 +41,7 @@ class TableSourceInfo(ImmutableBaseModel):
 
 class TableFileInfo(ImmutableBaseModel):
     format: FormatType
-    remote_id: RemoteTableId
+    remote: RemoteTable
     data_path: Path
     schema_path: Path
 
@@ -82,11 +55,7 @@ class UnsafeTable(ImmutableBaseModel):
     meta: UnsafeTableMeta
     columns: t.Mapping[ColumnId, ColumnImport]
 
-
-### Safe Table
-
-ColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
-ColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
+### SafeTable
 
 ColumnT = t.TypeVar('ColumnT', bound=ColumnTypeStr)
 DataT = t.TypeVar('DataT', bound=ColumnDataType)
@@ -142,3 +111,5 @@ class SafeTable(ImmutableBaseModel):
     instrument_id: InstrumentId
     meta: SafeTableMeta
     columns: t.Mapping[ColumnId, SafeColumn]
+
+### LinkedTable
