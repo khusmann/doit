@@ -4,12 +4,13 @@ load_dotenv('.env')
 
 import click
 from tqdm import tqdm
+import yaml
 
 from .repo.unsafetable import UnsafeTableRepo
 from .repo.safetabledb import SafeTableDbRepo
 from .io.remote import fetch_table_listing
-from .domain.value import InstrumentId, RemoteService
-from .domain.service import sanitize_table, stub_instrument
+from .domain.value import InstrumentId, RemoteService, ColumnId
+from .domain.service import sanitize_table, spec_linkedtables, stub_instrument
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -49,7 +50,7 @@ def source_rm(instrument_id: InstrumentId):
     unsafe_repo = UnsafeTableRepo()
     unsafe_repo.rm(instrument_id)
 
-@cli.command(name='stub_instrument')
+@cli.command(name='stub-instrument')
 @click.argument('instrument_id')
 def cli_stub_instrument(instrument_id: InstrumentId):
     safe_repo = SafeTableDbRepo()
@@ -59,10 +60,22 @@ def cli_stub_instrument(instrument_id: InstrumentId):
     study_repo = StudyRepo()
     study_repo.save_instrument(stub_instrument(safe_table))
 
-@cli.command(name="debug")
-def source_load():
+@cli.command()
+@click.argument('instrument_id')
+@click.argument('column_id')
+def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
+    safe_repo = SafeTableDbRepo()
+    safe_reader = safe_repo.query()
+    safe_table = safe_reader.query(instrument_id)
+    safe_column = safe_table.columns[column_id]
+    print(yaml.dump(list(set(safe_column.values))))
+
+@cli.command()
+def debug():
     """Debug"""
-    pass
+    study_repo = StudyRepo()
+    for i in spec_linkedtables(study_repo.query()):
+        print(i.indices)
 
     #safe_repo = SafeTableDbRepo()
     #db_reader = safe_repo.query()

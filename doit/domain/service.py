@@ -54,22 +54,13 @@ def sanitize_table(table: UnsafeTable) -> SafeTable:
     )
 
 def stub_instrument_item(column_id: ColumnId, column: SafeColumn) -> InstrumentItem:
-    if column.type == 'ordinal':
-        return QuestionMapInstrumentItem(
-            type='question',
-            remote_id=column_id,
-            measure_id=None,
-            prompt=column.meta.prompt,
-            map={ i: None for i in column.values if i is not None },
-        )
-    else:
-        return QuestionNoMapInstrumentItem(
-            type='question',
-            remote_id=column_id,
-            measure_id=None,
-            prompt=column.meta.prompt,
-        )
-
+    return QuestionInstrumentItem(
+        type='question',
+        remote_id=column_id,
+        measure_id=None,
+        prompt=column.meta.prompt,
+        map={ i: None for i in column.values if i is not None } if column.type=='ordinal' else None,
+    )
 
 def stub_instrument(table: SafeTable) -> Instrument:
     return Instrument(
@@ -79,3 +70,16 @@ def stub_instrument(table: SafeTable) -> Instrument:
         instructions="instructions",
         items=list(starmap(stub_instrument_item, table.columns.items()))
     )
+
+def spec_linkedtables(study: Study) -> t.Sequence[LinkedTableSpec]:
+    return [
+        LinkedTableSpec(
+            instrument_id=instrument_id,
+            columns={
+                i.measure_id: LinkedColumnSpec(
+                    instrument_item=i,
+                    measure_item=study.resolve_measure_path(i.measure_id),
+                ) for i in instrument.valueitems_flat() if i.measure_id is not None
+            },
+        ) for (instrument_id, instrument) in study.instruments.items()
+    ]

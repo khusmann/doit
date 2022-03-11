@@ -16,6 +16,13 @@ class ImmutableGenericModel(GenericModel):
     class Config:
         allow_mutation=False
 
+T = t.TypeVar('T')
+P = t.TypeVar('P')
+def lift_none(func: t.Callable[[T], P]) -> t.Callable[[T | None], P | None]:
+    def inner(i: T | None) -> P | None:
+        return None if i is None else func(i)
+    return inner
+
 InstrumentId = t.NewType('InstrumentId', str)
 ColumnId = t.NewType('ColumnId', str)
 

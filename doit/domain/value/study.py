@@ -20,26 +20,36 @@ class OrdinalMeasureItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
     codes: MeasureCodeMapId
+    is_idx: t.Optional[bool] = False
 
-class ValueMeasureItem(ImmutableBaseModel):
+class SimpleMeasureItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
+
+ValueMeasureItem = t.Annotated[
+    t.Union[
+        OrdinalMeasureItem,
+        SimpleMeasureItem,
+    ], Field(discriminator='type')
+]
+
+def is_measure_item_idx(item: ValueMeasureItem) -> bool:
+    return item.type == 'ordinal' and item.is_idx is not None and item.is_idx
 
 MeasureItem = t.Annotated[
     t.Union[
         GroupMeasureItem,
-        OrdinalMeasureItem,
         ValueMeasureItem,
     ], Field(discriminator='type')
 ]
 
 GroupMeasureItem.update_forward_refs()
 
-class CodeMapValue(ImmutableBaseModel):
+class CodeMapItem(ImmutableBaseModel):
     value: int
     text: str
 
-CodeMap = t.Mapping[str, CodeMapValue]
+CodeMap = t.Mapping[str, CodeMapItem] | t.Set[str]
 
 class Measure(ImmutableBaseModel):
     measure_id: MeasureId
@@ -50,29 +60,20 @@ class Measure(ImmutableBaseModel):
 
 ### Instrument
 
-class QuestionNoMapInstrumentItem(ImmutableBaseModel):
+QuestionValueMapper = t.Mapping[str, t.Optional[str]]
+
+class QuestionInstrumentItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['question']
     remote_id: ColumnId
     measure_id: t.Optional[MeasurePath]
+    map: t.Optional[QuestionValueMapper]
 
-class QuestionMapInstrumentItem(ImmutableBaseModel):
-    prompt: str
-    type: t.Literal['question']
-    remote_id: ColumnId
-    measure_id: t.Optional[MeasurePath]
-    map: t.Mapping[str, t.Optional[str]]
-
-QuestionInstrumentItem = t.Annotated[
-    t.Union[
-        QuestionMapInstrumentItem, # NOTE: Must come first in the union
-        QuestionNoMapInstrumentItem,
-    ], Field(discriminator='map')
-]
+    # TODO: Custom export dict() rule to drop map if map is None
 
 class GroupInstrumentItem(ImmutableBaseModel):
     type: t.Literal['group']
-    items: t.Tuple[InstrumentItem]
+    items: t.Tuple[InstrumentItem, ...]
     prompt: str
     title: str
 
@@ -86,12 +87,18 @@ class HiddenInstrumentItem(ImmutableBaseModel):
     remote_id: ColumnId
     measure_id: MeasurePath
 
-InstrumentItem = t.Annotated[
+ValueInstrumentItem = t.Annotated[
     t.Union[
         QuestionInstrumentItem,
-        GroupInstrumentItem,
         ConstantInstrumentItem,
         HiddenInstrumentItem,
+    ], Field(discriminator='type')
+]
+
+InstrumentItem = t.Annotated[
+    t.Union[
+        ValueInstrumentItem,
+        GroupInstrumentItem,
     ], Field(discriminator='type')
 ]
 
@@ -104,6 +111,10 @@ class Instrument(ImmutableBaseModel):
     instructions: t.Optional[str]
     items: t.Tuple[InstrumentItem, ...]
 
+    def valueitems_flat(self) -> t.Sequence[ValueInstrumentItem]:
+        def trav(items: t.Sequence[InstrumentItem]) -> t.Sequence[ValueInstrumentItem]:
+            return sum([ trav(i.items) if i.type == 'group' else [i] for i in items], [])
+        return trav(self.items)
 
 ### Study
 
@@ -113,7 +124,7 @@ class Study(ImmutableBaseModel):
     measures: t.OrderedDict[MeasureId, Measure]
     instruments: t.OrderedDict[InstrumentId, Instrument]
 
-    def resolve_measure_path(self, path_id: MeasurePath) -> MeasureItem:
+    def resolve_measure_path(self, path_id: MeasurePath) -> ValueMeasureItem:
         def resolve(cursor: MeasureItem, remainder: t.Sequence[MeasureItemId]) -> MeasureItem:
             if len(remainder) > 0:
                 assert cursor.type == 'group'
@@ -126,4 +137,21 @@ class Study(ImmutableBaseModel):
 
         measure_id = MeasureId(parts[0])
         item_id = MeasureItemId(parts[1])
-        return resolve(self.measures[measure_id].items[item_id], [MeasureItemId(i) for i in parts[2:]])
+        result = resolve(self.measures[measure_id].items[item_id], [MeasureItemId(i) for i in parts[2:]])
+
+        assert result.type != 'group'
+        return result
+
+### LinkedTableSpec
+class LinkedColumnSpec(ImmutableBaseModel):
+    measure_item: ValueMeasureItem
+    instrument_item: ValueInstrumentItem
+
+class LinkedTableSpec(ImmutableBaseModel):
+    instrument_id: InstrumentId
+    columns: t.Mapping[MeasurePath, LinkedColumnSpec]
+    @property
+    def indices(self) -> t.Set[MeasurePath]:
+        return {
+            measure_id for (measure_id, column) in self.columns.items() if is_measure_item_idx(column.measure_item)
+        }
