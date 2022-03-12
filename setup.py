@@ -11,5 +11,8 @@ setup(
         'console_scripts': [
             'doit = doit.main:cli',
         ],
+        'datasette': [
+            'doit = doit.datasette'
+        ],
     },
 )
