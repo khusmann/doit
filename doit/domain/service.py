@@ -71,15 +71,67 @@ def stub_instrument(table: SafeTable) -> Instrument:
         items=list(starmap(stub_instrument_item, table.columns.items()))
     )
 
-def spec_linkedtables(study: Study) -> t.Sequence[LinkedTableSpec]:
-    return [
-        LinkedTableSpec(
-            instrument_id=instrument_id,
-            columns={
-                i.measure_id: LinkedColumnSpec(
-                    instrument_item=i,
-                    measure_item=study.resolve_measure_path(i.measure_id),
-                ) for i in instrument.valueitems_flat() if i.measure_id is not None
-            },
-        ) for (instrument_id, instrument) in study.instruments.items()
-    ]
+
+def flatten_measures(measures: t.Mapping[MeasureId, Measure]) -> t.Mapping[MeasureItemUri, MeasureItem]:
+    def trav(curr_path: MeasureItemUri, cursor: t.Mapping[MeasureNodeTag, MeasureNode]) -> t.List[t.Tuple[MeasureItemUri, MeasureItem]]:
+        return sum([
+            trav(curr_path / id, item.items) if item.type == 'group' else [(curr_path / id, item)]
+            for (id, item) in cursor.items()
+        ], [])
+    everything = sum([
+        trav(MeasureItemUri(id), measure.items) for (id, measure) in measures.items()
+    ], [])
+    return dict(everything)   
+
+def flatten_instrument_items(items: t.Tuple[InstrumentNode, ...]) -> t.Sequence[InstrumentItem]:
+    def trav(items: t.Sequence[InstrumentNode]) -> t.Sequence[InstrumentItem]:
+        return sum([ trav(i.items) if i.type == 'group' else [i] for i in items], [])
+    return trav(items)
+
+def form_study_table_id(flat_instrument_items: t.Sequence[InstrumentItem], index_uris: t.FrozenSet[MeasureItemUri]) -> StudyTableId:
+    return StudyTableId(frozenset([
+        i.measure_id for i in flat_instrument_items if i.measure_id in index_uris
+    ]))
+
+def extract_codemaps(measures: t.Mapping[MeasureId, Measure]) -> t.Mapping[CodeMapUri, CodeMap]:
+    everything = sum([
+        [(CodeMapUri(measure_id) / codemap_tag, codemap) for (codemap_tag, codemap) in measure.codes.items()]
+            for (measure_id, measure) in measures.items()
+    ], [])
+    return dict(everything)
+
+def filter_index_measures(measure_items: t.Mapping[MeasureItemUri, MeasureItem]) -> t.FrozenSet[MeasureItemUri]:
+    def is_measure_item_idx(item: MeasureItem) -> bool:
+        return item.type == 'ordinal' and item.is_idx is not None and item.is_idx
+    return frozenset({ uri for (uri, measure_item) in measure_items.items() if is_measure_item_idx(measure_item)})
+
+def tables_inv(instruments: t.Mapping[InstrumentId, Instrument], index_uris: t.FrozenSet[MeasureItemUri]) -> t.Mapping[MeasureItemUri, StudyTableId]:
+    result: t.Mapping[MeasureItemUri, StudyTableId]= {}
+    for instrument in instruments.values():
+        flat_items = flatten_instrument_items(instrument.items)
+        table_id = form_study_table_id(flat_items, index_uris)
+        if table_id:
+            for item in flat_items:
+                if item.measure_id is not None:
+                    existing_value = result.get(item.measure_id)
+                    if existing_value is not None:
+                        if existing_value != table_id:
+                            raise ValueError("Error: expected {} to be indexed by {}; instead found {}".format(instrument.instrument_id, ", ".join(existing_value), ", ".join(table_id)))
+                    else:
+                        result[item.measure_id] = table_id
+
+    return result
+
+
+def link_study(instruments: t.Mapping[InstrumentId, Instrument], measures: t.Mapping[MeasureId, Measure]) -> Study:
+    measure_items = flatten_measures(measures)
+    index_uris = filter_index_measures(measure_items)
+    return Study(
+        title="Study title",
+        description=None,
+        instruments=instruments,
+        measures=measures,
+        measure_items=measure_items,
+        codemaps=extract_codemaps(measures),
+        tables=invert_map(tables_inv(instruments, index_uris))
+    )

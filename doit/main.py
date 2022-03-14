@@ -10,7 +10,7 @@ from .repo.unsafetable import UnsafeTableRepo
 from .repo.safetabledb import SafeTableDbRepo
 from .io.remote import fetch_table_listing
 from .domain.value import InstrumentId, RemoteService, ColumnId
-from .domain.service import sanitize_table, spec_linkedtables, stub_instrument
+from .domain.service import sanitize_table, stub_instrument
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -74,8 +74,9 @@ def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
 def debug():
     """Debug"""
     study_repo = StudyRepo()
-    for i in spec_linkedtables(study_repo.query()):
-        print(i.indices)
+
+#    print(study_repo.query().measure_items)
+    print(study_repo.query().tables)
 
     #safe_repo = SafeTableDbRepo()
     #db_reader = safe_repo.query()

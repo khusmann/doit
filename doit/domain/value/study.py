@@ -1,14 +1,10 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import typing as t
 from .common import *
 from pydantic import Field
 
 ### Measure
-
-class GroupMeasureItem(ImmutableBaseModel):
-    prompt: str
-    type: t.Literal['group']
-    items: t.OrderedDict[MeasureItemId, MeasureItem]
 
 #class AggregateMeasureItem(ImmutableBaseModel):
 #    prompt: str
@@ -19,75 +15,63 @@ class GroupMeasureItem(ImmutableBaseModel):
 class OrdinalMeasureItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
-    codes: MeasureCodeMapId
+    codes: CodeMapTag
     is_idx: t.Optional[bool] = False
 
 class SimpleMeasureItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
 
-ValueMeasureItem = t.Annotated[
+MeasureItem = t.Annotated[
     t.Union[
         OrdinalMeasureItem,
         SimpleMeasureItem,
     ], Field(discriminator='type')
 ]
 
-def is_measure_item_idx(item: ValueMeasureItem) -> bool:
-    return item.type == 'ordinal' and item.is_idx is not None and item.is_idx
+class MeasureItemGroup(ImmutableBaseModel):
+    prompt: str
+    type: t.Literal['group']
+    items: t.OrderedDict[MeasureNodeTag, MeasureNode]
 
-MeasureItem = t.Annotated[
+MeasureNode = t.Annotated[
     t.Union[
-        GroupMeasureItem,
-        ValueMeasureItem,
+        MeasureItemGroup,
+        MeasureItem,
     ], Field(discriminator='type')
 ]
 
-GroupMeasureItem.update_forward_refs()
-
-class CodeMapItem(ImmutableBaseModel):
-    value: int
-    text: str
-
-CodeMap = t.Mapping[str, CodeMapItem] | t.Set[str]
+MeasureItemGroup.update_forward_refs()
 
 class Measure(ImmutableBaseModel):
     measure_id: MeasureId
     title: str
     description: t.Optional[str]
-    items: t.OrderedDict[MeasureItemId, MeasureItem]
-    codes: t.OrderedDict[MeasureCodeMapId, CodeMap]
+    items: t.OrderedDict[MeasureNodeTag, MeasureNode]
+    codes: t.Mapping[CodeMapTag, CodeMap]
 
 ### Instrument
-
-QuestionValueMapper = t.Mapping[str, t.Optional[str]]
 
 class QuestionInstrumentItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['question']
     remote_id: ColumnId
-    measure_id: t.Optional[MeasurePath]
-    map: t.Optional[QuestionValueMapper]
+    measure_id: t.Optional[MeasureItemUri]
+    map: t.Optional[RecodeTransform]
 
     # TODO: Custom export dict() rule to drop map if map is None
-
-class GroupInstrumentItem(ImmutableBaseModel):
-    type: t.Literal['group']
-    items: t.Tuple[InstrumentItem, ...]
-    prompt: str
-    title: str
 
 class ConstantInstrumentItem(ImmutableBaseModel):
     type: t.Literal['constant']
     value: t.Any
-    measure_id: MeasurePath
+    measure_id: MeasureItemUri
 
 class HiddenInstrumentItem(ImmutableBaseModel):
     type: t.Literal['hidden']
     remote_id: ColumnId
-    measure_id: MeasurePath
+    measure_id: MeasureItemUri
 
-ValueInstrumentItem = t.Annotated[
+InstrumentItem = t.Annotated[
     t.Union[
         QuestionInstrumentItem,
         ConstantInstrumentItem,
@@ -95,63 +79,39 @@ ValueInstrumentItem = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-InstrumentItem = t.Annotated[
+class InstrumentItemGroup(ImmutableBaseModel):
+    type: t.Literal['group']
+    items: t.Tuple[InstrumentNode, ...]
+    prompt: str
+    title: str
+
+InstrumentNode = t.Annotated[
     t.Union[
-        ValueInstrumentItem,
-        GroupInstrumentItem,
+        InstrumentItem,
+        InstrumentItemGroup,
     ], Field(discriminator='type')
 ]
 
-GroupInstrumentItem.update_forward_refs()
+InstrumentItemGroup.update_forward_refs()
 
 class Instrument(ImmutableBaseModel):
     instrument_id: InstrumentId
     title: str
     description: t.Optional[str]
     instructions: t.Optional[str]
-    items: t.Tuple[InstrumentItem, ...]
-
-    def valueitems_flat(self) -> t.Sequence[ValueInstrumentItem]:
-        def trav(items: t.Sequence[InstrumentItem]) -> t.Sequence[ValueInstrumentItem]:
-            return sum([ trav(i.items) if i.type == 'group' else [i] for i in items], [])
-        return trav(self.items)
+    items: t.Tuple[InstrumentNode, ...]
 
 ### Study
 
-class Study(ImmutableBaseModel):
+@dataclass(frozen=True)
+class Study:
     title: str
     description: t.Optional[str]
-    measures: t.OrderedDict[MeasureId, Measure]
-    instruments: t.OrderedDict[InstrumentId, Instrument]
+    measures: t.Mapping[MeasureId, Measure]
+    instruments: t.Mapping[InstrumentId, Instrument]
+    #source_meta: t.Mapping[InstrumentId, SourceMeta]
 
-    def resolve_measure_path(self, path_id: MeasurePath) -> ValueMeasureItem:
-        def resolve(cursor: MeasureItem, remainder: t.Sequence[MeasureItemId]) -> MeasureItem:
-            if len(remainder) > 0:
-                assert cursor.type == 'group'
-                return resolve(cursor.items[remainder[0]], remainder[1:])
-            else:
-                return cursor
-        
-        parts = path_id.split('.')
-        assert len(parts) >= 2
-
-        measure_id = MeasureId(parts[0])
-        item_id = MeasureItemId(parts[1])
-        result = resolve(self.measures[measure_id].items[item_id], [MeasureItemId(i) for i in parts[2:]])
-
-        assert result.type != 'group'
-        return result
-
-### LinkedTableSpec
-class LinkedColumnSpec(ImmutableBaseModel):
-    measure_item: ValueMeasureItem
-    instrument_item: ValueInstrumentItem
-
-class LinkedTableSpec(ImmutableBaseModel):
-    instrument_id: InstrumentId
-    columns: t.Mapping[MeasurePath, LinkedColumnSpec]
-    @property
-    def indices(self) -> t.Set[MeasurePath]:
-        return {
-            measure_id for (measure_id, column) in self.columns.items() if is_measure_item_idx(column.measure_item)
-        }
+    # Derived properties
+    measure_items: t.Mapping[MeasureItemUri, MeasureItem]
+    codemaps: t.Mapping[CodeMapUri, CodeMap]
+    tables: t.Mapping[StudyTableId, t.FrozenSet[MeasureItemUri]]

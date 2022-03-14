@@ -11,6 +11,7 @@ from ..domain.value import (
     InstrumentId,
     MeasureId,
 )
+from ..domain.service import link_study
 
 class StudyRepoSettings(BaseSettings):
     instrument_dir = Path("./instruments")
@@ -27,11 +28,10 @@ class StudyRepo(ImmutableBaseModel):
     settings = StudyRepoSettings()
 
     def query(self) -> Study:
-        return Study(
-            title="Study title",
-            instruments={ i: self.query_instrument(i) for i in self.instruments },
-            measures={ i: self.query_measure(i) for i in self.measures },
-        )
+        instruments = { i: self.query_instrument(i) for i in self.instruments }
+        measures = { i: self.query_measure(i) for i in self.measures }
+        return link_study(instruments, measures)
+
 
     def query_instrument(self, instrument_id: InstrumentId) -> Instrument:
         with open(self.settings.instrument_file(instrument_id), 'r') as f:
