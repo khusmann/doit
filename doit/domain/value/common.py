@@ -65,7 +65,7 @@ RemoteService = t.Literal['qualtrics']
 FormatType = t.Literal['qualtrics']
 
 MeasureId = t.NewType("MeasureId", str)
-class MeasureItemUri(Uri): pass # e.g. measure.group.item
+class MeasureItemId(Uri): pass # e.g. measure.group.item
 MeasureNodeTag = t.NewType('MeasureNodeTag', str)
 
 
@@ -109,4 +109,4 @@ def invert_map(m: t.Mapping[T, P]) -> t.Mapping[P, t.FrozenSet[T]]:
         result[v] = result.get(v, frozenset()) | {k}
     return result
 
-StudyTableId = t.NewType('StudyTableId', t.FrozenSet[MeasureItemUri])
+StudyTableId = t.NewType('StudyTableId', t.FrozenSet[MeasureItemId])

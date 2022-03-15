@@ -56,7 +56,7 @@ class QuestionInstrumentItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['question']
     remote_id: ColumnId
-    measure_id: t.Optional[MeasureItemUri]
+    id: t.Optional[MeasureItemId]
     map: t.Optional[RecodeTransform]
 
     # TODO: Custom export dict() rule to drop map if map is None
@@ -64,12 +64,12 @@ class QuestionInstrumentItem(ImmutableBaseModel):
 class ConstantInstrumentItem(ImmutableBaseModel):
     type: t.Literal['constant']
     value: t.Any
-    measure_id: MeasureItemUri
+    id: MeasureItemId
 
 class HiddenInstrumentItem(ImmutableBaseModel):
     type: t.Literal['hidden']
     remote_id: ColumnId
-    measure_id: MeasureItemUri
+    id: MeasureItemId
 
 InstrumentItem = t.Annotated[
     t.Union[
@@ -112,6 +112,6 @@ class Study:
     #source_meta: t.Mapping[InstrumentId, SourceMeta]
 
     # Derived properties
-    measure_items: t.Mapping[MeasureItemUri, MeasureItem]
+    measure_items: t.Mapping[MeasureItemId, MeasureItem]
     codemaps: t.Mapping[CodeMapUri, CodeMap]
-    tables: t.Mapping[StudyTableId, t.FrozenSet[MeasureItemUri]]
+    tables: t.Mapping[StudyTableId, t.FrozenSet[MeasureItemId]]
