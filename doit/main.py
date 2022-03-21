@@ -5,12 +5,13 @@ load_dotenv('.env')
 import click
 from tqdm import tqdm
 import yaml
-
+from pathlib import Path
 from .repo.unsafetable import UnsafeTableRepo
 from .repo.safetabledb import SafeTableDbRepo
 from .io.remote import fetch_table_listing
-from .domain.value import InstrumentId, RemoteService, ColumnId
+from .domain.value import InstrumentId, RemoteService, ColumnId, MeasureId
 from .domain.service import sanitize_table, stub_instrument
+from .io.studydb import StudyDbWriter
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -73,10 +74,12 @@ def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
 @cli.command()
 def debug():
     """Debug"""
+    studydb = StudyDbWriter(Path("./build/test.db"))
     study_repo = StudyRepo()
-
+    meas = study_repo.query_measure(MeasureId("ssis"))
+    studydb.add_measures(list(meas.items.values())[0])
 #    print(study_repo.query().measure_items)
-    print(study_repo.query().tables)
+#    print(study_repo.query().tables)
 
     #safe_repo = SafeTableDbRepo()
     #db_reader = safe_repo.query()
