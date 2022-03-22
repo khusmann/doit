@@ -9,37 +9,43 @@ from .model import *
 
 from ...domain.value import studyspec
 
+#def instrument_to_sql(instrument: studyspec.InstrumentSpec) -> InstrumentNode:
+#    pass
+
 def measure_to_sql(measure: studyspec.MeasureSpec) -> t.Mapping[str, MeasureNode]:
-    root = MeasureNode(
+    root = Measure(
         tag=measure.measure_id,
         title=measure.title,
         description=measure.description,
-        type='root',
     )
 
     result = { str(measure.measure_id): root }
     for (tag, node) in measure.items.items():
-        result.update(measure_node_to_sql(".".join([measure.measure_id, tag]), node, root))
+        result.update(measure_node_to_sql(".".join([measure.measure_id, tag]), node, None, root))
     return result
 
-def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode) -> t.Mapping[str, MeasureNode]:
+def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: t.Optional[MeasureNode], root: Measure) -> t.Mapping[str, MeasureNode]:
     match node:
         case studyspec.MeasureItemGroup():
-            root = MeasureNode(
+            curr = MeasureNode(
                 tag=tag,
                 prompt=node.prompt,
+                parent=parent,
                 type=node.type,
+                root_measure=root,
             )
             result = { str(tag): root }
             for (child_tag, child_node) in node.items.items():
-                result.update(measure_node_to_sql(".".join([tag, child_tag]), child_node, root))
+                result.update(measure_node_to_sql(".".join([tag, child_tag]), child_node, curr, root))
             return result
         case studyspec.SimpleMeasureItem():
             return {
                 tag: MeasureNode(
                     tag=tag,
                     prompt=node.prompt,
+                    parent=parent,
                     type=node.type,
+                    root_measure=root,
                 )
             } 
         case studyspec.OrdinalMeasureItem():
@@ -50,6 +56,8 @@ def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNo
                     type=node.type,
                     codes=node.codes,
                     is_idx=node.is_idx,
+                    root_measure=root,
+                    parent=parent,
                 )
             } 
 
