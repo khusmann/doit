@@ -78,7 +78,7 @@ def debug():
     studydb = StudyRepoWriter(Path("./build/test.db"))
     study_repo = StudySpecManager()
     meas = study_repo.load_measure_spec(MeasureId("ssis"))
-    studydb.add_measures(list(meas.items.values())[0])
+    studydb.add_measure_spec(meas)
 #    print(study_repo.query().measure_items)
 #    print(study_repo.query().tables)
 

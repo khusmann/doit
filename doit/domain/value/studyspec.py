@@ -16,7 +16,7 @@ class OrdinalMeasureItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
     codes: CodeMapTag
-    is_idx: t.Optional[bool] = False
+    is_idx: bool = False
 
 class SimpleMeasureItem(ImmutableBaseModel):
     prompt: str
@@ -30,7 +30,7 @@ MeasureItem = t.Annotated[
 ]
 
 class MeasureItemGroup(ImmutableBaseModel):
-    prompt: str
+    prompt: t.Optional[str]
     type: t.Literal['group']
     items: t.OrderedDict[MeasureNodeTag, MeasureNode]
 
