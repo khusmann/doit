@@ -43,7 +43,7 @@ MeasureNode = t.Annotated[
 
 MeasureItemGroup.update_forward_refs()
 
-class Measure(ImmutableBaseModel):
+class MeasureSpec(ImmutableBaseModel):
     measure_id: MeasureId
     title: str
     description: t.Optional[str]
@@ -94,7 +94,7 @@ InstrumentNode = t.Annotated[
 
 InstrumentItemGroup.update_forward_refs()
 
-class Instrument(ImmutableBaseModel):
+class InstrumentSpec(ImmutableBaseModel):
     instrument_id: InstrumentId
     title: str
     description: t.Optional[str]
@@ -104,14 +104,8 @@ class Instrument(ImmutableBaseModel):
 ### Study
 
 @dataclass(frozen=True)
-class Study:
+class StudySpec:
     title: str
     description: t.Optional[str]
-    measures: t.Mapping[MeasureId, Measure]
-    instruments: t.Mapping[InstrumentId, Instrument]
-    #source_meta: t.Mapping[InstrumentId, SourceMeta]
-
-    # Derived properties
-    measure_items: t.Mapping[MeasureItemId, MeasureItem]
-    codemaps: t.Mapping[CodeMapUri, CodeMap]
-    tables: t.Mapping[StudyTableId, t.FrozenSet[MeasureItemId]]
+    measures: t.Mapping[MeasureId, MeasureSpec]
+    instruments: t.Mapping[InstrumentId, InstrumentSpec]

@@ -32,7 +32,7 @@ class TableImport(ImmutableBaseModel):
 
 ### UnsafeTable
 
-class TableSourceInfo(ImmutableBaseModel):
+class TableFetchInfo(ImmutableBaseModel):
     service: RemoteService
     title: str
     last_update_check: datetime
@@ -45,55 +45,51 @@ class TableFileInfo(ImmutableBaseModel):
     data_path: Path
     schema_path: Path
 
-class UnsafeTableMeta(ImmutableBaseModel):
+class UnsafeSourceTable(ImmutableBaseModel):
     instrument_id: InstrumentId
-    source_info: t.Optional[TableSourceInfo]
+    fetch_info: TableFetchInfo
     file_info: TableFileInfo
-
-class UnsafeTable(ImmutableBaseModel):
-    instrument_id: InstrumentId
-    meta: UnsafeTableMeta
-    columns: t.Mapping[ColumnId, ColumnImport]
+    table: TableImport
 
 ### SafeTable
 
 ColumnT = t.TypeVar('ColumnT', bound=ColumnTypeStr)
 DataT = t.TypeVar('DataT', bound=ColumnDataType)
 
-class SafeColumnMeta(ImmutableBaseModel):
+class SourceColumnMeta(ImmutableBaseModel):
     column_id: ColumnId
     type: ColumnTypeStr
     prompt: str
     sanitizer_meta: t.Optional[str]
 
-class SafeColumnBase(ImmutableGenericModel, t.Generic[ColumnT, DataT]):
+class SourceColumnBase(ImmutableGenericModel, t.Generic[ColumnT, DataT]):
     column_id: ColumnId
-    meta: SafeColumnMeta
+    meta: SourceColumnMeta
     type: ColumnT
     values: t.Tuple[DataT | None, ...]
 
-SafeColumn = t.Annotated[
+SourceColumn = t.Annotated[
     t.Union[
-        SafeColumnBase[t.Literal['bool'], StrictBool],
-        SafeColumnBase[t.Literal['ordinal'], StrictStr],
-        SafeColumnBase[t.Literal['real'], StrictFloat],
-        SafeColumnBase[t.Literal['text'], StrictStr],
-        SafeColumnBase[t.Literal['integer'], StrictInt],
+        SourceColumnBase[t.Literal['bool'], StrictBool],
+        SourceColumnBase[t.Literal['ordinal'], StrictStr],
+        SourceColumnBase[t.Literal['real'], StrictFloat],
+        SourceColumnBase[t.Literal['text'], StrictStr],
+        SourceColumnBase[t.Literal['integer'], StrictInt],
     ], Field(discriminator='type')
 ]
 
-def new_safe_column(column_id: ColumnId, meta: SafeColumnMeta, column_type: ColumnTypeStr, values: t.Sequence[t.Any | None]) -> SafeColumn:
+def new_source_column(column_id: ColumnId, meta: SourceColumnMeta, column_type: ColumnTypeStr, values: t.Sequence[t.Any | None]) -> SourceColumn:
     match column_type:
         case 'bool':
-            new_func = SafeColumnBase[t.Literal['bool'], StrictBool]
+            new_func = SourceColumnBase[t.Literal['bool'], StrictBool]
         case 'ordinal':
-            new_func = SafeColumnBase[t.Literal['ordinal'], StrictStr]
+            new_func = SourceColumnBase[t.Literal['ordinal'], StrictStr]
         case 'real':
-            new_func = SafeColumnBase[t.Literal['real'], StrictFloat]
+            new_func = SourceColumnBase[t.Literal['real'], StrictFloat]
         case 'text':
-            new_func = SafeColumnBase[t.Literal['text'], StrictStr]
+            new_func = SourceColumnBase[t.Literal['text'], StrictStr]
         case 'integer':
-            new_func = SafeColumnBase[t.Literal['integer'], StrictInt]
+            new_func = SourceColumnBase[t.Literal['integer'], StrictInt]
 
     return new_func(
         column_id=column_id,
@@ -102,14 +98,14 @@ def new_safe_column(column_id: ColumnId, meta: SafeColumnMeta, column_type: Colu
         values=values
     )
 
-class SafeTableMeta(ImmutableBaseModel):
+class SourceTableMeta(ImmutableBaseModel):
     instrument_id: InstrumentId
-    source_info: TableSourceInfo
-    columns: t.Mapping[ColumnId, SafeColumnMeta]
+    source_info: TableFetchInfo
+    columns: t.Mapping[ColumnId, SourceColumnMeta]
 
-class SafeTable(ImmutableBaseModel):
+class SourceTable(ImmutableBaseModel):
     instrument_id: InstrumentId
-    meta: SafeTableMeta
-    columns: t.Mapping[ColumnId, SafeColumn]
+    meta: SourceTableMeta
+    columns: t.Mapping[ColumnId, SourceColumn]
 
 ### LinkedTable

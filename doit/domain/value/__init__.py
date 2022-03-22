@@ -4,7 +4,7 @@ from .common import *
 
 from .table import *
 
-from .study import *
+from .studyspec import *
 
 import yaml
 

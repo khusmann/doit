@@ -1,4 +1,4 @@
-from .repo.study import StudyRepo
+from .manager.studyspec import StudySpecManager
 from dotenv import load_dotenv
 load_dotenv('.env')
 
@@ -6,12 +6,12 @@ import click
 from tqdm import tqdm
 import yaml
 from pathlib import Path
-from .repo.unsafetable import UnsafeTableRepo
-from .repo.safetabledb import SafeTableDbRepo
-from .io.remote import fetch_table_listing
+from .manager.unsafetable import UnsafeTableManager
+from .manager.safetable import SafeTableRepoManager
+from .remote import fetch_table_listing
 from .domain.value import InstrumentId, RemoteService, ColumnId, MeasureId
-from .domain.service import sanitize_table, stub_instrument
-from .io.studydb import StudyDbWriter
+from .domain.service import sanitize_table #, stub_instrument
+from .repo.study import StudyRepoWriter
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -22,12 +22,12 @@ def cli():
 @cli.command()
 def sanitize():
     """Sanitize sources"""
-    unsafe_repo = UnsafeTableRepo()
-    safe_repo = SafeTableDbRepo()
-    db_writer = safe_repo.new_db()
+    unsafe_repo = UnsafeTableManager()
+    safe_repo = SafeTableRepoManager()
+    db_writer = safe_repo.load_writer()
 
     for instrument_id in tqdm(unsafe_repo.tables()):
-        unsafe_table = unsafe_repo.query(instrument_id)
+        unsafe_table = unsafe_repo.load_table(instrument_id)
         safe_table = sanitize_table(unsafe_table)
         db_writer.insert(safe_table)
 
@@ -41,32 +41,33 @@ def source_cli():
 @click.argument('uri')
 def source_add(instrument_id: InstrumentId, uri: str):
     """Add an instrument source"""
-    unsafe_repo = UnsafeTableRepo()
+    unsafe_repo = UnsafeTableManager()
     unsafe_repo.add(instrument_id, uri)
 
 @source_cli.command(name="rm")
 @click.argument('instrument_id')
 def source_rm(instrument_id: InstrumentId):
     """Remove an instrument source"""
-    unsafe_repo = UnsafeTableRepo()
+    unsafe_repo = UnsafeTableManager()
     unsafe_repo.rm(instrument_id)
 
 @cli.command(name='stub-instrument')
 @click.argument('instrument_id')
 def cli_stub_instrument(instrument_id: InstrumentId):
-    safe_repo = SafeTableDbRepo()
-    safe_reader = safe_repo.query()
-    safe_table = safe_reader.query(instrument_id)
+    pass
+    #safe_repo = SafeTableDbRepo()
+    #safe_reader = safe_repo.query()
+    #safe_table = safe_reader.query(instrument_id)
 
-    study_repo = StudyRepo()
-    study_repo.save_instrument(stub_instrument(safe_table))
+    #study_repo = StudySpecManager()
+    #study_repo.save_instrument(stub_instrument(safe_table))
 
 @cli.command()
 @click.argument('instrument_id')
 @click.argument('column_id')
 def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
-    safe_repo = SafeTableDbRepo()
-    safe_reader = safe_repo.query()
+    safe_repo = SafeTableRepoManager()
+    safe_reader = safe_repo.load_reader()
     safe_table = safe_reader.query(instrument_id)
     safe_column = safe_table.columns[column_id]
     print(yaml.dump(list(set(safe_column.values))))
@@ -74,9 +75,9 @@ def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
 @cli.command()
 def debug():
     """Debug"""
-    studydb = StudyDbWriter(Path("./build/test.db"))
-    study_repo = StudyRepo()
-    meas = study_repo.query_measure(MeasureId("ssis"))
+    studydb = StudyRepoWriter(Path("./build/test.db"))
+    study_repo = StudySpecManager()
+    meas = study_repo.load_measure_spec(MeasureId("ssis"))
     studydb.add_measures(list(meas.items.values())[0])
 #    print(study_repo.query().measure_items)
 #    print(study_repo.query().tables)
@@ -91,7 +92,7 @@ def debug():
 @source_cli.command(name="fetch")
 @click.argument('instrument_id', required=False)
 def source_fetch(instrument_id: InstrumentId | None):
-    unsafe_repo = UnsafeTableRepo()
+    unsafe_repo = UnsafeTableManager()
     id_list = unsafe_repo.tables() if instrument_id is None else [instrument_id]
     for i in id_list:
         unsafe_repo.fetch(i)
@@ -100,11 +101,11 @@ def source_fetch(instrument_id: InstrumentId | None):
 @click.argument('remote_service', required=False)
 def source_list(remote_service: RemoteService | None):
     """List available instruments"""
-    unsafe_repo = UnsafeTableRepo()
+    unsafe_repo = UnsafeTableManager()
     click.secho()
     if (remote_service is None):
-        for meta in map(lambda i: unsafe_repo.query_meta(i), unsafe_repo.tables()):
-            click.secho(" {} : {}".format(click.style(meta.instrument_id, fg='bright_cyan'), meta.file_info.remote.uri))
+        for (instrument_id, file_info) in map(lambda i: (i, unsafe_repo.load_file_info(i)), unsafe_repo.tables()):
+            click.secho(" {} : {}".format(click.style(instrument_id, fg='bright_cyan'), file_info.remote.uri))
     else:
         for desc in fetch_table_listing(remote_service):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))

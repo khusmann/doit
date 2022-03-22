@@ -3,6 +3,9 @@ import typing as t
 
 from pathlib import Path
 
+from ..domain.value.table import TableFetchInfo
+from datetime import datetime
+
 import requests
 import json
 
@@ -15,7 +18,7 @@ from pathlib import Path
 
 from pydantic import BaseSettings, Field, parse_obj_as
 
-from ...domain.value import ImmutableBaseModel, RemoteTableListing
+from ..domain.value import ImmutableBaseModel, RemoteTableListing
 
 ### List Surveys API
 class QualtricsSurveyList(ImmutableBaseModel):
@@ -50,6 +53,9 @@ QualtricsExportStatus = t.Annotated[
         QualtricsExportStatusFailed
     ], Field(discriminator='status')
 ]
+
+class QualtricsSchema(ImmutableBaseModel):
+    title: str
 
 class QualtricsRemoteSettings(BaseSettings):
     api_key: str
@@ -88,10 +94,19 @@ class QualtricsRemote(RemoteIoApi):
             ) for i in survey_list.elements
         ]
 
-    def fetch_remote_table(self, remote_id: str, data_path: Path, schema_path: Path) -> None:
+    def fetch_remote_table(self, remote_id: str, data_path: Path, schema_path: Path) -> TableFetchInfo:
         print("Fetching... qualtrics://{}".format(remote_id))
         self.fetch_remote_table_data(remote_id, data_path)
         self.fetch_remote_table_schema(remote_id, schema_path)
+        schema = QualtricsSchema.parse_file(schema_path)
+
+        return TableFetchInfo(
+            service = 'qualtrics',
+            last_update_check = datetime.now(),
+            last_updated = datetime.now(),
+            title = schema.title,
+            # TODO: SHA?
+        )
 
     def fetch_remote_table_data(self, qualtrics_id: str, data_path: Path) -> None:
         endpoint_prefix = "surveys/{}/export-responses".format(qualtrics_id)

@@ -5,11 +5,11 @@ from pathlib import Path
 from ..domain.value import (
     ColumnId,
     InstrumentId,
-    SafeColumn,
-    SafeTable,
-    SafeTableMeta,
-    SafeColumnMeta,
-    new_safe_column
+    SourceColumn,
+    SourceTable,
+    SourceTableMeta,
+    SourceColumnMeta,
+    new_source_column
 )
 
 from sqlite_utils import Database
@@ -43,12 +43,12 @@ def unflatten_dict(dictionary: t.Mapping[str, str]) -> t.Mapping[str, t.Any]:
         d[parts[-1]] = value
     return resultDict
 
-class SafeTableDbWriter:
+class SourceTableRepoWriter:
     def __init__(self, path: Path):
         assert not path.exists()
         self.handle = Database(path)
 
-    def insert(self, table: SafeTable) -> None:
+    def insert(self, table: SourceTable) -> None:
         self.handle[table.instrument_id].insert_all(to_sql_table_data(table)) # type: ignore
 
         table_meta_dict = flatten_dict(table.meta.dict(exclude={'columns'}))
@@ -60,25 +60,25 @@ class SafeTableDbWriter:
             pk=("instrument_id", "column_id") # type: ignore
         )
 
-class SafeTableDbReader:
+class SourceTableRepoReader:
     def __init__(self, path: Path):
         assert path.exists()
         self.handle = Database(path)
 
-    def query(self, instrument_id: InstrumentId) -> SafeTable:
+    def query(self, instrument_id: InstrumentId) -> SourceTable:
         meta = self.query_meta(instrument_id)
 
         data_raw: t.Sequence[SqlData] = self.handle[instrument_id].rows # type: ignore
 
         return from_sql_table_data(meta, data_raw)
 
-    def query_meta(self, instrument_id: InstrumentId) -> SafeTableMeta:
+    def query_meta(self, instrument_id: InstrumentId) -> SourceTableMeta:
         column_meta_raw: t.Mapping[str, str] = self.handle[COLUMN_META_NAME].rows_where("instrument_id = ?", [instrument_id]) #type: ignore
-        column_meta = { i.column_id: i for i in [SafeColumnMeta.parse_obj(i) for i in column_meta_raw] }
+        column_meta = { i.column_id: i for i in [SourceColumnMeta.parse_obj(i) for i in column_meta_raw] }
 
         table_meta_raw = unflatten_dict(self.handle[TABLE_META_NAME].get(instrument_id)) #type: ignore
 
-        return SafeTableMeta.parse_obj({
+        return SourceTableMeta.parse_obj({
             "columns": column_meta,
             **table_meta_raw,
         })
@@ -87,11 +87,11 @@ class SafeTableDbReader:
         table_names = set(self.handle.table_names()) - { TABLE_META_NAME, COLUMN_META_NAME }
         return [InstrumentId(i) for i in table_names]
 
-def to_sql_table_data(table: SafeTable) -> t.Iterable[SqlData]:
+def to_sql_table_data(table: SourceTable) -> t.Iterable[SqlData]:
     by_row = zip(*map(lambda i: i.values, table.columns.values()))
     return map(lambda row: { key: value for (key, value) in zip(table.columns.keys(), row) }, by_row)
 
-def from_sql_column_data(meta: SafeColumnMeta, data: t.List[t.Any]) -> SafeColumn:
+def from_sql_column_data(meta: SourceColumnMeta, data: t.List[t.Any]) -> SourceColumn:
     match meta.type:
         case 'bool':
             values=[None if i is None else bool(i) for i in data]
@@ -103,20 +103,20 @@ def from_sql_column_data(meta: SafeColumnMeta, data: t.List[t.Any]) -> SafeColum
             values=data
         case 'real':
             values=data
-    return new_safe_column(
+    return new_source_column(
         column_id=meta.column_id,
         meta=meta,
         column_type=meta.type,
         values=values,
     )
 
-def from_sql_table_data(meta: SafeTableMeta, sql_data: t.Sequence[SqlData]) -> SafeTable:
+def from_sql_table_data(meta: SourceTableMeta, sql_data: t.Sequence[SqlData]) -> SourceTable:
     sql_data = tuple(sql_data)
     by_col = { column_id: [row[column_id] for row in sql_data] for column_id in meta.columns.keys()}
     columns = {
         column_id: from_sql_column_data(column_meta, by_col[column_id]) for (column_id, column_meta) in meta.columns.items()
     }
-    return SafeTable(
+    return SourceTable(
         instrument_id=meta.instrument_id,
         meta=meta,
         columns=columns,

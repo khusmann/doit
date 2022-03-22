@@ -5,7 +5,7 @@ from .value import *
 def is_integer_text_column(values: t.Sequence[str | None]):
     return all([i.lstrip('-+').isdigit() for i in values if i is not None])
 
-def sanitize_column(column: ColumnImport) -> SafeColumn:
+def sanitize_column(column: ColumnImport) -> SourceColumn:
     match column.type:
         case 'safe_bool':
             (column_type, values) = ('bool', column.values)
@@ -26,9 +26,9 @@ def sanitize_column(column: ColumnImport) -> SafeColumn:
             column_type='real'
             values=[None if i is None else float(i) for i in column.values],
             
-    return new_safe_column(
+    return new_source_column(
         column_id=column.column_id,
-        meta=SafeColumnMeta(
+        meta=SourceColumnMeta(
             column_id=column.column_id,
             prompt=column.prompt,
             type=column_type,
@@ -38,22 +38,21 @@ def sanitize_column(column: ColumnImport) -> SafeColumn:
         values=values
     )
 
-def sanitize_table(table: UnsafeTable) -> SafeTable:
-    assert table.meta.source_info is not None
-    safe_columns = { column_id: sanitize_column(column) for (column_id, column) in table.columns.items() }
+def sanitize_table(table: UnsafeSourceTable) -> SourceTable:
+    safe_columns = { column_id: sanitize_column(column) for (column_id, column) in table.table.columns.items() }
     column_meta = { column_id: column.meta for (column_id, column) in safe_columns.items() }
 
-    return SafeTable(
+    return SourceTable(
         instrument_id=table.instrument_id,
         columns=safe_columns,
-        meta=SafeTableMeta(
+        meta=SourceTableMeta(
             instrument_id=table.instrument_id,
-            source_info=table.meta.source_info,
+            source_info=table.fetch_info,
             columns=column_meta,
         ),
     )
 
-def stub_instrument_item(column_id: ColumnId, column: SafeColumn) -> InstrumentItem:
+def stub_instrument_item(column_id: ColumnId, column: SourceColumn) -> InstrumentItem:
     return QuestionInstrumentItem(
         type='question',
         remote_id=column_id,
@@ -62,8 +61,8 @@ def stub_instrument_item(column_id: ColumnId, column: SafeColumn) -> InstrumentI
         map={ i: None for i in column.values if i is not None } if column.type=='ordinal' else None,
     )
 
-def stub_instrument(table: SafeTable) -> Instrument:
-    return Instrument(
+def stub_instrument(table: SourceTable) -> InstrumentSpec:
+    return InstrumentSpec(
         instrument_id=table.instrument_id,
         title=table.meta.source_info.title,
         description="description",
@@ -72,7 +71,7 @@ def stub_instrument(table: SafeTable) -> Instrument:
     )
 
 
-def flatten_measures(measures: t.Mapping[MeasureId, Measure]) -> t.Mapping[MeasureItemId, MeasureItem]:
+def flatten_measures(measures: t.Mapping[MeasureId, MeasureSpec]) -> t.Mapping[MeasureItemId, MeasureItem]:
     def trav(curr_path: MeasureItemId, cursor: t.Mapping[MeasureNodeTag, MeasureNode]) -> t.List[t.Tuple[MeasureItemId, MeasureItem]]:
         return sum([
             trav(curr_path / id, item.items) if item.type == 'group' else [(curr_path / id, item)]
@@ -93,7 +92,7 @@ def form_study_table_id(flat_instrument_items: t.Sequence[InstrumentItem], index
         i.id for i in flat_instrument_items if i.id in index_uris
     ]))
 
-def extract_codemaps(measures: t.Mapping[MeasureId, Measure]) -> t.Mapping[CodeMapUri, CodeMap]:
+def extract_codemaps(measures: t.Mapping[MeasureId, MeasureSpec]) -> t.Mapping[CodeMapUri, CodeMap]:
     everything = sum([
         [(CodeMapUri(measure_id) / codemap_tag, codemap) for (codemap_tag, codemap) in measure.codes.items()]
             for (measure_id, measure) in measures.items()
@@ -105,7 +104,7 @@ def filter_index_measures(measure_items: t.Mapping[MeasureItemId, MeasureItem]) 
         return item.type == 'ordinal' and item.is_idx is not None and item.is_idx
     return frozenset({ uri for (uri, measure_item) in measure_items.items() if is_measure_item_idx(measure_item)})
 
-def tables_inv(instruments: t.Mapping[InstrumentId, Instrument], index_uris: t.FrozenSet[MeasureItemId]) -> t.Mapping[MeasureItemId, StudyTableId]:
+def tables_inv(instruments: t.Mapping[InstrumentId, InstrumentSpec], index_uris: t.FrozenSet[MeasureItemId]) -> t.Mapping[MeasureItemId, StudyTableId]:
     result: t.Mapping[MeasureItemId, StudyTableId]= {}
     for instrument in instruments.values():
         flat_items = flatten_instrument_items(instrument.items)
@@ -123,15 +122,15 @@ def tables_inv(instruments: t.Mapping[InstrumentId, Instrument], index_uris: t.F
     return result
 
 
-def link_study(instruments: t.Mapping[InstrumentId, Instrument], measures: t.Mapping[MeasureId, Measure]) -> Study:
-    measure_items = flatten_measures(measures)
-    index_uris = filter_index_measures(measure_items)
-    return Study(
+def link_study(instruments: t.Mapping[InstrumentId, InstrumentSpec], measures: t.Mapping[MeasureId, MeasureSpec]) -> StudySpec:
+#    measure_items = flatten_measures(measures)
+#    index_uris = filter_index_measures(measure_items)
+    return StudySpec(
         title="Study title",
         description=None,
         instruments=instruments,
         measures=measures,
-        measure_items=measure_items,
-        codemaps=extract_codemaps(measures),
-        tables=invert_map(tables_inv(instruments, index_uris))
+#        measure_items=measure_items,
+#        codemaps=extract_codemaps(measures),
+#        tables=invert_map(tables_inv(instruments, index_uris))
     )

@@ -6,7 +6,7 @@ from pydantic import Field
 from pathlib import Path
 
 from .api import UnsafeTableIoApi
-from ...domain.value import ImmutableBaseModel, TableImport, ColumnImport
+from ..domain.value import ImmutableBaseModel, TableImport, ColumnImport
 
 class QualtricsUnsafeTableIo(UnsafeTableIoApi):
     def read_unsafe_table_data(self, data_path: Path, schema_path: Path) -> TableImport:

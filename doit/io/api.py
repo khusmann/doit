@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from ...domain.value import ImmutableBaseModel, TableImport
+from ..domain.value import ImmutableBaseModel, TableImport
 from pathlib import Path
 
 class UnsafeTableIoApi(ImmutableBaseModel, ABC):
