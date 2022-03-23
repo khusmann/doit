@@ -21,7 +21,6 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 Base = declarative_base()
 
-
 class Measure(Base):
     __tablename__ = "__measures__"
     id = Column(Integer, primary_key=True)
@@ -60,11 +59,16 @@ class MeasureNode(Base):
     is_idx = Column(Boolean)
     prompt = Column(String)
     tag = Column(String, nullable=False, unique=True)
-    type = Column(String)
+    type = Column(String, nullable=False)
     items = relationship(
         "MeasureNode",
         backref=backref("parent_node", remote_side=id),
         collection_class=attribute_mapped_collection("tag"),
+    )
+
+    instrument_items = relationship(
+        "InstrumentNode",
+        backref=backref("measure_item", remote_side=id),
     )
 
 
@@ -81,3 +85,34 @@ class MeasureNode(Base):
             + "\n"
             + "".join([c.dump(_indent + 1) for c in self.items.values()])
         )
+
+
+class Instrument(Base):
+    __tablename__ = "__instruments__"
+    id = Column(Integer, primary_key=True)
+    tag = Column(String, nullable=False, unique=True)
+    title = Column(String)
+    description = Column(String)
+    instructions = Column(String)
+
+    items = relationship(
+        "InstrumentNode",
+        backref="parent_instrument",
+    )
+
+class InstrumentNode(Base):
+    __tablename__ = "__instrument_items__"
+    id = Column(Integer, primary_key=True)
+    parent_node_id = Column(Integer, ForeignKey(id))
+    parent_instrument_id = Column(Integer, ForeignKey(Instrument.id))
+    measure_item_id = Column(Integer, ForeignKey(MeasureNode.id))
+    remote_id = Column(String)
+    type = Column(String, nullable=False)
+    title = Column(String)
+    prompt = Column(String)
+    value = Column(String)
+
+    items = relationship(
+        "InstrumentNode",
+        backref=backref("parent_node", remote_side=id),
+    )

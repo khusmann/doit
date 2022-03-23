@@ -78,7 +78,7 @@ def debug():
     studydb = StudyRepoWriter(Path("./build/test.db"))
     study_repo = StudySpecManager()
     study = study_repo.load_study_spec()
-    studydb.add_study_spec(study)
+    studydb.setup(study)
 #    print(study_repo.query().measure_items)
 #    print(study_repo.query().tables)
 
