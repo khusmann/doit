@@ -42,7 +42,7 @@ class Measure(Base):
 class CodeMap(Base):
     __tablename__ = "__codemaps__"
     id = Column(Integer, primary_key=True)
-    root_measure_id = Column(Integer, ForeignKey(Measure.id), nullable=False)
+    root_measure_id = Column(Integer, ForeignKey(Measure.id))
     tag = Column(String, nullable=False)
     values = Column(JSON, nullable=False)
     measure_nodes = relationship(

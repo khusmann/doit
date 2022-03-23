@@ -9,6 +9,7 @@ from pydantic import (
     validator,
 )
 from pydantic.generics import GenericModel
+from functools import reduce
 
 class ImmutableBaseModel(BaseModel):
     class Config:
@@ -35,6 +36,9 @@ def dmap(f: t.Callable[[P], Q], m: t.Mapping[T, P]) -> t.Mapping[T, Q]:
     return {
         k: f(v) for (k, v) in m.items()
     }
+
+def merge_mappings(d: t.Sequence[t.Mapping[T, P]]) -> t.Dict[T, P]:
+    return reduce(lambda acc, x: acc | x, map(lambda x: dict(x), d))
 
 class Uri(str):
     def as_tuple(self) -> t.Tuple[str, ...]:
