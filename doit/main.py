@@ -9,7 +9,7 @@ from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
 from .manager.safetable import SafeTableRepoManager
 from .remote import fetch_table_listing
-from .domain.value import InstrumentId, RemoteService, ColumnId, MeasureId
+from .domain.value import InstrumentId, RemoteService, ColumnId
 from .domain.service import sanitize_table #, stub_instrument
 from .repo.study import StudyRepoWriter
 
@@ -77,8 +77,8 @@ def debug():
     """Debug"""
     studydb = StudyRepoWriter(Path("./build/test.db"))
     study_repo = StudySpecManager()
-    meas = study_repo.load_measure_spec(MeasureId("ssis"))
-    studydb.add_measure_spec(meas)
+    study = study_repo.load_study_spec()
+    studydb.add_study_spec(study)
 #    print(study_repo.query().measure_items)
 #    print(study_repo.query().tables)
 

@@ -7,6 +7,7 @@ from sqlalchemy import (
     Integer,
     String,
     Boolean,
+    JSON,
     ForeignKey,
 )
 from sqlalchemy.ext.declarative import declarative_base
@@ -20,6 +21,7 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 
 Base = declarative_base()
 
+
 class Measure(Base):
     __tablename__ = "__measures__"
     id = Column(Integer, primary_key=True)
@@ -31,13 +33,30 @@ class Measure(Base):
         backref="root_measure",
         collection_class=attribute_mapped_collection("tag"),
     )
+    codes = relationship(
+        "CodeMap",
+        backref="root_measure",
+        collection_class=attribute_mapped_collection("tag"),
+    )
+
+class CodeMap(Base):
+    __tablename__ = "__codemaps__"
+    id = Column(Integer, primary_key=True)
+    root_measure_id = Column(Integer, ForeignKey(Measure.id), nullable=False)
+    tag = Column(String, nullable=False)
+    values = Column(JSON, nullable=False)
+    measure_nodes = relationship(
+        "MeasureNode",
+        backref="codes",
+        collection_class=attribute_mapped_collection("tag"),
+    )
 
 class MeasureNode(Base):
     __tablename__ = "__measure_items__"
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey(id))
     root_measure_id = Column(Integer, ForeignKey(Measure.id))
-    codes = Column(String)
+    codemap_id = Column(Integer, ForeignKey(CodeMap.id))
     is_idx = Column(Boolean)
     prompt = Column(String)
     tag = Column(String, nullable=False, unique=True)
@@ -47,6 +66,7 @@ class MeasureNode(Base):
         backref=backref("parent", remote_side=id),
         collection_class=attribute_mapped_collection("tag"),
     )
+
 
     def __repr__(self):
         return "MeasureNode(type={}, tag={})".format(
