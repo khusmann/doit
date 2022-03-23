@@ -30,21 +30,21 @@ class Measure(Base):
     description = Column(String)
     items = relationship(
         "MeasureNode",
-        backref="root_measure",
+        backref="parent_measure",
         collection_class=attribute_mapped_collection("tag"),
     )
     codes = relationship(
         "CodeMap",
-        backref="root_measure",
+        backref="parent_measure",
         collection_class=attribute_mapped_collection("tag"),
     )
 
 class CodeMap(Base):
     __tablename__ = "__codemaps__"
     id = Column(Integer, primary_key=True)
-    root_measure_id = Column(Integer, ForeignKey(Measure.id))
+    parent_measure_id = Column(Integer, ForeignKey(Measure.id))
     tag = Column(String, nullable=False)
-    values = Column(JSON, nullable=False)
+    __root__ = Column(JSON, nullable=False)
     measure_nodes = relationship(
         "MeasureNode",
         backref="codes",
@@ -54,8 +54,8 @@ class CodeMap(Base):
 class MeasureNode(Base):
     __tablename__ = "__measure_items__"
     id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, ForeignKey(id))
-    root_measure_id = Column(Integer, ForeignKey(Measure.id))
+    parent_node_id = Column(Integer, ForeignKey(id))
+    parent_measure_id = Column(Integer, ForeignKey(Measure.id))
     codemap_id = Column(Integer, ForeignKey(CodeMap.id))
     is_idx = Column(Boolean)
     prompt = Column(String)
@@ -63,7 +63,7 @@ class MeasureNode(Base):
     type = Column(String)
     items = relationship(
         "MeasureNode",
-        backref=backref("parent", remote_side=id),
+        backref=backref("parent_node", remote_side=id),
         collection_class=attribute_mapped_collection("tag"),
     )
 
