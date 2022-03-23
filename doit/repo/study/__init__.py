@@ -4,7 +4,9 @@ from sqlalchemy import create_engine
 
 from sqlalchemy.orm import Session
 
-from ...domain.value.common import merge_mappings
+from ...domain.value.common import InstrumentId, merge_mappings
+
+from ...domain.value import pages
 
 from .model import *
 
@@ -54,3 +56,34 @@ class StudyRepoWriter:
             session.add(instrument) # type: ignore
 
         session.commit()
+
+class StudyRepoReader:
+    def __init__(self, path: Path):
+        assert path.exists()
+        self.url = "sqlite:///{}".format(path)
+        print(self.url)
+        self.engine = create_engine(self.url, echo=True)
+
+    def query_instrument_listing(self) -> t.Tuple[pages.InstrumentListing, ...]:
+        session = Session(self.engine)
+        return tuple(map(pages.InstrumentListing.from_orm, session.query(Instrument).all()))
+
+    def query_instrument(self, instrument_id: InstrumentId) -> pages.Instrument:
+        session = Session(self.engine)
+
+        instrument: t.List[Instrument] = list(session.query(Instrument).where(Instrument.tag == instrument_id)) # type: ignore
+        assert(len(instrument) == 1)
+
+        return pages.Instrument.from_orm(instrument[0])
+
+    def query_measure_listing(self) -> t.Tuple[pages.MeasureListing, ...]:
+        session = Session(self.engine)
+        return tuple(map(pages.MeasureListing.from_orm, session.query(Measure).all()))
+
+    def query_measure(self, measure_id: MeasureId) -> pages.Measure:
+        session = Session(self.engine)
+
+        measure: t.List[Measure] = list(session.query(Measure).where(Measure.tag == measure_id)) # type: ignore
+        assert(len(measure) == 1)
+
+        return pages.Measure.from_orm(measure[0])

@@ -9,9 +9,9 @@ from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
 from .manager.safetable import SafeTableRepoManager
 from .remote import fetch_table_listing
-from .domain.value import InstrumentId, RemoteService, ColumnId
+from .domain.value import InstrumentId, RemoteService, ColumnId, MeasureId
 from .domain.service import sanitize_table #, stub_instrument
-from .repo.study import StudyRepoWriter
+from .repo.study import StudyRepoReader, StudyRepoWriter
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -75,19 +75,17 @@ def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
 @cli.command()
 def debug():
     """Debug"""
-    studydb = StudyRepoWriter(Path("./build/test.db"))
-    study_repo = StudySpecManager()
-    study = study_repo.load_study_spec()
-    studydb.setup(study)
-#    print(study_repo.query().measure_items)
-#    print(study_repo.query().tables)
+    studydb = StudyRepoReader(Path("./build/test.db"))
+    #print(studydb.query_instrument_listing())
+    #print(studydb.query_instrument(InstrumentId('student_behavior-y2w1')))
+    #print(studydb.query_measure_listing())
+    print(studydb.query_measure(MeasureId('ssis')))
 
-    #safe_repo = SafeTableDbRepo()
-    #db_reader = safe_repo.query()
-    #print(db_reader.query(InstrumentId('student_behavior-y2w2')))
+    #studydb = StudyRepoWriter(Path("./build/test.db"))
+    #study_repo = StudySpecManager()
+    #study = study_repo.load_study_spec()
+    #studydb.setup(study)
 
-    #unsafe_repo = UnsafeTableRepo()
-    #print(unsafe_repo.query(instrument_id).json(indent=2))
     
 @source_cli.command(name="fetch")
 @click.argument('instrument_id', required=False)

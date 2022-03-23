@@ -43,14 +43,30 @@ class CodeMap(Base):
     id = Column(Integer, primary_key=True)
     parent_measure_id = Column(Integer, ForeignKey(Measure.id))
     tag = Column(String, nullable=False)
-    __root__ = Column(JSON, nullable=False)
+    values = Column(JSON, nullable=False)
     measure_nodes = relationship(
         "MeasureNode",
         backref="codes",
         collection_class=attribute_mapped_collection("tag"),
     )
 
-class MeasureNode(Base):
+class DumpableNode:
+    def __repr__(self):
+        return "{}(type={}, tag={})".format(
+            type(self),
+            self.type,
+            self.tag,
+        )
+
+    def dump(self, _indent=0):
+        return (
+            "   " * _indent
+            + repr(self)
+            + "\n"
+            + "".join([c.dump(_indent + 1) for c in self.items.values()])
+        )
+
+class MeasureNode(Base, DumpableNode):
     __tablename__ = "__measure_items__"
     id = Column(Integer, primary_key=True)
     parent_node_id = Column(Integer, ForeignKey(id))
@@ -71,22 +87,6 @@ class MeasureNode(Base):
         backref=backref("measure_item", remote_side=id),
     )
 
-
-    def __repr__(self):
-        return "MeasureNode(type={}, tag={})".format(
-            self.type,
-            self.tag,
-        )
-
-    def dump(self, _indent=0):
-        return (
-            "   " * _indent
-            + repr(self)
-            + "\n"
-            + "".join([c.dump(_indent + 1) for c in self.items.values()])
-        )
-
-
 class Instrument(Base):
     __tablename__ = "__instruments__"
     id = Column(Integer, primary_key=True)
@@ -98,9 +98,10 @@ class Instrument(Base):
     items = relationship(
         "InstrumentNode",
         backref="parent_instrument",
+#        order_by="InstrumentNode.id",
     )
 
-class InstrumentNode(Base):
+class InstrumentNode(Base, DumpableNode):
     __tablename__ = "__instrument_items__"
     id = Column(Integer, primary_key=True)
     parent_node_id = Column(Integer, ForeignKey(id))

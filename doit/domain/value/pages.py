@@ -3,21 +3,36 @@ import typing as t
 from .common import *
 from pydantic import Field
 
-### Measure
+### Measures
 
-#class AggregateMeasureItem(ImmutableBaseModel):
-#    prompt: str
-#    type: t.Literal['aggregate']
-#    aggretate_type: t.Literal['mean']
-#    items: t.Tuple[Measure.ItemId]
+class CodeMap(ImmutableBaseModelOrm):
+    class Value(t.TypedDict):
+        value: CodeValue
+        tag: CodeValueTag
+        text: str
 
-class OrdinalMeasureItem(ImmutableBaseModel):
+    values: t.Tuple[CodeMap.Value, ...]
+
+    def tag_to_value(self):
+        return { pair['tag']: pair['value'] for pair in self.values }
+
+    def value_to_tag(self):
+        return { pair['value']: pair['tag'] for pair in self.values }
+
+
+
+class MeasureListing(ImmutableBaseModelOrm):
+    #tag: MeasureId
+    title: str
+    description: t.Optional[str]
+
+class OrdinalMeasureItem(ImmutableBaseModelOrm):
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
-    codes: CodeMapTag
-    is_idx: bool = False
+    codes: CodeMap
+    is_idx: bool
 
-class SimpleMeasureItem(ImmutableBaseModel):
+class SimpleMeasureItem(ImmutableBaseModelOrm):
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
 
@@ -28,7 +43,7 @@ MeasureItem = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-class MeasureItemGroup(ImmutableBaseModel):
+class MeasureItemGroup(ImmutableBaseModelOrm):
     prompt: t.Optional[str]
     type: t.Literal['group']
     items: t.OrderedDict[MeasureNodeTag, MeasureNode]
@@ -42,33 +57,36 @@ MeasureNode = t.Annotated[
 
 MeasureItemGroup.update_forward_refs()
 
-class MeasureSpec(ImmutableBaseModel):
-    measure_id: MeasureId
+class Measure(ImmutableBaseModelOrm):
     title: str
     description: t.Optional[str]
     items: t.OrderedDict[MeasureNodeTag, MeasureNode]
-    codes: t.Mapping[CodeMapTag, CodeMap]
 
-### Instrument
+### Instruments
 
-class QuestionInstrumentItem(ImmutableBaseModel):
+class InstrumentListing(ImmutableBaseModelOrm):
+    tag: MeasureId
+    title: str
+    description: t.Optional[str]
+
+class QuestionInstrumentItem(ImmutableBaseModelOrm):
     prompt: str
     type: t.Literal['question']
-    remote_id: ColumnId
-    id: t.Optional[MeasureItemId]
-    map: t.Optional[RecodeTransform]
+    #remote_id: ColumnId
+    #id: t.Optional[MeasureItemId]
+    #map: t.Optional[RecodeTransform]
 
     # TODO: Custom export dict() rule to drop map if map is None
 
-class ConstantInstrumentItem(ImmutableBaseModel):
+class ConstantInstrumentItem(ImmutableBaseModelOrm):
     type: t.Literal['constant']
     value: t.Any
-    id: MeasureItemId
+    #id: MeasureItemId
 
-class HiddenInstrumentItem(ImmutableBaseModel):
+class HiddenInstrumentItem(ImmutableBaseModelOrm):
     type: t.Literal['hidden']
     remote_id: ColumnId
-    id: MeasureItemId
+    #id: MeasureItemId
 
 InstrumentItem = t.Annotated[
     t.Union[
@@ -78,7 +96,7 @@ InstrumentItem = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-class InstrumentItemGroup(ImmutableBaseModel):
+class InstrumentItemGroup(ImmutableBaseModelOrm):
     type: t.Literal['group']
     items: t.Tuple[InstrumentNode, ...]
     prompt: str
@@ -93,16 +111,8 @@ InstrumentNode = t.Annotated[
 
 InstrumentItemGroup.update_forward_refs()
 
-class InstrumentSpec(ImmutableBaseModel):
-    instrument_id: InstrumentId
+class Instrument(ImmutableBaseModelOrm):
+    tag: MeasureId
     title: str
     description: t.Optional[str]
-    instructions: t.Optional[str]
     items: t.Tuple[InstrumentNode, ...]
-
-### Study
-class StudySpec(ImmutableBaseModel):
-    title: str
-    description: t.Optional[str]
-    measures: t.Mapping[MeasureId, MeasureSpec]
-    instruments: t.Mapping[InstrumentId, InstrumentSpec]

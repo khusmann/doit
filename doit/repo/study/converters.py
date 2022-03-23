@@ -92,7 +92,7 @@ def mapped_codemaps_to_sql(codemap_map: t.Mapping[CodeMapTag, studyspec.CodeMap]
     return {
         str(tag): CodeMap(
             tag=tag,
-            __root__=codemap.dict()['__root__'],
+            values=codemap.dict()['__root__'],
             parent_measure=parent,
         ) for (tag, codemap) in codemap_map.items()
     }
