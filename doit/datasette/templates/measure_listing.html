@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Measure Listing{% endblock %}
+
+{% block nav %}
+    <p class="crumbs">
+        <a href="{{ urls.instance() }}">home</a>
+        | <a href="/-/instruments">instruments</a>
+        | <a href="/-/measures">measures</a>
+    </p>
+    {{ super() }}
+{% endblock %}
+
+{% block body_class %}index{% endblock %}
+{% block content %}
+<h1>Measure Listing</h1>
+
+{% for measure in measures %}
+    <h2><a href="/-/measures/{{measure.tag}}">{{measure.title}}</a></h2>
+{% endfor %}
+
+{% endblock %}

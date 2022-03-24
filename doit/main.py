@@ -75,16 +75,16 @@ def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
 @cli.command()
 def debug():
     """Debug"""
-    studydb = StudyRepoReader(Path("./build/test.db"))
+    #studydb = StudyRepoReader(Path("./build/test.db"))
     #print(studydb.query_instrument_listing())
     #print(studydb.query_instrument(InstrumentId('student_behavior-y2w1')))
     #print(studydb.query_measure_listing())
-    print(studydb.query_measure(MeasureId('ssis')))
+    #print(studydb.query_measure(MeasureId('ssis')))
 
-    #studydb = StudyRepoWriter(Path("./build/test.db"))
-    #study_repo = StudySpecManager()
-    #study = study_repo.load_study_spec()
-    #studydb.setup(study)
+    studydb = StudyRepoWriter(Path("./build/test.db"))
+    study_repo = StudySpecManager()
+    study = study_repo.load_study_spec()
+    studydb.setup(study)
 
     
 @source_cli.command(name="fetch")

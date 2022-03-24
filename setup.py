@@ -15,4 +15,7 @@ setup(
             'doit = doit.datasette'
         ],
     },
+    package_data={"doit": [
+        "datasette/templates/*"
+    ]},
 )

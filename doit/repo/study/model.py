@@ -30,12 +30,11 @@ class Measure(Base):
     items = relationship(
         "MeasureNode",
         backref="parent_measure",
-        collection_class=attribute_mapped_collection("tag"),
+        order_by="MeasureNode.order",
     )
     codes = relationship(
         "CodeMap",
         backref="parent_measure",
-        collection_class=attribute_mapped_collection("tag"),
     )
 
 class CodeMap(Base):
@@ -47,7 +46,6 @@ class CodeMap(Base):
     measure_nodes = relationship(
         "MeasureNode",
         backref="codes",
-        collection_class=attribute_mapped_collection("tag"),
     )
 
 class DumpableNode:
@@ -69,6 +67,7 @@ class DumpableNode:
 class MeasureNode(Base, DumpableNode):
     __tablename__ = "__measure_items__"
     id = Column(Integer, primary_key=True)
+    order = Column(Integer, nullable=False)
     parent_node_id = Column(Integer, ForeignKey(id))
     parent_measure_id = Column(Integer, ForeignKey(Measure.id))
     codemap_id = Column(Integer, ForeignKey(CodeMap.id))
@@ -79,7 +78,7 @@ class MeasureNode(Base, DumpableNode):
     items = relationship(
         "MeasureNode",
         backref=backref("parent_node", remote_side=id),
-        collection_class=attribute_mapped_collection("tag"),
+        order_by="MeasureNode.order",
     )
 
     instrument_items = relationship(
@@ -98,12 +97,13 @@ class Instrument(Base):
     items = relationship(
         "InstrumentNode",
         backref="parent_instrument",
-#        order_by="InstrumentNode.id",
+        order_by="InstrumentNode.order",
     )
 
 class InstrumentNode(Base, DumpableNode):
     __tablename__ = "__instrument_items__"
     id = Column(Integer, primary_key=True)
+    order = Column(Integer, nullable=False)
     parent_node_id = Column(Integer, ForeignKey(id))
     parent_instrument_id = Column(Integer, ForeignKey(Instrument.id))
     measure_item_id = Column(Integer, ForeignKey(MeasureNode.id))
@@ -116,4 +116,5 @@ class InstrumentNode(Base, DumpableNode):
     items = relationship(
         "InstrumentNode",
         backref=backref("parent_node", remote_side=id),
+        order_by="InstrumentNode.order",
     )

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Instrument: {{instrument.tag}}{% endblock %}
+
+{% block body_class %}index{% endblock %}
+
+{% block nav %}
+    <p class="crumbs">
+        <a href="{{ urls.instance() }}">home</a>
+        | <a href="/-/instruments">instruments</a>
+        | <a href="/-/measures">measures</a>
+    </p>
+    {{ super() }}
+{% endblock %}
+
+{% block content %}
+<h1>Instrument ID: {{instrument.tag}}</h1>
+<h1>Title: {{instrument.title}}</h1>
+<h1>Description:</h1>
+<p>{{instrument.description}}</p>
+<h1>Instructions:</h1>
+<p>{{instrument.instructions}}</p>
+<br>
+{% for item in instrument.items recursive %}
+    {% if item.type == 'question' %}
+    <div style="border-style: dashed; border-width: 3px; padding: 1em">
+        <h2>
+            {{item.prompt}} {% if item.measure_item.is_idx %}(Index){% endif %}
+        </h2>
+        <p>Measure: <a href="/-/measures/{{ item.measure_item.tag|base_id }}#{{item.measure_item.tag}}">{{item.measure_item.tag}}</a></p>
+        <p>Measure type: {{item.measure_item.type}}</p>
+        {% if item.measure_item.type == 'ordinal' and not item.measure_item.is_idx %}
+        <table>
+            <tr>
+                <th>Value</th>
+                <th>Tag</th>
+                <th>Text</th>
+            </tr>
+            {% for row in item.measure_item.codes.values %}
+            <tr>
+                <td>{{row.value}}</td>
+                <td>{{row.tag}}</td>
+                <td>{{row.text}}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if item.type == 'group' %}
+    <div style="border-style: dashed; border-width: 3px; padding: 1em">
+        <h2>{{item.prompt}}</h2>
+        <p>{{item.id}}</p>
+        {{ loop(item.items) }}
+    </div>
+    {% endif %}
+{% endfor %}
+
+{% endblock %}

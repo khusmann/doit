@@ -21,11 +21,12 @@ def seq_instrumentspec_to_sql(instrumentspecs: t.Sequence[studyspec.InstrumentSp
     ))
 
 def instrument_node_tree_to_sql(node_tree: t.Sequence[studyspec.InstrumentNode], parent: InstrumentNode | Instrument, measures: t.Mapping[str, MeasureNode]) -> t.Tuple[InstrumentNode, ...]:
-    def branch(node: studyspec.InstrumentNode) -> t.Tuple[InstrumentNode, ...]:
+    def branch(n: int, node: studyspec.InstrumentNode) -> t.Tuple[InstrumentNode, ...]:
         new_node = instrument_node_to_sql(
             node=node,
             parent=parent,
             measures=measures,
+            order=n,
         )
         children = instrument_node_tree_to_sql(
             node_tree=node.items,
@@ -34,17 +35,15 @@ def instrument_node_tree_to_sql(node_tree: t.Sequence[studyspec.InstrumentNode],
         ) if node.type == 'group' else tuple()
         return (new_node,) + children
 
-    return sum(map(branch, node_tree), tuple())
+    return sum(starmap(branch, enumerate(node_tree)), tuple())
 
-def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNode | Instrument, measures: t.Mapping[str, MeasureNode]) -> InstrumentNode:
+def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNode | Instrument, measures: t.Mapping[str, MeasureNode], order: int) -> InstrumentNode:
     parent_node = parent if isinstance(parent, InstrumentNode) else None
     parent_instrument = parent if isinstance(parent, Instrument) else None
     match node:
         case studyspec.QuestionInstrumentItem():
-            print(node.id)
-            print(measures.get(str(node.id)))
-            print(list(measures.keys()))
             return InstrumentNode(
+                order=order,
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 measure_item=measures.get(str(node.id)),
@@ -54,6 +53,7 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
             )
         case studyspec.ConstantInstrumentItem():
             return InstrumentNode(
+                order=order,
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 measure_item=measures.get(str(node.id)),
@@ -63,6 +63,7 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
 
         case studyspec.HiddenInstrumentItem():
             return InstrumentNode(
+                order=order,
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 measure_item=measures.get(str(node.id)),
@@ -72,6 +73,7 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
 
         case studyspec.InstrumentItemGroup():
             return InstrumentNode(
+                order=order,
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 type=node.type,
@@ -98,9 +100,11 @@ def mapped_codemaps_to_sql(codemap_map: t.Mapping[CodeMapTag, studyspec.CodeMap]
     }
 
 def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.MeasureNode], parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap]) -> t.Dict[str, MeasureNode]:
-    def branch(tag: MeasureNodeTag, node: studyspec.MeasureNode) -> t.Dict[str, MeasureNode]:
+    def branch(n: int, item: t.Tuple[MeasureNodeTag, studyspec.MeasureNode]) -> t.Dict[str, MeasureNode]:
+        tag, node = item
         full_tag = ".".join([str(parent.tag), str(tag)])
         new_node = measure_node_to_sql(
+            order=n,
             tag=full_tag,
             node=node,
             parent=parent,
@@ -113,14 +117,15 @@ def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.Measu
         ) if node.type == 'group' else {}
         return { full_tag: new_node, **children }
 
-    return merge_mappings(tuple(starmap(branch, node_map.items())))
+    return merge_mappings(tuple(starmap(branch, enumerate(node_map.items()))))
 
-def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap]) -> MeasureNode:
+def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], order: int) -> MeasureNode:
     parent_node = parent if isinstance(parent, MeasureNode) else None
     parent_measure = parent if isinstance(parent, Measure) else None 
     match node:
         case studyspec.MeasureItemGroup():
             return MeasureNode(
+                order=order,
                 tag=tag,
                 prompt=node.prompt,
                 parent_node=parent_node,
@@ -129,6 +134,7 @@ def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNo
             )
         case studyspec.SimpleMeasureItem():
             return MeasureNode(
+                order=order,
                 tag=tag,
                 prompt=node.prompt,
                 parent_node=parent_node,
@@ -137,6 +143,7 @@ def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNo
             )
         case studyspec.OrdinalMeasureItem():
             return MeasureNode(
+                order=order,
                 tag=tag,
                 prompt=node.prompt,
                 parent_node=parent_node,

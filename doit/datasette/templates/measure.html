@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Measure: {{measure.tag}}{% endblock %}
+
+{% block body_class %}index{% endblock %}
+
+{% block nav %}
+    <p class="crumbs">
+        <a href="{{ urls.instance() }}">home</a>
+        | <a href="/-/instruments">instruments</a>
+        | <a href="/-/measures">measures</a>
+    </p>
+    {{ super() }}
+{% endblock %}
+
+{% block content %}
+<h1>Measure ID: {{measure.tag}}</h1>
+<h1>Title: {{measure.title}}</h1>
+<h1>Description:</h1>
+<p>{{measure.description}}</p>
+<br>
+{% for item in measure.items recursive %}
+    {% if item.type == 'group' %}
+    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.tag}}">
+        <h2>{{item.tag}} {% if item.prompt %}: {{item.prompt}} {% endif %}</h2>
+        {{ loop(item.items) }}
+    </div>
+    {% else %}
+    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.tag}}">
+        <h2>
+            {{item.prompt}} {% if item.is_idx %}(Index){% endif %}
+        </h2>
+        <p>Measure: {{item.tag}}</p>
+        <p>Measure type: {{item.type}}</p>
+        {% if item.type == 'ordinal' %}
+        <table>
+            <tr>
+                <th>Value</th>
+                <th>Tag</th>
+                <th>Text</th>
+            </tr>
+            {% for row in item.codes.values %}
+            <tr>
+                <td>{{row.value}}</td>
+                <td>{{row.tag}}</td>
+                <td>{{row.text}}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+{% endfor %}
+
+{% endblock %}

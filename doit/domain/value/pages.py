@@ -22,17 +22,19 @@ class CodeMap(ImmutableBaseModelOrm):
 
 
 class MeasureListing(ImmutableBaseModelOrm):
-    #tag: MeasureId
+    tag: str
     title: str
     description: t.Optional[str]
 
 class OrdinalMeasureItem(ImmutableBaseModelOrm):
+    tag: str
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
     codes: CodeMap
     is_idx: bool
 
 class SimpleMeasureItem(ImmutableBaseModelOrm):
+    tag: str
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
 
@@ -44,9 +46,10 @@ MeasureItem = t.Annotated[
 ]
 
 class MeasureItemGroup(ImmutableBaseModelOrm):
+    tag: str
     prompt: t.Optional[str]
     type: t.Literal['group']
-    items: t.OrderedDict[MeasureNodeTag, MeasureNode]
+    items: t.Tuple[MeasureNode, ...]
 
 MeasureNode = t.Annotated[
     t.Union[
@@ -58,9 +61,12 @@ MeasureNode = t.Annotated[
 MeasureItemGroup.update_forward_refs()
 
 class Measure(ImmutableBaseModelOrm):
+    tag: str
     title: str
     description: t.Optional[str]
-    items: t.OrderedDict[MeasureNodeTag, MeasureNode]
+    items: t.Tuple[MeasureNode, ...]
+
+OrdinalMeasureItem.update_forward_refs()
 
 ### Instruments
 
@@ -72,7 +78,7 @@ class InstrumentListing(ImmutableBaseModelOrm):
 class QuestionInstrumentItem(ImmutableBaseModelOrm):
     prompt: str
     type: t.Literal['question']
-    #remote_id: ColumnId
+    measure_item: t.Optional[MeasureItem]
     #id: t.Optional[MeasureItemId]
     #map: t.Optional[RecodeTransform]
 
