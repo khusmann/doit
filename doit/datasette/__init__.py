@@ -28,7 +28,7 @@ def register_routes():
 async def render_instrument(scope, receive, datasette, request):
     return Response.html(
         await datasette.render_template(
-            "instrument.html", {
+            "instrument.html.j2", {
                 "instrument": datasette._doit.query_instrument(request.url_vars.get("instrument_name"))
             }, request=request
         )
@@ -38,7 +38,7 @@ async def render_measure(scope, receive, datasette, request):
     print(datasette._doit.query_measure(request.url_vars.get("measure_name")))
     return Response.html(
         await datasette.render_template(
-            "measure.html", {
+            "measure.html.j2", {
                 "measure": datasette._doit.query_measure(request.url_vars.get("measure_name"))
             }, request=request
         )
@@ -47,7 +47,7 @@ async def render_measure(scope, receive, datasette, request):
 async def render_instrument_listing(scope, receive, datasette, request):
     return Response.html(
         await datasette.render_template(
-            "instrument_listing.html", {
+            "instrument_listing.html.j2", {
                 "instruments": datasette._doit.query_instrument_listing()
             }, request=request
         )
@@ -56,7 +56,7 @@ async def render_instrument_listing(scope, receive, datasette, request):
 async def render_measure_listing(scope, receive, datasette, request):
     return Response.html(
         await datasette.render_template(
-            "measure_listing.html", {
+            "measure_listing.html.j2", {
                 "measures": datasette._doit.query_measure_listing()
             }, request=request
         )
