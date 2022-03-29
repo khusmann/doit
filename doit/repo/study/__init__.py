@@ -38,11 +38,11 @@ class StudyRepoWriter:
         
         sql_codemaps = tuple(starmap(mapped_codemaps_to_sql, zip(codemap_specs, sql_measures.values())))
         
-        sql_measure_nodes = merge_mappings(
-            tuple(starmap(measure_node_tree_to_sql, zip(measure_item_specs, sql_measures.values(), sql_codemaps)))
-        )
-
         sql_instruments = seq_instrumentspec_to_sql(tuple(study_spec.instruments.values()))
+
+        sql_measure_nodes = merge_mappings(
+            tuple(starmap(partial(measure_node_tree_to_sql, measure_tables=sql_tables), zip(measure_item_specs, sql_measures.values(), sql_codemaps)))
+        )
 
         sql_instrument_nodes = tuple(
             starmap(partial(instrument_node_tree_to_sql, measures=sql_measure_nodes, indices=sql_indices), zip(instrument_item_specs, sql_instruments))
@@ -58,12 +58,6 @@ class StudyRepoWriter:
 
         for instrument in sql_instruments:
             session.add(instrument) # type: ignore
-
-        for idx in sql_indices.values():
-            session.add(idx) # type: ignore
-
-        for table in sql_tables.values(): # TODO Make tables-indices join
-            session.add(table) # type: ignore
 
         session.commit()
 

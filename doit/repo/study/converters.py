@@ -82,6 +82,9 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
     parent_node = parent if isinstance(parent, InstrumentNode) else None
     parent_instrument = parent if isinstance(parent, Instrument) else None
 
+    def strip_index(id: str) -> Index | None:
+        return indices.get(id.removeprefix("indices.")) if id.startswith("indices.") else None
+
     match node:
         case studyspec.QuestionInstrumentItem():
             return InstrumentNode(
@@ -89,7 +92,7 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 measure_item=measures.get(str(node.id)),
-                index_item=indices.get(str(node.id)),
+                index_item=strip_index(str(node.id)),
                 remote_id=node.remote_id,
                 type=node.type,
                 prompt=node.prompt,
@@ -100,7 +103,7 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 measure_item=measures.get(str(node.id)),
-                index_item=indices.get(str(node.id)),
+                index_item=strip_index(str(node.id)),
                 type=node.type,
                 value=node.value,
             )
@@ -111,7 +114,7 @@ def instrument_node_to_sql(node: studyspec.InstrumentNode, parent: InstrumentNod
                 parent_node=parent_node,
                 parent_instrument=parent_instrument,
                 measure_item=measures.get(str(node.id)),
-                index_item=indices.get(str(node.id)),
+                index_item=strip_index(str(node.id)),
                 remote_id=node.remote_id,
                 type=node.type,
             )
@@ -144,7 +147,7 @@ def mapped_codemaps_to_sql(codemap_map: t.Mapping[CodeMapTag, studyspec.CodeMap]
         ) for (tag, codemap) in codemap_map.items()
     }
 
-def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.MeasureNode], parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap]) -> t.Dict[str, MeasureNode]:
+def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.MeasureNode], parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], measure_tables: t.Mapping[str, Table]) -> t.Dict[str, MeasureNode]:
     def branch(n: int, item: t.Tuple[MeasureNodeTag, studyspec.MeasureNode]) -> t.Dict[str, MeasureNode]:
         tag, node = item
         full_tag = ".".join([str(parent.tag), str(tag)])
@@ -154,17 +157,19 @@ def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.Measu
             node=node,
             parent=parent,
             codemaps=codemaps,
+            measure_tables=measure_tables,
         )
         children = measure_node_tree_to_sql(
             node_map=node.items,
             parent=new_node,
             codemaps=codemaps,
+            measure_tables=measure_tables,
         ) if node.type == 'group' else {}
         return { full_tag: new_node, **children }
 
     return merge_mappings(tuple(starmap(branch, enumerate(node_map.items()))))
 
-def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], order: int) -> MeasureNode:
+def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], measure_tables: t.Mapping[str, Table], order: int) -> MeasureNode:
     parent_node = parent if isinstance(parent, MeasureNode) else None
     parent_measure = parent if isinstance(parent, Measure) else None 
     match node:
@@ -174,6 +179,7 @@ def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNo
                 tag=tag,
                 prompt=node.prompt,
                 parent_node=parent_node,
+                parent_table=measure_tables.get(tag),
                 type=node.type,
                 parent_measure=parent_measure,
             )
@@ -183,6 +189,7 @@ def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNo
                 tag=tag,
                 prompt=node.prompt,
                 parent_node=parent_node,
+                parent_table=measure_tables.get(tag),
                 type=node.type,
                 parent_measure=parent_measure,
             )
@@ -192,6 +199,7 @@ def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNo
                 tag=tag,
                 prompt=node.prompt,
                 parent_node=parent_node,
+                parent_table=measure_tables.get(tag),
                 type=node.type,
                 parent_measure=parent_measure,
                 codes=codemaps.get(node.codes),
