@@ -120,3 +120,6 @@ class StudySpec(ImmutableBaseModel):
 class TableSpec(ImmutableBaseModel):
     indices: t.FrozenSet[MeasureItemId]
     columns: t.FrozenSet[MeasureItemId]
+    @property
+    def tag(self):
+        return '-'.join(sorted(self.indices))

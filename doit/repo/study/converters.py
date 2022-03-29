@@ -1,7 +1,9 @@
 from __future__ import annotations
 import typing as t
 
-from ...domain.value.common import CodeMapTag, IndexId, MeasureId, merge_mappings
+from ...domain.service import flatten_measures
+
+from ...domain.value.common import CodeMapTag, IndexId, MeasureId, MeasureItemId, merge_mappings
 
 from .model import *
 
@@ -9,6 +11,33 @@ from ...domain.value import studyspec
 from ...domain.value.common import MeasureNodeTag
 
 from itertools import starmap
+
+from sqlalchemy import Table, Float, Boolean
+
+def table_spec_to_datatable(tablespec: studyspec.TableSpec, measure_specs: t.Mapping[MeasureId, studyspec.MeasureSpec]) -> Table:
+    measure_item_specs = flatten_measures(measure_specs)
+    return Table(
+        tablespec.tag,
+        Base.metadata,
+        *[ measure_item_to_datatable_column(c, measure_item_specs[c]) for c in sorted(tablespec.columns) if not c.startswith("indices.")]
+    )
+
+def measure_item_to_datatable_column(tag: MeasureItemId, measure_item_spec: studyspec.MeasureItem) -> Column:
+    match measure_item_spec.type:
+        case "ordinal":
+            return Column(tag, Integer)
+        case "real":
+            return Column(tag, Float)
+        case "text":
+            return Column(tag, String)
+        case "bool":
+            return Column(tag, Boolean)
+        case "categorical":
+            return Column(tag, Integer)
+        case "categorical_array":
+            return Column(tag, String)
+        case "integer":
+            return Column(tag, Integer)
 
 def mapped_indices_to_sql(indices: t.Mapping[IndexId, studyspec.IndexSpec]) -> t.Dict[str, Index]:
     codemaps = mapped_codemaps_to_sql({
@@ -28,13 +57,13 @@ def mapped_indices_to_sql(indices: t.Mapping[IndexId, studyspec.IndexSpec]) -> t
 
     return { str(i.tag): i for i in nodes }
 
-def table_spec_to_sql(tablespec: studyspec.TableSpec) -> Table:
-    return Table(
-        tag='-'.join(sorted(tablespec.indices)),
+def table_spec_to_sql(tablespec: studyspec.TableSpec) -> TableInfo:
+    return TableInfo(
+        tag=tablespec.tag,
         indices=list(tablespec.indices)
     )
 
-def measure_table_lookup(tablespecs: t.Sequence[studyspec.TableSpec]) -> t.Dict[str, Table]:
+def measure_tableinfo_lookup(tablespecs: t.Sequence[studyspec.TableSpec]) -> t.Dict[str, TableInfo]:
     mapping_list = [
         { str(tag): table_sql for tag in table.columns if tag not in table.indices}
         for table, table_sql in zip(tablespecs, map(table_spec_to_sql, tablespecs))
@@ -147,7 +176,7 @@ def mapped_codemaps_to_sql(codemap_map: t.Mapping[CodeMapTag, studyspec.CodeMap]
         ) for (tag, codemap) in codemap_map.items()
     }
 
-def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.MeasureNode], parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], measure_tables: t.Mapping[str, Table]) -> t.Dict[str, MeasureNode]:
+def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.MeasureNode], parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], measure_tables: t.Mapping[str, TableInfo]) -> t.Dict[str, MeasureNode]:
     def branch(n: int, item: t.Tuple[MeasureNodeTag, studyspec.MeasureNode]) -> t.Dict[str, MeasureNode]:
         tag, node = item
         full_tag = ".".join([str(parent.tag), str(tag)])
@@ -169,7 +198,7 @@ def measure_node_tree_to_sql(node_map: t.Mapping[MeasureNodeTag, studyspec.Measu
 
     return merge_mappings(tuple(starmap(branch, enumerate(node_map.items()))))
 
-def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], measure_tables: t.Mapping[str, Table], order: int) -> MeasureNode:
+def measure_node_to_sql(tag: str, node: studyspec.MeasureNode, parent: MeasureNode | Measure, codemaps: t.Mapping[str, CodeMap], measure_tables: t.Mapping[str, TableInfo], order: int) -> MeasureNode:
     parent_node = parent if isinstance(parent, MeasureNode) else None
     parent_measure = parent if isinstance(parent, Measure) else None 
     match node:

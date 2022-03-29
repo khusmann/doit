@@ -19,7 +19,7 @@ from sqlalchemy.orm import (
 
 Base = declarative_base()
 
-class Table(Base):
+class TableInfo(Base):
     __tablename__ = "__tables__"
     id = Column(Integer, primary_key=True)
     tag = Column(String, nullable=False, unique=True)
@@ -100,7 +100,7 @@ class MeasureNode(Base, DumpableNode):
     order = Column(Integer, nullable=False)
     parent_node_id = Column(Integer, ForeignKey(id))
     parent_measure_id = Column(Integer, ForeignKey(Measure.id))
-    linked_table_id = Column(Integer, ForeignKey(Table.id))
+    linked_table_id = Column(Integer, ForeignKey(TableInfo.id))
     codemap_id = Column(Integer, ForeignKey(CodeMap.id))
     prompt = Column(String)
     tag = Column(String, nullable=False, unique=True)

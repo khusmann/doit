@@ -32,7 +32,7 @@ class StudyRepoWriter:
 
         sql_indices = mapped_indices_to_sql(study_spec.config.indices)
         
-        sql_tables = measure_table_lookup(tuple(table_specs))
+        sql_tableinfos = measure_tableinfo_lookup(tuple(table_specs))
 
         sql_measures = mapped_measurespec_to_sql(study_spec.measures)
         
@@ -41,12 +41,14 @@ class StudyRepoWriter:
         sql_instruments = seq_instrumentspec_to_sql(tuple(study_spec.instruments.values()))
 
         sql_measure_nodes = merge_mappings(
-            tuple(starmap(partial(measure_node_tree_to_sql, measure_tables=sql_tables), zip(measure_item_specs, sql_measures.values(), sql_codemaps)))
+            tuple(starmap(partial(measure_node_tree_to_sql, measure_tables=sql_tableinfos), zip(measure_item_specs, sql_measures.values(), sql_codemaps)))
         )
 
         sql_instrument_nodes = tuple(
             starmap(partial(instrument_node_tree_to_sql, measures=sql_measure_nodes, indices=sql_indices), zip(instrument_item_specs, sql_instruments))
         ) # pyright: reportUnusedVariable=false
+        
+        self.datatables = { spec.tag: table_spec_to_datatable(spec, study_spec.measures) for spec in table_specs }
         
         self.engine = create_engine(self.url, echo=True)
         Base.metadata.create_all(self.engine)

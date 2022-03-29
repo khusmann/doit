@@ -74,6 +74,16 @@ def stub_instrument(table: SourceTable) -> InstrumentSpec:
 def flatten_instrument_items(items: t.Sequence[InstrumentNode]) -> t.Sequence[InstrumentItem]:
     return sum([ flatten_instrument_items(i.items) if i.type == 'group' else [i] for i in items], [])
 
+def flatten_measures(measures: t.Mapping[MeasureId, MeasureSpec]) -> t.Dict[MeasureItemId, MeasureItem]:
+    def trav(curr_path: MeasureItemId, cursor: t.Mapping[MeasureNodeTag, MeasureNode]) -> t.Dict[MeasureItemId, MeasureItem]:
+        return merge_mappings([
+            trav(curr_path / id, item.items) if item.type == 'group' else {(curr_path / id): item}
+            for (id, item) in cursor.items()
+        ])
+    return merge_mappings([
+        trav(MeasureItemId(id), measure.items) for (id, measure) in measures.items()
+    ])
+
 def instrument_to_table_spec(instrument_spec: InstrumentSpec) -> TableSpec:
     all_columns = frozenset((i.id for i in flatten_instrument_items(instrument_spec.items) if i.id is not None))
     indices = frozenset((tag.removeprefix('indices.') for tag in all_columns if tag.startswith('indices.')))
