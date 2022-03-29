@@ -19,6 +19,7 @@ def table_spec_to_datatable(tablespec: studyspec.TableSpec, measure_specs: t.Map
     return Table(
         tablespec.tag,
         Base.metadata,
+        *[ Column(tag, Integer, primary_key=True) for tag in sorted(tablespec.columns) if tag.startswith("indices.")],
         *[ measure_item_to_datatable_column(c, measure_item_specs[c]) for c in sorted(tablespec.columns) if not c.startswith("indices.")]
     )
 
