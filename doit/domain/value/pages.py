@@ -31,7 +31,6 @@ class OrdinalMeasureItem(ImmutableBaseModelOrm):
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
     codes: CodeMap
-    is_idx: bool
 
 class SimpleMeasureItem(ImmutableBaseModelOrm):
     tag: str

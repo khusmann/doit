@@ -15,7 +15,6 @@ class OrdinalMeasureItem(ImmutableBaseModel):
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
     codes: CodeMapTag
-    is_idx: bool = False
 
 class SimpleMeasureItem(ImmutableBaseModel):
     prompt: str
@@ -100,9 +99,24 @@ class InstrumentSpec(ImmutableBaseModel):
     instructions: t.Optional[str]
     items: t.Tuple[InstrumentNode, ...]
 
-### Study
-class StudySpec(ImmutableBaseModel):
+
+class IndexSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
+    values: CodeMap
+
+### Study
+class ConfigSpec(ImmutableBaseModel):
+    name: str
+    description: t.Optional[str]
+    indices: t.Mapping[IndexId, IndexSpec]
+
+class StudySpec(ImmutableBaseModel):
+    config: ConfigSpec
     measures: t.Mapping[MeasureId, MeasureSpec]
     instruments: t.Mapping[InstrumentId, InstrumentSpec]
+
+### Table
+class TableSpec(ImmutableBaseModel):
+    indices: t.FrozenSet[MeasureItemId]
+    columns: t.FrozenSet[MeasureItemId]

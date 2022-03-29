@@ -11,6 +11,7 @@ from ...domain.value import pages
 from .model import *
 
 from ...domain.value import studyspec
+from ...domain.service import instruments_to_table_specs
 
 from itertools import starmap
 from functools import partial
@@ -23,12 +24,15 @@ class StudyRepoWriter:
         self.url = "sqlite:///{}".format(path)
         print(self.url)
 
-
     def setup(self, study_spec: studyspec.StudySpec):
-        # TODO: Add table meta...
         codemap_specs = tuple(map(lambda m: m.codes, study_spec.measures.values()))
         measure_item_specs = tuple(map(lambda m: m.items, study_spec.measures.values()))
         instrument_item_specs = tuple(map(lambda i: i.items, study_spec.instruments.values()))
+        table_specs = instruments_to_table_specs(tuple(study_spec.instruments.values()))
+
+        sql_indices = mapped_indices_to_sql(study_spec.config.indices)
+        
+        sql_tables = measure_table_lookup(tuple(table_specs))
 
         sql_measures = mapped_measurespec_to_sql(study_spec.measures)
         
@@ -41,7 +45,7 @@ class StudyRepoWriter:
         sql_instruments = seq_instrumentspec_to_sql(tuple(study_spec.instruments.values()))
 
         sql_instrument_nodes = tuple(
-            starmap(partial(instrument_node_tree_to_sql, measures=sql_measure_nodes), zip(instrument_item_specs, sql_instruments))
+            starmap(partial(instrument_node_tree_to_sql, measures=sql_measure_nodes, indices=sql_indices), zip(instrument_item_specs, sql_instruments))
         ) # pyright: reportUnusedVariable=false
         
         self.engine = create_engine(self.url, echo=True)
@@ -54,6 +58,12 @@ class StudyRepoWriter:
 
         for instrument in sql_instruments:
             session.add(instrument) # type: ignore
+
+        for idx in sql_indices.values():
+            session.add(idx) # type: ignore
+
+        for table in sql_tables.values(): # TODO Make tables-indices join
+            session.add(table) # type: ignore
 
         session.commit()
 

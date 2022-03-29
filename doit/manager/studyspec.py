@@ -9,11 +9,13 @@ from ..domain.value import (
     StudySpec,
     InstrumentId,
     MeasureId,
+    ConfigSpec,
 )
 
 class StudySpecManager(BaseSettings):
     instrument_dir = Path("./instruments")
     measure_dir = Path("./measures")
+    config_file = Path("./config.yaml")
 
     def instrument_file(self, instrument_id: InstrumentId) -> Path:
         return (self.instrument_dir / instrument_id).with_suffix(".yaml")
@@ -25,11 +27,16 @@ class StudySpecManager(BaseSettings):
         instruments = { i: self.load_instrument_spec(i) for i in self.instruments }
         measures = { i: self.load_measure_spec(i) for i in self.measures }
         return StudySpec(
-            title="Study title",
-            description="Study Description",
+            config=self.load_config_spec(),
             measures=measures,
             instruments=instruments,
         )
+
+    def load_config_spec(self) -> ConfigSpec:
+        with open(self.config_file, 'r') as f:
+            return ConfigSpec.parse_obj(
+                yaml.safe_load(f)
+            )
 
     def load_instrument_spec(self, instrument_id: InstrumentId) -> InstrumentSpec:
         with open(self.instrument_file(instrument_id), 'r') as f:

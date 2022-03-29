@@ -83,6 +83,7 @@ MeasureId = t.NewType("MeasureId", str)
 class MeasureItemId(Uri): pass # e.g. measure.group.item
 MeasureNodeTag = t.NewType('MeasureNodeTag', str)
 
+IndexId = t.NewType('IndexId', str)
 
 ### CodeMap
 
@@ -125,3 +126,5 @@ def invert_map(m: t.Mapping[T, P]) -> t.Mapping[P, t.FrozenSet[T]]:
     return result
 
 StudyTableId = t.NewType('StudyTableId', t.FrozenSet[MeasureItemId])
+
+TableId = t.NewType('TableId', str)

@@ -17,9 +17,21 @@ from sqlalchemy.orm import (
     relationship,
 )
 
-from sqlalchemy.orm.collections import attribute_mapped_collection
-
 Base = declarative_base()
+
+class Table(Base):
+    __tablename__ = "__tables__"
+    id = Column(Integer, primary_key=True)
+    tag = Column(String, nullable=False, unique=True)
+    indices = Column(JSON, nullable=False)
+
+    columns = relationship(
+        "MeasureNode",
+        backref="parent_table"
+    )
+
+    def __repr__(self):
+        return "Table(tag: {}, indices={})".format(self.tag, self.indices)
 
 class Measure(Base):
     __tablename__ = "__measures__"
@@ -47,6 +59,24 @@ class CodeMap(Base):
         "MeasureNode",
         backref="codes",
     )
+    index = relationship(
+        "Index",
+        backref="codes",
+        uselist=False,
+    )
+
+class Index(Base):
+    __tablename__ = "__indices__"
+    id = Column(Integer, primary_key=True)
+    codemap_id = Column(Integer, ForeignKey(CodeMap.id))
+    tag = Column(String, nullable=False, unique=True)
+    title = Column(String)
+    description = Column(String)
+
+    instrument_items = relationship(
+        "InstrumentNode",
+        backref="index_item",
+    )
 
 class DumpableNode:
     def __repr__(self):
@@ -70,8 +100,8 @@ class MeasureNode(Base, DumpableNode):
     order = Column(Integer, nullable=False)
     parent_node_id = Column(Integer, ForeignKey(id))
     parent_measure_id = Column(Integer, ForeignKey(Measure.id))
+    linked_table_id = Column(Integer, ForeignKey(Table.id))
     codemap_id = Column(Integer, ForeignKey(CodeMap.id))
-    is_idx = Column(Boolean)
     prompt = Column(String)
     tag = Column(String, nullable=False, unique=True)
     type = Column(String, nullable=False)
@@ -83,7 +113,7 @@ class MeasureNode(Base, DumpableNode):
 
     instrument_items = relationship(
         "InstrumentNode",
-        backref=backref("measure_item", remote_side=id),
+        backref="measure_item",
     )
 
 class Instrument(Base):
@@ -107,6 +137,7 @@ class InstrumentNode(Base, DumpableNode):
     parent_node_id = Column(Integer, ForeignKey(id))
     parent_instrument_id = Column(Integer, ForeignKey(Instrument.id))
     measure_item_id = Column(Integer, ForeignKey(MeasureNode.id))
+    index_item_id = Column(Integer, ForeignKey(Index.id))
     remote_id = Column(String)
     type = Column(String, nullable=False)
     title = Column(String)
@@ -118,3 +149,4 @@ class InstrumentNode(Base, DumpableNode):
         backref=backref("parent_node", remote_side=id),
         order_by="InstrumentNode.order",
     )
+
