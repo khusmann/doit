@@ -1,7 +1,35 @@
 from __future__ import annotations
 import typing as t
 from .common import *
-from pydantic import Field
+from pydantic import Field, validator
+
+### CodeMapSpec
+
+class CodeMapSpec(ImmutableBaseModel):
+    class Value(t.TypedDict):
+        value: CodeValue
+        tag: CodeValueTag
+        text: str
+
+    __root__: t.Tuple[CodeMapSpec.Value, ...]
+
+    @validator('__root__', pre=True)
+    def dict_or_set(cls, input: t.Sequence[t.Any]) -> t.Any:
+        assert(len(input) > 0)
+        if isinstance(input[0], dict):
+            return input
+        else:
+            return [ {'value': i, 'tag': v, 'text': v} for (i, v) in enumerate(input) ]
+
+    def tag_to_value(self):
+        return { pair['tag']: pair['value'] for pair in self.__root__ }
+
+    def value_to_tag(self):
+        return { pair['value']: pair['tag'] for pair in self.__root__ }
+
+    ## TODO: Validate uniqueness of pair.*
+
+CodeMapSpec.update_forward_refs()
 
 ### Measure
 
@@ -11,116 +39,116 @@ from pydantic import Field
 #    aggretate_type: t.Literal['mean']
 #    items: t.Tuple[Measure.ItemId]
 
-class OrdinalMeasureItem(ImmutableBaseModel):
+class OrdinalMeasureItemSpec(ImmutableBaseModel):
     prompt: str
     type: t.Literal['ordinal', 'categorical']
-    codes: CodeMapTag
+    codes: RelativeCodeMapName
 
-class SimpleMeasureItem(ImmutableBaseModel):
+class SimpleMeasureItemSpec(ImmutableBaseModel):
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
 
-MeasureItem = t.Annotated[
+MeasureItemSpec = t.Annotated[
     t.Union[
-        OrdinalMeasureItem,
-        SimpleMeasureItem,
+        OrdinalMeasureItemSpec,
+        SimpleMeasureItemSpec,
     ], Field(discriminator='type')
 ]
 
-class MeasureItemGroup(ImmutableBaseModel):
+class MeasureItemGroupSpec(ImmutableBaseModel):
     prompt: t.Optional[str]
     type: t.Literal['group']
-    items: t.OrderedDict[MeasureNodeTag, MeasureNode]
+    items: t.OrderedDict[RelativeMeasureNodeName, MeasureNodeSpec]
 
-MeasureNode = t.Annotated[
+MeasureNodeSpec = t.Annotated[
     t.Union[
-        MeasureItemGroup,
-        MeasureItem,
+        MeasureItemGroupSpec,
+        MeasureItemSpec,
     ], Field(discriminator='type')
 ]
 
-MeasureItemGroup.update_forward_refs()
+MeasureItemGroupSpec.update_forward_refs()
 
 class MeasureSpec(ImmutableBaseModel):
-    measure_id: MeasureId
+    measure_id: MeasureName
     title: str
     description: t.Optional[str]
-    items: t.OrderedDict[MeasureNodeTag, MeasureNode]
-    codes: t.Mapping[CodeMapTag, CodeMap]
+    items: t.OrderedDict[RelativeMeasureNodeName, MeasureNodeSpec]
+    codes: t.Mapping[RelativeCodeMapName, CodeMapSpec]
 
 ### Instrument
 
-class QuestionInstrumentItem(ImmutableBaseModel):
+class QuestionInstrumentItemSpec(ImmutableBaseModel):
     prompt: str
     type: t.Literal['question']
-    remote_id: ColumnId
-    id: t.Optional[MeasureItemId]
+    remote_id: SourceColumnName
+    id: t.Optional[MeasureNodeName]
     map: t.Optional[RecodeTransform]
 
     # TODO: Custom export dict() rule to drop map if map is None
 
-class ConstantInstrumentItem(ImmutableBaseModel):
+class ConstantInstrumentItemSpec(ImmutableBaseModel):
     type: t.Literal['constant']
-    value: t.Any
-    id: MeasureItemId
+    value: str
+    id: MeasureNodeName
 
-class HiddenInstrumentItem(ImmutableBaseModel):
+class HiddenInstrumentItemSpec(ImmutableBaseModel):
     type: t.Literal['hidden']
-    remote_id: ColumnId
-    id: MeasureItemId
+    remote_id: SourceColumnName
+    id: MeasureNodeName
     map: t.Optional[RecodeTransform]
 
-InstrumentItem = t.Annotated[
+InstrumentItemSpec = t.Annotated[
     t.Union[
-        QuestionInstrumentItem,
-        ConstantInstrumentItem,
-        HiddenInstrumentItem,
+        QuestionInstrumentItemSpec,
+        ConstantInstrumentItemSpec,
+        HiddenInstrumentItemSpec,
     ], Field(discriminator='type')
 ]
 
-class InstrumentItemGroup(ImmutableBaseModel):
+class InstrumentItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
-    items: t.Tuple[InstrumentNode, ...]
+    items: t.Tuple[InstrumentNodeSpec, ...]
     prompt: str
     title: str
 
-InstrumentNode = t.Annotated[
+InstrumentNodeSpec = t.Annotated[
     t.Union[
-        InstrumentItem,
-        InstrumentItemGroup,
+        InstrumentItemSpec,
+        InstrumentItemGroupSpec,
     ], Field(discriminator='type')
 ]
 
-InstrumentItemGroup.update_forward_refs()
+InstrumentItemGroupSpec.update_forward_refs()
 
 class InstrumentSpec(ImmutableBaseModel):
-    instrument_id: InstrumentId
+    instrument_id: InstrumentName
     title: str
     description: t.Optional[str]
     instructions: t.Optional[str]
-    items: t.Tuple[InstrumentNode, ...]
+    items: t.Tuple[InstrumentNodeSpec, ...]
 
 
 class IndexSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
-    values: CodeMap
+    values: CodeMapSpec
 
 ### Study
 class ConfigSpec(ImmutableBaseModel):
     name: str
     description: t.Optional[str]
-    indices: t.Mapping[IndexId, IndexSpec]
+    indices: t.Mapping[IndexColumnName, IndexSpec]
 
 class StudySpec(ImmutableBaseModel):
     config: ConfigSpec
-    measures: t.Mapping[MeasureId, MeasureSpec]
-    instruments: t.Mapping[InstrumentId, InstrumentSpec]
+    measures: t.Mapping[MeasureName, MeasureSpec]
+    instruments: t.Mapping[InstrumentName, InstrumentSpec]
 
 ### Table
 class TableSpec(ImmutableBaseModel):
-    indices: t.FrozenSet[MeasureItemId]
-    columns: t.FrozenSet[MeasureItemId]
+    indices: t.FrozenSet[MeasureNodeName]
+    columns: t.FrozenSet[MeasureNodeName]
     @property
     def tag(self):
         return '-'.join(sorted(self.indices))

@@ -1,100 +1,45 @@
 from __future__ import annotations
 from pathlib import Path
-from ...domain.value.table import LinkedTable
 from sqlalchemy import create_engine
 
 from sqlalchemy.orm import Session
 
-from ...domain.value.common import InstrumentId, merge_mappings
-
-from ...domain.value import pages
+from ...domain.value.studyspec import *
+from ...domain.service import *
 
 from .model import *
 
-from ...domain.value import studyspec
-from ...domain.service import instruments_to_table_specs
-
-from itertools import starmap
-from functools import partial
-
 from .converters import *
-
-class StudyRepoWriter:
-    def __init__(self, path: Path):
-        assert not path.exists()
-        self.url = "sqlite:///{}".format(path)
-        print(self.url)
-
-    def add_data(self, linked_table: LinkedTable):
-        # Sourcetable -> TableSpec
-        print(linked_table)
-
-    def setup(self, study_spec: studyspec.StudySpec):
-        codemap_specs = tuple(map(lambda m: m.codes, study_spec.measures.values()))
-        measure_item_specs = tuple(map(lambda m: m.items, study_spec.measures.values()))
-        instrument_item_specs = tuple(map(lambda i: i.items, study_spec.instruments.values()))
-        table_specs = instruments_to_table_specs(tuple(study_spec.instruments.values()))
-
-        sql_indices = mapped_indices_to_sql(study_spec.config.indices)
-        
-        sql_tableinfos = measure_tableinfo_lookup(tuple(table_specs))
-
-        sql_measures = mapped_measurespec_to_sql(study_spec.measures)
-        
-        sql_codemaps = tuple(starmap(mapped_codemaps_to_sql, zip(codemap_specs, sql_measures.values())))
-        
-        sql_instruments = seq_instrumentspec_to_sql(tuple(study_spec.instruments.values())) # TODO add source meta
-
-        sql_measure_nodes = merge_mappings(
-            tuple(starmap(partial(measure_node_tree_to_sql, measure_tables=sql_tableinfos), zip(measure_item_specs, sql_measures.values(), sql_codemaps)))
-        )
-
-        sql_instrument_nodes = tuple(
-            starmap(partial(instrument_node_tree_to_sql, measures=sql_measure_nodes, indices=sql_indices), zip(instrument_item_specs, sql_instruments))
-        ) # pyright: reportUnusedVariable=false
-        
-        self.datatables = { spec.tag: table_spec_to_datatable(spec, study_spec.measures) for spec in table_specs }
-        
-        self.engine = create_engine(self.url, echo=True)
-        Base.metadata.create_all(self.engine)
-
-        session = Session(self.engine)
-
-        for measure in sql_measures.values():
-            session.add(measure) # type: ignore
-
-        for instrument in sql_instruments:
-            session.add(instrument) # type: ignore
-
-        session.commit()
 
 class StudyRepoReader:
     def __init__(self, path: Path):
         assert path.exists()
         self.url = "sqlite:///{}".format(path)
-        print(self.url)
         self.engine = create_engine(self.url, echo=True)
 
-    def query_instrument_listing(self) -> t.Tuple[pages.InstrumentListing, ...]:
-        session = Session(self.engine)
-        return tuple(map(pages.InstrumentListing.from_orm, session.query(Instrument).all()))
+    # def query...
 
-    def query_instrument(self, instrument_id: InstrumentId) -> pages.Instrument:
-        session = Session(self.engine)
+class StudyRepo(StudyRepoReader):
+    def __init__(self, path: Path):
+        assert not path.exists()
+        self.url = "sqlite:///{}".format(path)
+        self.engine = create_engine(self.url, echo=True)
+        Base.metadata.create_all(self.engine)
 
-        instrument: t.List[Instrument] = list(session.query(Instrument).where(Instrument.tag == instrument_id)) # type: ignore
-        assert(len(instrument) == 1)
+    def setup(self, study_spec: StudySpec):
+        measure_mutations, _ = measures_from_spec(study_spec.measures)
+        self._mutate(measure_mutations)
 
-        return pages.Instrument.from_orm(instrument[0])
-
-    def query_measure_listing(self) -> t.Tuple[pages.MeasureListing, ...]:
-        session = Session(self.engine)
-        return tuple(map(pages.MeasureListing.from_orm, session.query(Measure).all()))
-
-    def query_measure(self, measure_id: MeasureId) -> pages.Measure:
+    def _mutate(self, mutations: StudyMutationList):
         session = Session(self.engine)
 
-        measure: t.List[Measure] = list(session.query(Measure).where(Measure.tag == measure_id)) # type: ignore
-        assert(len(measure) == 1)
+        for mutation in mutations:
+            match mutation:
+                case AddEntityMutation():
+                    session.add(entity_to_sql(mutation.entity)) # type:ignore
+                case ConnectNodeToTable():
+                    print("Not implemented yet")
 
-        return pages.Measure.from_orm(measure[0])
+        session.commit()
+
+        return self

@@ -11,7 +11,7 @@ class RemoteTableListing(ImmutableBaseModel):
     title: str
 
 class RemoteTable(ImmutableBaseModel):
-    service: RemoteService
+    service: RemoteServiceName
     id: str
 
     @property
@@ -22,18 +22,18 @@ class RemoteTable(ImmutableBaseModel):
 
 class ColumnImport(ImmutableBaseModel):
     type: t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
-    column_id: ColumnId
+    column_id: SourceColumnName
     prompt: str
     values: t.Tuple[t.Any, ...]
 
 class TableImport(ImmutableBaseModel):
     title: str
-    columns: t.Mapping[ColumnId, ColumnImport]
+    columns: t.Mapping[SourceColumnName, ColumnImport]
 
 ### UnsafeTable
 
 class TableFetchInfo(ImmutableBaseModel):
-    service: RemoteService
+    service: RemoteServiceName
     title: str
     last_update_check: datetime
     last_updated: datetime
@@ -46,7 +46,7 @@ class TableFileInfo(ImmutableBaseModel):
     schema_path: Path
 
 class UnsafeSourceTable(ImmutableBaseModel):
-    instrument_id: InstrumentId
+    instrument_id: InstrumentName
     fetch_info: TableFetchInfo
     file_info: TableFileInfo
     table: TableImport
@@ -57,13 +57,13 @@ ColumnT = t.TypeVar('ColumnT', bound=ColumnTypeStr)
 DataT = t.TypeVar('DataT', bound=ColumnDataType)
 
 class SourceColumnMeta(ImmutableBaseModel):
-    column_id: ColumnId
+    column_id: SourceColumnName
     type: ColumnTypeStr
     prompt: str
     sanitizer_meta: t.Optional[str]
 
 class SourceColumnBase(ImmutableGenericModel, t.Generic[ColumnT, DataT]):
-    column_id: ColumnId
+    column_id: SourceColumnName
     meta: SourceColumnMeta
     type: ColumnT
     values: t.Tuple[DataT | None, ...]
@@ -78,7 +78,7 @@ SourceColumn = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-def new_source_column(column_id: ColumnId, meta: SourceColumnMeta, column_type: ColumnTypeStr, values: t.Sequence[t.Any | None]) -> SourceColumn:
+def new_source_column(column_id: SourceColumnName, meta: SourceColumnMeta, column_type: ColumnTypeStr, values: t.Sequence[t.Any | None]) -> SourceColumn:
     match column_type:
         case 'bool':
             new_func = SourceColumnBase[t.Literal['bool'], StrictBool]
@@ -99,23 +99,23 @@ def new_source_column(column_id: ColumnId, meta: SourceColumnMeta, column_type: 
     )
 
 class SourceTableMeta(ImmutableBaseModel):
-    instrument_id: InstrumentId
+    instrument_id: InstrumentName
     source_info: TableFetchInfo
-    columns: t.Mapping[ColumnId, SourceColumnMeta]
+    columns: t.Mapping[SourceColumnName, SourceColumnMeta]
 
 class SourceTable(ImmutableBaseModel):
-    instrument_id: InstrumentId
+    instrument_id: InstrumentName
     meta: SourceTableMeta
-    columns: t.Mapping[ColumnId, SourceColumn]
+    columns: t.Mapping[SourceColumnName, SourceColumn]
 
 ### LinkedTable
 
 class LinkedColumn(ImmutableBaseModel):
-    column_id: ColumnId
+    column_id: SourceColumnName
     type: ColumnTypeStr
     values: t.Tuple[t.Any, ...]
 
 class LinkedTable(ImmutableBaseModel):
-    instrument_id: InstrumentId
-    table_id: TableId
+    instrument_id: InstrumentName
+    table_id: StudyTableName
     columns: t.Tuple[LinkedColumn, ...]

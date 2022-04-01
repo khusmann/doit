@@ -6,7 +6,6 @@ from pydantic import (
     StrictInt,
     StrictBool,
     StrictFloat,
-    validator,
 )
 from pydantic.generics import GenericModel
 from functools import reduce
@@ -16,10 +15,6 @@ class ImmutableBaseModel(BaseModel):
         allow_mutation=False
     def __hash__(self):
         return hash((type(self),) + tuple(self.__dict__.values()))
-
-class ImmutableBaseModelOrm(ImmutableBaseModel):
-    class Config(ImmutableBaseModel.Config):
-        orm_mode = True
 
 class ImmutableGenericModel(GenericModel):
     class Config:
@@ -69,55 +64,35 @@ class Uri(str):
             case str():
                 return self.from_tuple((*self.as_tuple(), v))
 
-
-InstrumentId = t.NewType('InstrumentId', str)
-ColumnId = t.NewType('ColumnId', str)
+InstrumentId = t.NewType('InstrumentId', int)
+InstrumentName = t.NewType('InstrumentName', str)
+SourceColumnName = t.NewType('ColumnName', str)
+InstrumentNodeId = t.NewType('InstrumentNodeId', int)
 
 ColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
 ColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
 
-RemoteService = t.Literal['qualtrics']
+RemoteServiceName = t.Literal['qualtrics']
 FormatType = t.Literal['qualtrics']
 
-MeasureId = t.NewType("MeasureId", str)
-class MeasureItemId(Uri): pass # e.g. measure.group.item
-MeasureNodeTag = t.NewType('MeasureNodeTag', str)
+MeasureId = t.NewType("MeasureId", int)
+MeasureName = t.NewType("MeasureName", str)
+class MeasureNodeName(Uri): pass # e.g. measure.group.item
+RelativeMeasureNodeName = t.NewType('RelativeMeasureNodeName', str)
+MeasureNodeId = t.NewType('MeasureNodeId', int)
 
-IndexId = t.NewType('IndexId', str)
+IndexColumnId = t.NewType('IndexId', int)
+IndexColumnName = t.NewType('IndexName', str)
 
 ### CodeMap
 
-CodeMapTag = t.NewType('CodeMapTag', str)
-class CodeMapUri(Uri): pass
+RelativeCodeMapName = t.NewType('RelativeCodeMapName', str)
+CodeMapId = t.NewType('CodeMapId', int)
+class CodeMapName(Uri): pass
 CodeValue = t.NewType('CodeValue', int)
 CodeValueTag = t.NewType('CodeValueTag', str)
 RecodeTransform = t.Mapping[CodeValueTag, t.Optional[CodeValueTag]]
 
-class CodeMap(ImmutableBaseModel):
-    class Value(t.TypedDict):
-        value: CodeValue
-        tag: CodeValueTag
-        text: str
-
-    __root__: t.Tuple[CodeMap.Value, ...]
-
-    @validator('__root__', pre=True)
-    def dict_or_set(cls, input: t.Sequence[t.Any]) -> t.Any:
-        assert(len(input) > 0)
-        if isinstance(input[0], dict):
-            return input
-        else:
-            return [ {'value': i, 'tag': v, 'text': v} for (i, v) in enumerate(input) ]
-
-    def tag_to_value(self):
-        return { pair['tag']: pair['value'] for pair in self.__root__ }
-
-    def value_to_tag(self):
-        return { pair['value']: pair['tag'] for pair in self.__root__ }
-
-    ## TODO: Validate uniqueness of pair.*
-
-CodeMap.update_forward_refs()
 
 def invert_map(m: t.Mapping[T, P]) -> t.Mapping[P, t.FrozenSet[T]]:
     result: t.Mapping[P, t.FrozenSet[T]] = {}
@@ -125,4 +100,5 @@ def invert_map(m: t.Mapping[T, P]) -> t.Mapping[P, t.FrozenSet[T]]:
         result[v] = result.get(v, frozenset()) | {k}
     return result
 
-TableId = t.NewType('TableId', str)
+StudyTableId = t.NewType('TableId', int)
+StudyTableName = t.NewType('TableName', str)

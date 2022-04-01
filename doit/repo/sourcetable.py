@@ -3,8 +3,8 @@ import typing as t
 from pathlib import Path
 
 from ..domain.value import (
-    ColumnId,
-    InstrumentId,
+    SourceColumnName,
+    InstrumentName,
     SourceColumn,
     SourceTable,
     SourceTableMeta,
@@ -14,7 +14,7 @@ from ..domain.value import (
 
 from sqlite_utils import Database
 
-SqlData = t.Mapping[ColumnId, t.Union[str, int, float, None]]
+SqlData = t.Mapping[SourceColumnName, t.Union[str, int, float, None]]
 
 TABLE_META_NAME = "__table_meta__"
 COLUMN_META_NAME = "__column_meta__"
@@ -65,14 +65,14 @@ class SourceTableRepoReader:
         assert path.exists()
         self.handle = Database(path)
 
-    def query(self, instrument_id: InstrumentId) -> SourceTable:
+    def query(self, instrument_id: InstrumentName) -> SourceTable:
         meta = self.query_meta(instrument_id)
 
         data_raw: t.Sequence[SqlData] = self.handle[instrument_id].rows # type: ignore
 
         return from_sql_table_data(meta, data_raw)
 
-    def query_meta(self, instrument_id: InstrumentId) -> SourceTableMeta:
+    def query_meta(self, instrument_id: InstrumentName) -> SourceTableMeta:
         column_meta_raw: t.Mapping[str, str] = self.handle[COLUMN_META_NAME].rows_where("instrument_id = ?", [instrument_id]) #type: ignore
         column_meta = { i.column_id: i for i in [SourceColumnMeta.parse_obj(i) for i in column_meta_raw] }
 
@@ -83,9 +83,9 @@ class SourceTableRepoReader:
             **table_meta_raw,
         })
 
-    def tables(self) -> t.List[InstrumentId]:
+    def tables(self) -> t.List[InstrumentName]:
         table_names = set(self.handle.table_names()) - { TABLE_META_NAME, COLUMN_META_NAME }
-        return [InstrumentId(i) for i in table_names]
+        return [InstrumentName(i) for i in table_names]
 
 def to_sql_table_data(table: SourceTable) -> t.Iterable[SqlData]:
     by_row = zip(*map(lambda i: i.values, table.columns.values()))

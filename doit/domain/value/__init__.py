@@ -6,6 +6,8 @@ from .table import *
 
 from .studyspec import *
 
+from .study import *
+
 import yaml
 
 def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):

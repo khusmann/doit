@@ -1,5 +1,5 @@
 import typing as t
-from itertools import starmap, groupby
+from itertools import starmap, groupby, count
 
 from .value import *
 
@@ -53,8 +53,8 @@ def sanitize_table(table: UnsafeSourceTable) -> SourceTable:
         ),
     )
 
-def stub_instrument_item(column_id: ColumnId, column: SourceColumn) -> InstrumentItem:
-    return QuestionInstrumentItem(
+def stub_instrument_item(column_id: SourceColumnName, column: SourceColumn) -> InstrumentItemSpec:
+    return QuestionInstrumentItemSpec(
         type='question',
         remote_id=column_id,
         measure_id=None,
@@ -71,17 +71,17 @@ def stub_instrument(table: SourceTable) -> InstrumentSpec:
         items=list(starmap(stub_instrument_item, table.columns.items()))
     )
 
-def flatten_instrument_items(items: t.Sequence[InstrumentNode]) -> t.List[InstrumentItem]:
+def flatten_instrument_items(items: t.Sequence[InstrumentNodeSpec]) -> t.List[InstrumentItemSpec]:
     return sum([ flatten_instrument_items(i.items) if i.type == 'group' else [i] for i in items], [])
 
-def flatten_measures(measures: t.Mapping[MeasureId, MeasureSpec]) -> t.Dict[MeasureItemId, MeasureItem]:
-    def trav(curr_path: MeasureItemId, cursor: t.Mapping[MeasureNodeTag, MeasureNode]) -> t.Dict[MeasureItemId, MeasureItem]:
+def flatten_measures(measures: t.Mapping[MeasureName, MeasureSpec]) -> t.Dict[MeasureNodeName, MeasureItemSpec]:
+    def trav(curr_path: MeasureNodeName, cursor: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec]) -> t.Dict[MeasureNodeName, MeasureItemSpec]:
         return merge_mappings([
             trav(curr_path / id, item.items) if item.type == 'group' else {(curr_path / id): item}
             for (id, item) in cursor.items()
         ])
     return merge_mappings([
-        trav(MeasureItemId(id), measure.items) for (id, measure) in measures.items()
+        trav(MeasureNodeName(id), measure.items) for (id, measure) in measures.items()
     ])
 
 def instrument_to_table_spec(instrument_spec: InstrumentSpec) -> TableSpec:
@@ -105,17 +105,17 @@ def instruments_to_table_specs(instruments: t.Sequence[InstrumentSpec]) -> t.Set
         ) 
     }
 
-def link_column(instrument_item: InstrumentItem, source_columns: t.Mapping[ColumnId, SourceColumn],  measure_items: t.Mapping[MeasureItemId, MeasureItem]) -> LinkedColumn:
+def link_column(instrument_item: InstrumentItemSpec, source_columns: t.Mapping[SourceColumnName, SourceColumn],  measure_items: t.Mapping[MeasureNodeName, MeasureItemSpec]) -> LinkedColumn:
     match instrument_item:
-        case QuestionInstrumentItem():
+        case QuestionInstrumentItemSpec():
             assert(instrument_item.id is not None)
             src = source_columns[instrument_item.remote_id]
             m = measure_items[instrument_item.id]
             match (src, m):
                 #case (SourceColumnBase(type='ordinal'), IndexSpec())
-                case (SourceColumnBase(type='ordinal'), OrdinalMeasureItem()):
+                case (SourceColumnBase(type='ordinal'), OrdinalMeasureItemSpec()):
                     pass
-                case (SourceColumnBase(), SimpleMeasureItem()):
+                case (SourceColumnBase(), SimpleMeasureItemSpec()):
                     return LinkedColumn(
                         column_id=instrument_item.id,
                         type=src.type,
@@ -123,13 +123,13 @@ def link_column(instrument_item: InstrumentItem, source_columns: t.Mapping[Colum
                     )
                 case _:
                     pass
-        case ConstantInstrumentItem():
+        case ConstantInstrumentItemSpec():
             pass
         case _:
             pass
     raise Exception("Not implemented")
 
-def link_table(source: SourceTable, instrument_spec: InstrumentSpec, measures: t.Mapping[MeasureId, MeasureSpec]) -> LinkedTable:
+def link_table(source: SourceTable, instrument_spec: InstrumentSpec, measures: t.Mapping[MeasureName, MeasureSpec]) -> LinkedTable:
     assert(source.instrument_id == instrument_spec.instrument_id)
     flat_measure_items = flatten_measures(measures)
     return LinkedTable(
@@ -137,3 +137,123 @@ def link_table(source: SourceTable, instrument_spec: InstrumentSpec, measures: t
         table_id=instrument_to_table_spec(instrument_spec).tag,
         columns=tuple((link_column(instrument_item, source.columns, flat_measure_items) for instrument_item in flatten_instrument_items(instrument_spec.items)))
     )
+
+default_id_gen = count(0)
+
+def measures_from_spec(
+    measure_specs: t.Mapping[MeasureName, MeasureSpec],
+    id_gen: t.Iterator[int] = default_id_gen,
+) -> t.Tuple[StudyMutationList, t.Dict[MeasureName, MeasureId]]:
+
+    lookup: t.Dict[MeasureName, MeasureId] = {}
+    mutations: StudyMutationList = ()
+
+    for name, spec in measure_specs.items():
+        measure = Measure(
+            id=next(id_gen),
+            name=name,
+            title=spec.title,
+            description=spec.description,
+            items=[],
+        )
+
+        codemap_mutations, codemap_lookup = codemaps_from_spec(
+            spec.codes,
+            name,
+            id_gen
+        )
+
+        node_mutations, _ = measure_nodes_from_spec(
+            spec.items,
+            MeasureNodeName(name),
+            None,
+            measure.id,
+            codemap_lookup,
+            id_gen
+        )
+        print(node_mutations)
+        mutations = (*mutations, AddEntityMutation(entity=measure), *codemap_mutations, *node_mutations)
+        lookup |= { name: measure.id }
+
+    return mutations, lookup
+
+def measure_nodes_from_spec(
+    measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
+    parent_name: MeasureNodeName,
+    parent_node_id: t.Optional[MeasureNodeId],
+    parent_measure_id: t.Optional[MeasureId],
+    codemap_lookup: t.Mapping[RelativeCodeMapName, CodeMapId],
+    id_gen: t.Iterator[int] = default_id_gen,
+) -> t.Tuple[StudyMutationList, t.Dict[MeasureNodeName, MeasureNodeId]]:
+
+    lookup: t.Dict[MeasureNodeName, MeasureNodeId] = {}
+    mutations: StudyMutationList = ()
+
+    for rel_name, spec in measure_node_specs.items():
+        match spec:
+            case MeasureItemGroupSpec():
+                node = MeasureItemGroup(
+                    id=next(id_gen),
+                    name=parent_name / rel_name,
+                    parent_node_id=parent_node_id,
+                    parent_measure_id=parent_measure_id,
+                    prompt=spec.prompt,
+                    type=spec.type,
+                    items=[],
+                )
+
+                child_mutations, child_lookup = measure_nodes_from_spec(
+                    spec.items,
+                    parent_name=node.name,
+                    parent_node_id=node.id,
+                    parent_measure_id=None,
+                    codemap_lookup=codemap_lookup,
+                    id_gen=id_gen,
+                )
+
+                mutations = (*mutations, *child_mutations)
+                lookup |= child_lookup
+
+            case OrdinalMeasureItemSpec():
+                node = OrdinalMeasureItem(
+                    id=next(id_gen),
+                    name=parent_name / rel_name,
+                    parent_node_id=parent_node_id,
+                    parent_measure_id=parent_measure_id,
+                    prompt=spec.prompt,
+                    type=spec.type,
+                    codemap_id=codemap_lookup[spec.codes],
+                )
+            case SimpleMeasureItemSpec():
+                node = SimpleMeasureItem(
+                    id=next(id_gen),
+                    name=parent_name / rel_name,
+                    parent_node_id=parent_node_id,
+                    parent_measure_id=parent_measure_id,
+                    prompt=spec.prompt,
+                    type=spec.type,
+                )
+        mutations = (*mutations, AddEntityMutation(entity=node))
+        lookup |= { node.name: node.id }
+    return mutations, lookup
+
+
+
+def codemaps_from_spec(
+    codemap_specs: t.Mapping[RelativeCodeMapName, CodeMapSpec],
+    parent_name: MeasureName | t.Literal['index'],
+    id_gen: t.Iterator[int] = default_id_gen,
+) -> t.Tuple[StudyMutationList, t.Dict[RelativeCodeMapName, CodeMapId]]:
+
+    lookup: t.Dict[RelativeCodeMapName, CodeMapId] = {}
+    mutations: StudyMutationList = ()
+    for rel_name, spec in codemap_specs.items():
+        codemap = CodeMap(
+            id=next(id_gen),
+            name=CodeMapName(".".join([parent_name, rel_name])),
+            values=spec.__root__,
+        )
+        mutations = (*mutations, AddEntityMutation(entity=codemap))
+        lookup |= { rel_name: codemap.id }
+
+    return mutations, lookup

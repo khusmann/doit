@@ -8,7 +8,7 @@ from time import time
 from ..domain.value import (
     ImmutableBaseModel,
     UnsafeSourceTable,
-    InstrumentId,
+    InstrumentName,
     RemoteTable,
     TableFileInfo,
     TableFetchInfo
@@ -35,7 +35,7 @@ class UnsafeTableRepoSettings(BaseSettings):
 class UnsafeTableManager(ImmutableBaseModel):
     settings = UnsafeTableRepoSettings()
 
-    def load_table(self, instrument_id: InstrumentId) -> UnsafeSourceTable:
+    def load_table(self, instrument_id: InstrumentName) -> UnsafeSourceTable:
         file_info = self.load_file_info(instrument_id)
         fetch_info = self.load_fetch_info(instrument_id)
         table = read_unsafe_table_data(file_info)
@@ -46,20 +46,20 @@ class UnsafeTableManager(ImmutableBaseModel):
             table=table,
         )
 
-    def load_file_info(self, instrument_id: InstrumentId) -> TableFileInfo:
+    def load_file_info(self, instrument_id: InstrumentName) -> TableFileInfo:
         return TableFileInfo.parse_file(self.settings.fileinfo_file(instrument_id))
 
-    def load_fetch_info(self, instrument_id: InstrumentId) -> TableFetchInfo:
+    def load_fetch_info(self, instrument_id: InstrumentName) -> TableFetchInfo:
         return TableFetchInfo.parse_file(self.settings.fetchinfo_file(instrument_id))
 
-    def fetch(self, instrument_id: InstrumentId) -> None:
+    def fetch(self, instrument_id: InstrumentName) -> None:
         file_info = self.load_file_info(instrument_id)
         fetch_info = fetch_remote_table(file_info)
 
         with open(self.settings.fetchinfo_file(instrument_id), 'w') as f:
             f.write(fetch_info.json())
 
-    def add(self, instrument_id: InstrumentId, uri: str) -> None:
+    def add(self, instrument_id: InstrumentName, uri: str) -> None:
         self.settings.workdir(instrument_id).mkdir(exist_ok=True, parents=True)
         match urlparse(uri):
             case ParseResult(scheme="qualtrics", netloc=remote_id):
@@ -78,10 +78,10 @@ class UnsafeTableManager(ImmutableBaseModel):
         with open(self.settings.fileinfo_file(instrument_id), 'w') as f:
             f.write(file_info.json())
 
-    def rm(self, instrument_id: InstrumentId) -> None:
+    def rm(self, instrument_id: InstrumentName) -> None:
         oldfile = self.settings.workdir(instrument_id)
         newfile = oldfile.with_name(".{}.{}".format(oldfile.name, int(time())))
         oldfile.rename(newfile)
 
-    def tables(self) -> t.List[InstrumentId]:
-        return [ InstrumentId(i.name) for i in self.settings.repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
+    def tables(self) -> t.List[InstrumentName]:
+        return [ InstrumentName(i.name) for i in self.settings.repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
