@@ -7,11 +7,11 @@ from tqdm import tqdm
 import yaml
 from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
-from .manager.safetable import SafeTableRepoManager
+from .manager.sourcetable import SourceTableRepoManager
 from .remote import fetch_table_listing
-from .domain.value import InstrumentId, RemoteService, ColumnId, MeasureId
-from .domain.service import sanitize_table #, stub_instrument
-from .repo.study import StudyRepoReader, StudyRepoWriter
+from .domain.value import InstrumentId, RemoteService, ColumnId
+from .domain.service import sanitize_table, link_table #, stub_instrument
+from .repo.study import StudyRepoWriter
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -23,7 +23,7 @@ def cli():
 def sanitize():
     """Sanitize sources"""
     unsafe_repo = UnsafeTableManager()
-    safe_repo = SafeTableRepoManager()
+    safe_repo = SourceTableRepoManager()
     db_writer = safe_repo.load_writer()
 
     for instrument_id in tqdm(unsafe_repo.tables()):
@@ -66,7 +66,7 @@ def cli_stub_instrument(instrument_id: InstrumentId):
 @click.argument('instrument_id')
 @click.argument('column_id')
 def list_unique(instrument_id: InstrumentId, column_id: ColumnId):
-    safe_repo = SafeTableRepoManager()
+    safe_repo = SourceTableRepoManager()
     safe_reader = safe_repo.load_reader()
     safe_table = safe_reader.query(instrument_id)
     safe_column = safe_table.columns[column_id]
@@ -85,6 +85,13 @@ def debug():
     study_repo = StudySpecManager()
     study = study_repo.load_study_spec()
     studydb.setup(study)
+
+    sources = SourceTableRepoManager().load_reader()
+
+    for (instrument_id, instrument_spec) in study.instruments.items():
+        source = sources.query(instrument_id)
+        linked_source = link_table(source, instrument_spec, study.measures) 
+        studydb.add_data(linked_source)
 
     
 @source_cli.command(name="fetch")

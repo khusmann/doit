@@ -109,3 +109,13 @@ class SourceTable(ImmutableBaseModel):
     columns: t.Mapping[ColumnId, SourceColumn]
 
 ### LinkedTable
+
+class LinkedColumn(ImmutableBaseModel):
+    column_id: ColumnId
+    type: ColumnTypeStr
+    values: t.Tuple[t.Any, ...]
+
+class LinkedTable(ImmutableBaseModel):
+    instrument_id: InstrumentId
+    table_id: TableId
+    columns: t.Tuple[LinkedColumn, ...]

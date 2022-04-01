@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+from ...domain.value.table import LinkedTable
 from sqlalchemy import create_engine
 
 from sqlalchemy.orm import Session
@@ -24,6 +25,10 @@ class StudyRepoWriter:
         self.url = "sqlite:///{}".format(path)
         print(self.url)
 
+    def add_data(self, linked_table: LinkedTable):
+        # Sourcetable -> TableSpec
+        print(linked_table)
+
     def setup(self, study_spec: studyspec.StudySpec):
         codemap_specs = tuple(map(lambda m: m.codes, study_spec.measures.values()))
         measure_item_specs = tuple(map(lambda m: m.items, study_spec.measures.values()))
@@ -38,7 +43,7 @@ class StudyRepoWriter:
         
         sql_codemaps = tuple(starmap(mapped_codemaps_to_sql, zip(codemap_specs, sql_measures.values())))
         
-        sql_instruments = seq_instrumentspec_to_sql(tuple(study_spec.instruments.values()))
+        sql_instruments = seq_instrumentspec_to_sql(tuple(study_spec.instruments.values())) # TODO add source meta
 
         sql_measure_nodes = merge_mappings(
             tuple(starmap(partial(measure_node_tree_to_sql, measure_tables=sql_tableinfos), zip(measure_item_specs, sql_measures.values(), sql_codemaps)))

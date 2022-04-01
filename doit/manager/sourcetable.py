@@ -4,7 +4,7 @@ from time import time
 
 from ..repo.sourcetable import SourceTableRepoWriter, SourceTableRepoReader
 
-class SafeTableRepoManager(BaseSettings):
+class SourceTableRepoManager(BaseSettings):
     repo_dir = Path("./build/safe/sanitized")
     database_filename = "peak-sanitized.db"
 

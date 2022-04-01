@@ -13,7 +13,7 @@ from pydantic import Field
 
 class OrdinalMeasureItem(ImmutableBaseModel):
     prompt: str
-    type: t.Literal['ordinal', 'categorical', 'categorical_array']
+    type: t.Literal['ordinal', 'categorical']
     codes: CodeMapTag
 
 class SimpleMeasureItem(ImmutableBaseModel):
@@ -68,6 +68,7 @@ class HiddenInstrumentItem(ImmutableBaseModel):
     type: t.Literal['hidden']
     remote_id: ColumnId
     id: MeasureItemId
+    map: t.Optional[RecodeTransform]
 
 InstrumentItem = t.Annotated[
     t.Union[

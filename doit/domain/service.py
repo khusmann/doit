@@ -71,7 +71,7 @@ def stub_instrument(table: SourceTable) -> InstrumentSpec:
         items=list(starmap(stub_instrument_item, table.columns.items()))
     )
 
-def flatten_instrument_items(items: t.Sequence[InstrumentNode]) -> t.Sequence[InstrumentItem]:
+def flatten_instrument_items(items: t.Sequence[InstrumentNode]) -> t.List[InstrumentItem]:
     return sum([ flatten_instrument_items(i.items) if i.type == 'group' else [i] for i in items], [])
 
 def flatten_measures(measures: t.Mapping[MeasureId, MeasureSpec]) -> t.Dict[MeasureItemId, MeasureItem]:
@@ -104,3 +104,36 @@ def instruments_to_table_specs(instruments: t.Sequence[InstrumentSpec]) -> t.Set
             lambda i: i.indices,
         ) 
     }
+
+def link_column(instrument_item: InstrumentItem, source_columns: t.Mapping[ColumnId, SourceColumn],  measure_items: t.Mapping[MeasureItemId, MeasureItem]) -> LinkedColumn:
+    match instrument_item:
+        case QuestionInstrumentItem():
+            assert(instrument_item.id is not None)
+            src = source_columns[instrument_item.remote_id]
+            m = measure_items[instrument_item.id]
+            match (src, m):
+                #case (SourceColumnBase(type='ordinal'), IndexSpec())
+                case (SourceColumnBase(type='ordinal'), OrdinalMeasureItem()):
+                    pass
+                case (SourceColumnBase(), SimpleMeasureItem()):
+                    return LinkedColumn(
+                        column_id=instrument_item.id,
+                        type=src.type,
+                        values=(5, 6)
+                    )
+                case _:
+                    pass
+        case ConstantInstrumentItem():
+            pass
+        case _:
+            pass
+    raise Exception("Not implemented")
+
+def link_table(source: SourceTable, instrument_spec: InstrumentSpec, measures: t.Mapping[MeasureId, MeasureSpec]) -> LinkedTable:
+    assert(source.instrument_id == instrument_spec.instrument_id)
+    flat_measure_items = flatten_measures(measures)
+    return LinkedTable(
+        instrument_id=source.instrument_id,
+        table_id=instrument_to_table_spec(instrument_spec).tag,
+        columns=tuple((link_column(instrument_item, source.columns, flat_measure_items) for instrument_item in flatten_instrument_items(instrument_spec.items)))
+    )

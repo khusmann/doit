@@ -125,6 +125,4 @@ def invert_map(m: t.Mapping[T, P]) -> t.Mapping[P, t.FrozenSet[T]]:
         result[v] = result.get(v, frozenset()) | {k}
     return result
 
-StudyTableId = t.NewType('StudyTableId', t.FrozenSet[MeasureItemId])
-
 TableId = t.NewType('TableId', str)
