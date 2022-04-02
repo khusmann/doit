@@ -145,61 +145,55 @@ default_id_gen = count(0)
 def measures_from_spec(
     measure_specs: t.Mapping[MeasureName, MeasureSpec],
     id_gen: t.Iterator[int] = default_id_gen,
-) -> t.Tuple[StudyMutationList, t.Dict[MeasureName, MeasureId]]:
+) -> t.List[AddMeasureMutator | AddCodeMapMutator | AddMeasureNodeMutator]:
 
-    lookup: t.Dict[MeasureName, MeasureId] = {}
-    mutations: StudyMutationList = []
+    mutations: t.List[AddMeasureMutator | AddCodeMapMutator | AddMeasureNodeMutator] = []
 
     for name, spec in measure_specs.items():
-        measure = Measure(
-            id=next(id_gen),
-            name=name,
-            title=spec.title,
-            description=spec.description,
-            items=[],
-        )
+        measure = Measure.from_spec(next(id_gen), name, spec)
 
-        codemap_mutations, codemap_lookup = codemaps_from_spec(
+        codemap_mutations = codemaps_from_spec(
             codemap_specs=spec.codes,
             parent_name=name,
             id_gen=id_gen,
         )
 
-        node_mutations, _ = measure_nodes_from_spec(
+        codemap_lookup = { rel_name: mut.codemap.id for rel_name, mut in zip(spec.codes, codemap_mutations) }
+
+        node_mutations = measure_nodes_from_spec(
             measure_node_specs=spec.items,
             parent=measure,
             codemap_lookup=codemap_lookup,
             id_gen=id_gen,
         )
 
-        mutations += [AddEntityMutation(entity=measure)]
+        mutations += [AddMeasureMutator(measure=measure)]
         mutations += codemap_mutations
         mutations += node_mutations
 
-        lookup |= { name: measure.id }
-
-    return mutations, lookup
+    return mutations
 
 def measure_nodes_from_spec(
     measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
     parent: Measure | MeasureNode,
     codemap_lookup: t.Mapping[RelativeCodeMapName, CodeMapId],
     id_gen: t.Iterator[int] = default_id_gen,
-) -> t.Tuple[StudyMutationList, t.Dict[MeasureNodeName, MeasureNodeId]]:
+) -> t.List[AddMeasureNodeMutator]:
 
-    lookup: t.Dict[MeasureNodeName, MeasureNodeId] = {}
-    mutations: StudyMutationList = []
+    mutations: t.List[AddMeasureNodeMutator] = []
 
     for rel_name, spec in measure_node_specs.items():
+        base = MeasureNodeBase.from_parent(next(id_gen), rel_name, parent)
+
         match spec:
             case OrdinalMeasureItemSpec():
-                node = OrdinalMeasureItem.from_spec(next(id_gen), rel_name, spec, parent, codemap_lookup)
+                node = OrdinalMeasureItem.from_spec(base, spec, codemap_lookup[spec.codes])
             case SimpleMeasureItemSpec():
-                node = SimpleMeasureItem.from_spec(next(id_gen), rel_name, spec, parent)
+                node = SimpleMeasureItem.from_spec(base, spec)
             case MeasureItemGroupSpec():
-                node = MeasureItemGroup.from_spec(next(id_gen), rel_name, spec, parent)
+                node = MeasureItemGroup.from_spec(base, spec)
 
-                child_mutations, child_lookup = measure_nodes_from_spec(
+                child_mutations = measure_nodes_from_spec(
                     measure_node_specs=spec.items,
                     parent=node,
                     codemap_lookup=codemap_lookup,
@@ -207,29 +201,24 @@ def measure_nodes_from_spec(
                 )
 
                 mutations += child_mutations
-                lookup |= child_lookup
 
-        mutations += [AddEntityMutation(entity=node)]
-        lookup |= { node.name: node.id }
-    return mutations, lookup
+        mutations += [AddMeasureNodeMutator(measure_node=node)]
 
-
+    return mutations
 
 def codemaps_from_spec(
     codemap_specs: t.Mapping[RelativeCodeMapName, CodeMapSpec],
     parent_name: MeasureName | t.Literal['index'],
     id_gen: t.Iterator[int] = default_id_gen,
-) -> t.Tuple[StudyMutationList, t.Dict[RelativeCodeMapName, CodeMapId]]:
+) -> t.List[AddCodeMapMutator]:
 
-    lookup: t.Dict[RelativeCodeMapName, CodeMapId] = {}
-    mutations: StudyMutationList = []
+    mutations: t.List[AddCodeMapMutator] = []
     for rel_name, spec in codemap_specs.items():
-        codemap = CodeMap(
+        codemap = CodeMap.from_spec(
             id=next(id_gen),
             name=CodeMapName(".".join([parent_name, rel_name])),
-            values=spec.__root__,
+            spec=spec
         )
-        mutations += [AddEntityMutation(entity=codemap)]
-        lookup |= { rel_name: codemap.id }
+        mutations += [AddCodeMapMutator(codemap=codemap)]
 
-    return mutations, lookup
+    return mutations

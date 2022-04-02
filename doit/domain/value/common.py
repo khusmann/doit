@@ -16,6 +16,10 @@ class ImmutableBaseModel(BaseModel):
     def __hash__(self):
         return hash((type(self),) + tuple(self.__dict__.values()))
 
+class ImmutableBaseModelOrm(ImmutableBaseModel):
+    class Config(ImmutableBaseModel.Config):
+        orm_mode = True
+
 class ImmutableGenericModel(GenericModel):
     class Config:
         allow_mutation=False

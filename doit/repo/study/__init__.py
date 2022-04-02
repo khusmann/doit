@@ -25,18 +25,19 @@ class StudyRepo(StudyRepoReader):
         Base.metadata.create_all(self.engine)
 
     def setup(self, study_spec: StudySpec):
-        measure_mutations, _ = measures_from_spec(study_spec.measures)
-        self._mutate(measure_mutations)
+        self._mutate(measures_from_spec(study_spec.measures))
 
-    def _mutate(self, mutations: StudyMutationList):
+    def _mutate(self, mutations: t.Sequence[StudyMutation]):
         session = Session(self.engine)
 
         for mutation in mutations:
             match mutation:
-                case AddEntityMutation():
-                    session.add(entity_to_sql(mutation.entity)) # type:ignore
-                case ConnectNodeToTable():
-                    print("Not implemented yet")
+                case AddCodeMapMutator():
+                    session.add(CodeMapSql(mutation.codemap)) # type: ignore
+                case AddMeasureMutator():
+                    session.add(MeasureSql(mutation.measure)) # type: ignore
+                case AddMeasureNodeMutator():
+                    session.add(MeasureNodeSql(mutation.measure_node)) # type: ignore                
 
         session.commit()
 

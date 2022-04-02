@@ -183,25 +183,3 @@ class InstrumentNodeSql(Base, DumpableNode):
             case InstrumentItemGroup():
                 self.prompt=o.prompt
                 self.title=o.title
-
-sql_lookup: t.Mapping[t.Type[StudyEntity], t.Any] = {
-    Instrument: InstrumentSql,
-    QuestionInstrumentItem: InstrumentNodeSql,
-    ConstantInstrumentItem: InstrumentNodeSql,
-    HiddenInstrumentItem: InstrumentNodeSql,
-    InstrumentItemGroup: InstrumentNodeSql,
-
-    Measure: MeasureSql,
-    OrdinalMeasureItem: MeasureNodeSql,
-    SimpleMeasureItem: MeasureNodeSql,
-    MeasureItemGroup: MeasureNodeSql,
-    CodeMap: CodeMapSql,
-}
-
-def entity_to_sql(entity: StudyEntity):
-    sql_type = sql_lookup.get(type(entity))
-
-    if sql_type:
-        return sql_type(entity)
-    else:
-        raise Exception("{} not implemented yet".format(entity))
