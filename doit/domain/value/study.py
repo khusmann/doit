@@ -61,17 +61,6 @@ class MeasureNodeBase(ImmutableBaseModel):
     parent_node_id: t.Optional[MeasureNodeId]
     parent_measure_id: t.Optional[MeasureId]
 
-    @classmethod
-    def from_parent(cls, id: int, rel_name: RelativeMeasureNodeName, parent: MeasureNode | Measure):
-        parent_node_id=parent.id if parent.type != 'root' else None
-        parent_measure_id=parent.id if parent.type == 'root' else None
-        return cls(
-            id=id,
-            name=MeasureNodeName(parent.name) / rel_name,
-            parent_node_id=parent_node_id,
-            parent_measure_id=parent_measure_id,           
-        )
- 
 
 class OrdinalMeasureItem(MeasureNodeBase):
 
@@ -304,35 +293,186 @@ class StudyTable(ImmutableBaseModelOrm):
 
 ### Study Mutators
 
+class CreationContext(ImmutableBaseModel):
+    studytable_id_by_columns: t.Mapping[t.FrozenSet[IndexColumnName], StudyTableId]
+    studytable_id_by_measure_node_name: t.Mapping[MeasureNodeName, StudyTableId]
+    measure_item_id_by_name: t.Mapping[MeasureNodeName, MeasureNodeId]
+    index_column_id_by_name: t.Mapping[IndexColumnName, IndexColumnId]
+    codemap_id_by_name: t.Mapping[CodeMapName, CodeMapId]
 
 class AddCodeMapMutator(ImmutableBaseModel):
-    codemap: CodeMap
+    id: CodeMapId
+    name: CodeMapName
+    spec: CodeMapSpec
+    def create(self, _: CreationContext) -> CodeMap:
+        return CodeMap.from_spec(self.id, self.name, self.spec)
 
 class AddMeasureMutator(ImmutableBaseModel):
-    measure: Measure
+    id: MeasureId
+    name: MeasureName
+    spec: MeasureSpec
 
-class AddMeasureNodeMutator(ImmutableBaseModel):
-    measure_node: MeasureNode
+    def create(self, _: CreationContext) -> Measure:
+        return Measure.from_spec(self.id, self.name, self.spec)
 
-class AddIndexColumnMutator(ImmutableBaseModel):
-    index_column: IndexColumn
+def measure_node_base_helper(id: int, name: MeasureNodeName, parent: AddMeasureMutator | AddMeasureNodeMutator):
+    parent_measure_id = parent.id if isinstance(parent, AddMeasureMutator) else None
+    parent_node_id = parent.id if not isinstance(parent, AddMeasureMutator) else None
+    return MeasureNodeBase(
+        id=id,
+        name=name,
+        parent_measure_id=parent_measure_id,
+        parent_node_id=parent_node_id,
+    )
+
+class AddSimpleMeasureItemMutator(ImmutableBaseModel):
+    id: MeasureNodeId
+    rel_name: RelativeMeasureNodeName
+    parent: t.Union[AddMeasureMutator, AddMeasureNodeMutator]
+    spec: SimpleMeasureItemSpec
+
+    @property
+    def name(self) -> MeasureNodeName:
+        return MeasureNodeName(self.parent.name) / self.rel_name
+
+    def create(self, _: CreationContext) -> SimpleMeasureItem:
+        base = measure_node_base_helper(self.id, self.name, self.parent)
+        return SimpleMeasureItem.from_spec(base, self.spec)
+
+class AddOrdinalMeasureItemMutator(ImmutableBaseModel):
+    id: MeasureNodeId
+    rel_name: RelativeMeasureNodeName
+    parent: t.Union[AddMeasureMutator, AddMeasureNodeMutator]
+    spec: OrdinalMeasureItemSpec
+    codemap_name: CodeMapName
+
+    @property
+    def name(self) -> MeasureNodeName:
+        return MeasureNodeName(self.parent.name) / self.rel_name
+
+    def create(self, context: CreationContext) -> OrdinalMeasureItem:
+        base = measure_node_base_helper(self.id, self.name, self.parent)
+        return OrdinalMeasureItem.from_spec(
+            base,
+            self.spec,
+            context.codemap_id_by_name[self.codemap_name],
+            # TODO: Add studytable_id from context
+        )
+
+class AddMeasureItemGroupMutator(ImmutableBaseModel):
+    id: MeasureNodeId
+    rel_name: RelativeMeasureNodeName
+    parent: t.Union[AddMeasureMutator, AddMeasureNodeMutator]
+    spec: MeasureItemGroupSpec
+
+    @property
+    def name(self) -> MeasureNodeName:
+        return MeasureNodeName(self.parent.name) / self.rel_name
+
+    def create(self, _: CreationContext) -> MeasureItemGroup:
+        base = measure_node_base_helper(self.id, self.name, self.parent)
+        return MeasureItemGroup.from_spec(base, self.spec)
+
+AddMeasureNodeMutator = AddSimpleMeasureItemMutator | AddOrdinalMeasureItemMutator | AddMeasureItemGroupMutator
+
+AddSimpleMeasureItemMutator.update_forward_refs()
+AddOrdinalMeasureItemMutator.update_forward_refs()
+AddMeasureItemGroupMutator.update_forward_refs()
 
 class AddInstrumentMutator(ImmutableBaseModel):
-    instrument: Instrument
-
-class AddInstrumentNodeMutator(ImmutableBaseModel):
-    instrument_node: InstrumentNode
-
-class AddStudyTableMutator(ImmutableBaseModel):
-    studytable: StudyTable
-
-class ConnectColumnToTableMutator(ImmutableBaseModel):
-    column_name: t.Union[MeasureNodeName, IndexColumnName]
+    id: InstrumentId
+    name: InstrumentName
+    spec: InstrumentSpec
     studytable_id: StudyTableId
 
-class ConnectInstrumentNodeToColumnMutator(ImmutableBaseModel):
-    node_id: InstrumentNodeId
-    column_name: t.Union[MeasureNodeName, IndexColumnName]
+    def create(self, _: CreationContext) -> Instrument:
+        return Instrument.from_spec(
+            self.id,
+            self.name,
+            self.spec,
+            self.studytable_id,
+        )
+
+def instrument_node_base_helper(id: int, parent: AddInstrumentNodeMutator | AddInstrumentMutator):
+    parent_node_id = parent.id if not isinstance(parent, AddInstrumentMutator) else None
+    parent_instrument_id = parent.id if isinstance(parent, AddInstrumentMutator) else None
+    return InstrumentNodeBase(
+        id=id,
+        parent_node_id=parent_node_id,
+        parent_instrument_id=parent_instrument_id,
+    )
+
+class AddQuestionInstrumentItemMutator(ImmutableBaseModel):
+    id: InstrumentNodeId
+    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
+    spec: QuestionInstrumentItemSpec
+    studytable_id: StudyTableId
+
+    def create(self, context: CreationContext) -> QuestionInstrumentItem:
+        base=instrument_node_base_helper(self.id, self.parent)
+        return QuestionInstrumentItem.from_spec(base, self.spec)
+
+class AddConstantInstrumentItemMutator(ImmutableBaseModel):
+    id: InstrumentNodeId
+    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
+    spec: ConstantInstrumentItemSpec
+    studytable_id: StudyTableId
+
+    def create(self, context: CreationContext) -> ConstantInstrumentItem:
+        base=instrument_node_base_helper(self.id, self.parent)
+        return ConstantInstrumentItem.from_spec(base, self.spec)
+
+class AddHiddenInstrumentItemMutator(ImmutableBaseModel):
+    id: InstrumentNodeId
+    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
+    spec: HiddenInstrumentItemSpec
+    studytable_id: StudyTableId
+
+    def create(self, context: CreationContext) -> HiddenInstrumentItem:
+        base=instrument_node_base_helper(self.id, self.parent)
+        return HiddenInstrumentItem.from_spec(base, self.spec)
+
+class AddInstrumentItemGroupMutator(ImmutableBaseModel):
+    id: InstrumentNodeId
+    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
+    spec: InstrumentItemGroupSpec
+    studytable_id: StudyTableId
+
+    def create(self, context: CreationContext) -> InstrumentItemGroup:
+        base=instrument_node_base_helper(self.id, self.parent)
+        return InstrumentItemGroup.from_spec(base, self.spec)
+
+AddInstrumentNodeMutator = AddQuestionInstrumentItemMutator | AddConstantInstrumentItemMutator | AddHiddenInstrumentItemMutator | AddInstrumentItemGroupMutator
+
+AddQuestionInstrumentItemMutator.update_forward_refs()
+AddConstantInstrumentItemMutator.update_forward_refs()
+AddHiddenInstrumentItemMutator.update_forward_refs()
+AddInstrumentItemGroupMutator.update_forward_refs()
+
+class AddIndexColumnMutator(ImmutableBaseModel):
+    id: IndexColumnId
+    name: IndexColumnName
+    codemap_id: CodeMapId
+    spec: IndexColumnSpec
+
+    def create(self, context: CreationContext) -> IndexColumn:
+        return IndexColumn.from_spec(
+            id=self.id,
+            name=self.name,
+            spec=self.spec,
+            codemap_id=self.codemap_id,
+        )
+
+class AddStudyTableMutator(ImmutableBaseModel):
+    id: StudyTableId
+    indices: t.FrozenSet[IndexColumnName]
+
+    def create(self, context: CreationContext) -> StudyTable:
+        return StudyTable(
+            id=self.id,
+            name="-".join(sorted(self.indices)),
+            indices=self.indices,
+        )
 
 StudyMutation = t.Union[
     AddCodeMapMutator,
@@ -342,6 +482,4 @@ StudyMutation = t.Union[
     AddInstrumentMutator,
     AddInstrumentNodeMutator,
     AddStudyTableMutator,
-    ConnectColumnToTableMutator,
-    ConnectInstrumentNodeToColumnMutator,
 ]

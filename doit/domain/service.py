@@ -79,41 +79,45 @@ def study_from_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = default_id_
     mutations: t.List[StudyMutation] = []
     mutations += index_columns_from_spec(study_spec.config.indices, id_gen)
     mutations += measures_from_spec(study_spec.measures, id_gen)
-    mutations += instruments_from_spec(study_spec.instruments, id_gen)
+    mutations += instruments_from_spec(study_spec.instruments,  id_gen)
     return mutations
 
 def instruments_from_spec(
     instrument_specs: t.Mapping[InstrumentName, InstrumentSpec],
     id_gen: t.Iterator[int] = default_id_gen,
-) -> t.List[AddInstrumentMutator | AddInstrumentNodeMutator | AddStudyTableMutator | ConnectColumnToTableMutator | ConnectInstrumentNodeToColumnMutator]:
+) -> t.List[AddInstrumentMutator | AddInstrumentNodeMutator | AddStudyTableMutator]:
 
-    mutations: t.List[AddInstrumentMutator | AddInstrumentNodeMutator | AddStudyTableMutator | ConnectColumnToTableMutator | ConnectInstrumentNodeToColumnMutator] = []
+    mutations: t.List[AddInstrumentMutator | AddInstrumentNodeMutator | AddStudyTableMutator] = []
 
-    studytable_lookup: t.Mapping[t.FrozenSet[IndexColumnName], StudyTable] = {}
+    studytable_lookup: t.Mapping[t.FrozenSet[IndexColumnName], AddStudyTableMutator] = {}
 
     for name, spec in instrument_specs.items():
         indices = frozenset(spec.index_column_names())
 
-        studytable = studytable_lookup.get(indices)
+        studytable_mutation = studytable_lookup.get(indices)
 
-        if studytable is None:
-            studytable = StudyTable.from_indices(id=next(id_gen), indices=indices)
-            studytable_lookup |= { indices: studytable }
-            mutations += [AddStudyTableMutator(studytable=studytable)]
+        if studytable_mutation is None:
+            studytable_mutation = (
+                AddStudyTableMutator(
+                    id=next(id_gen),
+                    indices=indices,
+                )
+            )
+            mutations += [studytable_mutation]
 
-        instrument = Instrument.from_spec(
+        instrument_mutation = AddInstrumentMutator(
             id=next(id_gen),
             name=name,
             spec=spec,
-            studytable_id=studytable.id,
+            studytable_id=studytable_mutation.id,
         )
 
-        mutations += [AddInstrumentMutator(instrument=instrument)]
+        mutations += [instrument_mutation]
 
         mutations += instrument_nodes_from_spec(
             instrument_node_specs=spec.items,
-            parent=instrument,
-            studytable_id=studytable.id,
+            parent=instrument_mutation,
+            studytable_id=studytable_mutation.id,
             id_gen=id_gen,
         )
 
@@ -121,45 +125,54 @@ def instruments_from_spec(
 
 def instrument_nodes_from_spec(
     instrument_node_specs: t.Sequence[InstrumentNodeSpec],
-    parent: Instrument | InstrumentNode,
+    parent: AddInstrumentMutator | AddInstrumentNodeMutator,
     studytable_id: StudyTableId,
     id_gen: t.Iterator[int] = default_id_gen,
-) -> t.List[AddInstrumentNodeMutator | ConnectColumnToTableMutator | ConnectInstrumentNodeToColumnMutator]:
+) -> t.List[AddInstrumentNodeMutator]:
 
-    mutations: t.List[AddInstrumentNodeMutator | ConnectColumnToTableMutator | ConnectInstrumentNodeToColumnMutator] = []
+    mutations: t.List[AddInstrumentNodeMutator] = []
 
     for spec in instrument_node_specs:
-        base = InstrumentNodeBase.from_parent(next(id_gen), parent)
-
         match spec:
             case QuestionInstrumentItemSpec():
-                node = QuestionInstrumentItem.from_spec(base, spec)
-                mutations += [AddInstrumentNodeMutator(instrument_node=node)]
-                if spec.id is not None:
-                    mutations += [
-                        ConnectColumnToTableMutator(column_name=spec.id, studytable_id=studytable_id),
-                        ConnectInstrumentNodeToColumnMutator(node_id=node.id, column_name=spec.id),
-                    ]
+                mutations += [
+                    AddQuestionInstrumentItemMutator(
+                        id=next(id_gen),
+                        parent=parent,
+                        studytable_id=studytable_id,
+                        spec=spec,
+                    )
+                ]
             case ConstantInstrumentItemSpec():
-                node = ConstantInstrumentItem.from_spec(base, spec)
-                mutations += [AddInstrumentNodeMutator(instrument_node=node)]
-                if spec.id is not None:
-                    mutations += [
-                        ConnectColumnToTableMutator(column_name=spec.id, studytable_id=studytable_id),
-                        ConnectInstrumentNodeToColumnMutator(node_id=node.id, column_name=spec.id),
-                    ]
+                mutations += [
+                    AddConstantInstrumentItemMutator(
+                        id=next(id_gen),
+                        parent=parent,
+                        studytable_id=studytable_id,
+                        spec=spec,
+                    )
+                ]
             case HiddenInstrumentItemSpec():
-                node = HiddenInstrumentItem.from_spec(base, spec)
-                mutations += [AddInstrumentNodeMutator(instrument_node=node)]
-                if spec.id is not None:
-                    mutations += [
-                        ConnectColumnToTableMutator(column_name=spec.id, studytable_id=studytable_id),
-                        ConnectInstrumentNodeToColumnMutator(node_id=node.id, column_name=spec.id),
-                    ]
+                mutations += [
+                    AddHiddenInstrumentItemMutator(
+                        id=next(id_gen),
+                        parent=parent,
+                        studytable_id=studytable_id,
+                        spec=spec,
+                    )
+                ]
+
             case InstrumentItemGroupSpec():
-                node = InstrumentItemGroup.from_spec(base, spec)
-                mutations += [AddInstrumentNodeMutator(instrument_node=node)]
-                mutations += instrument_nodes_from_spec(spec.items, node, studytable_id, id_gen)
+                group_mutation = (
+                    AddInstrumentItemGroupMutator(
+                        id=next(id_gen),
+                        parent=parent,
+                        studytable_id=studytable_id,
+                        spec=spec,
+                    )
+                )
+                mutations += [group_mutation]
+                mutations += instrument_nodes_from_spec(spec.items, group_mutation, studytable_id, id_gen)
 
 
     return mutations
@@ -172,11 +185,23 @@ def index_columns_from_spec(
     mutations: t.List[AddIndexColumnMutator | AddCodeMapMutator] = []
 
     for name, spec in index_column_specs.items():
-        codemap = CodeMap.from_spec(next(id_gen), CodeMapName(".".join(["indices", name])), spec.values)
-        index_column = IndexColumn.from_spec(next(id_gen), name, spec, codemap.id)
+        codemap_mutation = (
+            AddCodeMapMutator(
+                id=next(id_gen),
+                name=CodeMapName(".".join(["indices", name])),
+                spec=spec.values,
+            )
+        )
+        mutations += [codemap_mutation]
 
-        mutations += [AddCodeMapMutator(codemap=codemap)]
-        mutations += [AddIndexColumnMutator(index_column=index_column)]
+        mutations += [
+            AddIndexColumnMutator(
+                id=next(id_gen),
+                name=name,
+                spec=spec,
+                codemap_id=codemap_mutation.id,
+            )
+        ]
 
     return mutations
 
@@ -188,24 +213,30 @@ def measures_from_spec(
     mutations: t.List[AddMeasureMutator | AddCodeMapMutator | AddMeasureNodeMutator] = []
 
     for name, spec in measure_specs.items():
-        measure = Measure.from_spec(next(id_gen), name, spec)
-
-        codemap_mutations = codemaps_from_spec(
-            codemap_specs=spec.codes,
-            parent_name=name,
-            id_gen=id_gen,
+        measure_mutation = (
+            AddMeasureMutator(
+                id=next(id_gen),
+                name=name,
+                spec=spec,
+            )
         )
 
-        codemap_lookup = { rel_name: mut.codemap.id for rel_name, mut in zip(spec.codes, codemap_mutations) }
+        codemap_mutations = [
+            AddCodeMapMutator(
+                id=next(id_gen),
+                name=CodeMapName(".".join([name, rel_name])),
+                spec=spec
+            ) for rel_name, spec in spec.codes.items()
+        ]
 
         node_mutations = measure_nodes_from_spec(
             measure_node_specs=spec.items,
-            parent=measure,
-            codemap_lookup=codemap_lookup,
+            parent=measure_mutation,
+            root_measure_name=name,
             id_gen=id_gen,
         )
 
-        mutations += [AddMeasureMutator(measure=measure)]
+        mutations += [measure_mutation]
         mutations += codemap_mutations
         mutations += node_mutations
 
@@ -213,42 +244,38 @@ def measures_from_spec(
 
 def measure_nodes_from_spec(
     measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
-    parent: Measure | MeasureNode,
-    codemap_lookup: t.Mapping[RelativeCodeMapName, CodeMapId],
+    parent: AddMeasureMutator | AddMeasureNodeMutator,
+    root_measure_name: MeasureName,
     id_gen: t.Iterator[int] = default_id_gen,
 ) -> t.List[AddMeasureNodeMutator]:
 
     mutations: t.List[AddMeasureNodeMutator] = []
 
     for rel_name, spec in measure_node_specs.items():
-        base = MeasureNodeBase.from_parent(next(id_gen), rel_name, parent)
-
         match spec:
             case OrdinalMeasureItemSpec():
-                node = OrdinalMeasureItem.from_spec(base, spec, codemap_lookup[spec.codes])
+                mutations += [AddOrdinalMeasureItemMutator(
+                    id=next(id_gen),
+                    rel_name=rel_name,
+                    parent=parent,
+                    spec=spec,
+                    codemap_name=".".join([root_measure_name, spec.codes]),
+                )]
             case SimpleMeasureItemSpec():
-                node = SimpleMeasureItem.from_spec(base, spec)
+                mutations += [AddSimpleMeasureItemMutator(
+                    id=next(id_gen),
+                    rel_name=rel_name,
+                    parent=parent,
+                    spec=spec,
+                )]
             case MeasureItemGroupSpec():
-                node = MeasureItemGroup.from_spec(base, spec)
-                mutations += measure_nodes_from_spec(spec.items, node, codemap_lookup, id_gen)
-
-        mutations += [AddMeasureNodeMutator(measure_node=node)]
-
-    return mutations
-
-def codemaps_from_spec(
-    codemap_specs: t.Mapping[RelativeCodeMapName, CodeMapSpec],
-    parent_name: MeasureName,
-    id_gen: t.Iterator[int] = default_id_gen,
-) -> t.List[AddCodeMapMutator]:
-
-    mutations: t.List[AddCodeMapMutator] = []
-    for rel_name, spec in codemap_specs.items():
-        codemap = CodeMap.from_spec(
-            id=next(id_gen),
-            name=CodeMapName(".".join([parent_name, rel_name])),
-            spec=spec
-        )
-        mutations += [AddCodeMapMutator(codemap=codemap)]
+                m = AddMeasureItemGroupMutator(
+                    id=next(id_gen),
+                    rel_name=rel_name,
+                    parent=parent,
+                    spec=spec,
+                )
+                mutations += [m]
+                mutations += measure_nodes_from_spec(spec.items, m, root_measure_name, id_gen)
 
     return mutations
