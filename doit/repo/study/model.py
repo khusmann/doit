@@ -24,7 +24,7 @@ class StudyTableSql(Base):
     __tablename__ = "__tables__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
-    indices = Column(JSON, nullable=False)
+    index_names = Column(JSON, nullable=False)
     columns = relationship(
         "MeasureNodeSql",
         backref="parent_table"
@@ -36,7 +36,7 @@ class StudyTableSql(Base):
     def __init__(self, o: StudyTable):
         self.id=o.id
         self.name=o.name
-        #TODO: self.indices=
+        self.index_names=o.index_names
 
 class MeasureSql(Base):
     __tablename__ = "__measures__"

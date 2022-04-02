@@ -128,6 +128,16 @@ class InstrumentSpec(ImmutableBaseModel):
     instructions: t.Optional[str]
     items: t.Tuple[InstrumentNodeSpec, ...]
 
+    def flat_items(self):
+        def impl(nodes: t.Tuple[InstrumentNodeSpec, ...]) -> t.Generator[InstrumentNodeSpec, None, None]:
+            for n in nodes:
+                yield n
+                if n.type == 'group':
+                    yield from impl(n.items)
+        return impl(self.items)
+
+    def index_column_names(self):
+        return (IndexColumnName(i.id) for i in self.flat_items() if i.type != 'group' and i.id is not None and i.id.startswith('index.'))
 
 class IndexColumnSpec(ImmutableBaseModel):
     title: str
