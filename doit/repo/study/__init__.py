@@ -9,8 +9,6 @@ from ...domain.service import *
 
 from .model import *
 
-from .converters import *
-
 class StudyRepoReader:
     def __init__(self, path: Path):
         assert path.exists()

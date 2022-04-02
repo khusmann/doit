@@ -1,5 +1,7 @@
 import typing as t
-from itertools import starmap, groupby, count
+from itertools import starmap, groupby
+
+from itertools import count
 
 from .value import *
 
@@ -146,7 +148,7 @@ def measures_from_spec(
 ) -> t.Tuple[StudyMutationList, t.Dict[MeasureName, MeasureId]]:
 
     lookup: t.Dict[MeasureName, MeasureId] = {}
-    mutations: StudyMutationList = ()
+    mutations: StudyMutationList = []
 
     for name, spec in measure_specs.items():
         measure = Measure(
@@ -158,82 +160,56 @@ def measures_from_spec(
         )
 
         codemap_mutations, codemap_lookup = codemaps_from_spec(
-            spec.codes,
-            name,
-            id_gen
+            codemap_specs=spec.codes,
+            parent_name=name,
+            id_gen=id_gen,
         )
 
         node_mutations, _ = measure_nodes_from_spec(
-            spec.items,
-            MeasureNodeName(name),
-            None,
-            measure.id,
-            codemap_lookup,
-            id_gen
+            measure_node_specs=spec.items,
+            parent=measure,
+            codemap_lookup=codemap_lookup,
+            id_gen=id_gen,
         )
-        print(node_mutations)
-        mutations = (*mutations, AddEntityMutation(entity=measure), *codemap_mutations, *node_mutations)
+
+        mutations += [AddEntityMutation(entity=measure)]
+        mutations += codemap_mutations
+        mutations += node_mutations
+
         lookup |= { name: measure.id }
 
     return mutations, lookup
 
 def measure_nodes_from_spec(
     measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
-    parent_name: MeasureNodeName,
-    parent_node_id: t.Optional[MeasureNodeId],
-    parent_measure_id: t.Optional[MeasureId],
+    parent: Measure | MeasureNode,
     codemap_lookup: t.Mapping[RelativeCodeMapName, CodeMapId],
     id_gen: t.Iterator[int] = default_id_gen,
 ) -> t.Tuple[StudyMutationList, t.Dict[MeasureNodeName, MeasureNodeId]]:
 
     lookup: t.Dict[MeasureNodeName, MeasureNodeId] = {}
-    mutations: StudyMutationList = ()
+    mutations: StudyMutationList = []
 
     for rel_name, spec in measure_node_specs.items():
         match spec:
+            case OrdinalMeasureItemSpec():
+                node = OrdinalMeasureItem.from_spec(next(id_gen), rel_name, spec, parent, codemap_lookup)
+            case SimpleMeasureItemSpec():
+                node = SimpleMeasureItem.from_spec(next(id_gen), rel_name, spec, parent)
             case MeasureItemGroupSpec():
-                node = MeasureItemGroup(
-                    id=next(id_gen),
-                    name=parent_name / rel_name,
-                    parent_node_id=parent_node_id,
-                    parent_measure_id=parent_measure_id,
-                    prompt=spec.prompt,
-                    type=spec.type,
-                    items=[],
-                )
+                node = MeasureItemGroup.from_spec(next(id_gen), rel_name, spec, parent)
 
                 child_mutations, child_lookup = measure_nodes_from_spec(
-                    spec.items,
-                    parent_name=node.name,
-                    parent_node_id=node.id,
-                    parent_measure_id=None,
+                    measure_node_specs=spec.items,
+                    parent=node,
                     codemap_lookup=codemap_lookup,
                     id_gen=id_gen,
                 )
 
-                mutations = (*mutations, *child_mutations)
+                mutations += child_mutations
                 lookup |= child_lookup
 
-            case OrdinalMeasureItemSpec():
-                node = OrdinalMeasureItem(
-                    id=next(id_gen),
-                    name=parent_name / rel_name,
-                    parent_node_id=parent_node_id,
-                    parent_measure_id=parent_measure_id,
-                    prompt=spec.prompt,
-                    type=spec.type,
-                    codemap_id=codemap_lookup[spec.codes],
-                )
-            case SimpleMeasureItemSpec():
-                node = SimpleMeasureItem(
-                    id=next(id_gen),
-                    name=parent_name / rel_name,
-                    parent_node_id=parent_node_id,
-                    parent_measure_id=parent_measure_id,
-                    prompt=spec.prompt,
-                    type=spec.type,
-                )
-        mutations = (*mutations, AddEntityMutation(entity=node))
+        mutations += [AddEntityMutation(entity=node)]
         lookup |= { node.name: node.id }
     return mutations, lookup
 
@@ -246,14 +222,14 @@ def codemaps_from_spec(
 ) -> t.Tuple[StudyMutationList, t.Dict[RelativeCodeMapName, CodeMapId]]:
 
     lookup: t.Dict[RelativeCodeMapName, CodeMapId] = {}
-    mutations: StudyMutationList = ()
+    mutations: StudyMutationList = []
     for rel_name, spec in codemap_specs.items():
         codemap = CodeMap(
             id=next(id_gen),
             name=CodeMapName(".".join([parent_name, rel_name])),
             values=spec.__root__,
         )
-        mutations = (*mutations, AddEntityMutation(entity=codemap))
+        mutations += [AddEntityMutation(entity=codemap)]
         lookup |= { rel_name: codemap.id }
 
     return mutations, lookup

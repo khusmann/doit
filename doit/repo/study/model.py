@@ -11,6 +11,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
+from ...domain.value.study import *
+
 from sqlalchemy.orm import (
     backref,
     relationship,
@@ -31,6 +33,11 @@ class StudyTableSql(Base):
     def __repr__(self):
         return "Table(tag: {}, indices={})".format(self.tag, self.indices)
 
+    def __init__(self, o: StudyTable):
+        self.id=o.id
+        self.name=o.name
+        #TODO: self.indices=
+
 class MeasureSql(Base):
     __tablename__ = "__measures__"
     id = Column(Integer, primary_key=True)
@@ -43,17 +50,33 @@ class MeasureSql(Base):
         order_by="MeasureNodeSql.id",
     )
 
+    def __init__(self, o: Measure):
+        self.id=o.id
+        self.name=o.name
+        self.title=o.title
+        self.description=o.description
+
 class CodeMapSql(Base):
     __tablename__ = "__codemaps__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     values = Column(JSON, nullable=False)
 
+    def __init__(self, o: CodeMap):
+        self.id=o.id
+        self.name=o.name
+        self.values=o.values
+
 class IndexColumnSql(Base):
     __tablename__ = "__indices__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
     codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
+
+    def __init__(self, o: IndexColumn):
+        self.id=o.id
+        self.name=o.name
+        self.codemap_id=o.codemap_id
 
 class DumpableNode:
     def __repr__(self):
@@ -87,6 +110,22 @@ class MeasureNodeSql(Base, DumpableNode):
         order_by="MeasureNodeSql.id",
     )
 
+    def __init__(self, o: MeasureNode):
+        self.id=o.id
+        self.name=o.name
+        self.parent_node_id=o.parent_node_id
+        self.parent_measure_id=o.parent_measure_id
+        self.prompt=o.prompt
+        self.type=o.type
+        match o:
+            case MeasureItemGroup():
+                pass
+            case OrdinalMeasureItem():
+                self.studytable_id=o.studytable_id
+                self.codemap_id=o.codemap_id
+            case SimpleMeasureItem():
+                self.studytable_id=o.studytable_id
+
 class InstrumentSql(Base):
     __tablename__ = "__instruments__"
     id = Column(Integer, primary_key=True)
@@ -99,6 +138,13 @@ class InstrumentSql(Base):
         backref="parent_instrument",
         order_by="InstrumentNodeSql.id",
     )
+
+    def __init__(self, o: Instrument):
+        self.id=o.id
+        self.name=o.name
+        self.studytable_id=o.studytable_id
+        self.title=o.title
+        self.description=o.description
 
 class InstrumentNodeSql(Base, DumpableNode):
     __tablename__ = "__instrument_nodes__"
@@ -118,3 +164,44 @@ class InstrumentNodeSql(Base, DumpableNode):
         order_by="InstrumentNodeSql.id",
     )
 
+    def __init__(self, o: InstrumentNode):
+        self.id=o.id
+        self.parent_node_id=o.parent_node_id
+        self.parent_instrument_id=o.parent_instrument_id
+        self.type=o.type
+        match o:
+            case QuestionInstrumentItem():
+                self.source_column_name=o.source_column_name
+                self.measure_node_id=o.measure_node_id
+                self.prompt=o.prompt
+            case HiddenInstrumentItem():
+                self.source_column_name=o.source_column_name
+                self.measure_node_id=o.measure_node_id
+            case ConstantInstrumentItem():
+                self.measure_node_id=o.measure_node_id
+                self.value=o.value
+            case InstrumentItemGroup():
+                self.prompt=o.prompt
+                self.title=o.title
+
+sql_lookup: t.Mapping[t.Type[StudyEntity], t.Any] = {
+    Instrument: InstrumentSql,
+    QuestionInstrumentItem: InstrumentNodeSql,
+    ConstantInstrumentItem: InstrumentNodeSql,
+    HiddenInstrumentItem: InstrumentNodeSql,
+    InstrumentItemGroup: InstrumentNodeSql,
+
+    Measure: MeasureSql,
+    OrdinalMeasureItem: MeasureNodeSql,
+    SimpleMeasureItem: MeasureNodeSql,
+    MeasureItemGroup: MeasureNodeSql,
+    CodeMap: CodeMapSql,
+}
+
+def entity_to_sql(entity: StudyEntity):
+    sql_type = sql_lookup.get(type(entity))
+
+    if sql_type:
+        return sql_type(entity)
+    else:
+        raise Exception("{} not implemented yet".format(entity))
