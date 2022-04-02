@@ -25,6 +25,7 @@ class StudyRepo(StudyRepoReader):
         Base.metadata.create_all(self.engine)
 
     def setup(self, study_spec: StudySpec):
+        self._mutate(index_columns_from_spec(study_spec.config.indices))
         self._mutate(measures_from_spec(study_spec.measures))
 
     def _mutate(self, mutations: t.Sequence[StudyMutation]):
@@ -37,7 +38,9 @@ class StudyRepo(StudyRepoReader):
                 case AddMeasureMutator():
                     session.add(MeasureSql(mutation.measure)) # type: ignore
                 case AddMeasureNodeMutator():
-                    session.add(MeasureNodeSql(mutation.measure_node)) # type: ignore                
+                    session.add(MeasureNodeSql(mutation.measure_node)) # type: ignore
+                case AddIndexColumnMutator():
+                    session.add(IndexColumnSql(mutation.index_column)) # type: ignore
 
         session.commit()
 

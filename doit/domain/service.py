@@ -142,6 +142,22 @@ def link_table(source: SourceTable, instrument_spec: InstrumentSpec, measures: t
 
 default_id_gen = count(0)
 
+def index_columns_from_spec(
+    index_column_specs: t.Mapping[IndexColumnName, IndexColumnSpec],
+    id_gen: t.Iterator[int] = default_id_gen,
+) -> t.List[AddIndexColumnMutator | AddCodeMapMutator]:
+
+    mutations: t.List[AddIndexColumnMutator | AddCodeMapMutator] = []
+
+    for name, spec in index_column_specs.items():
+        codemap = CodeMap.from_spec(next(id_gen), CodeMapName(name), spec.values)
+        index_column = IndexColumn.from_spec(next(id_gen), name, spec, codemap.id)
+
+        mutations += [AddCodeMapMutator(codemap=codemap)]
+        mutations += [AddIndexColumnMutator(index_column=index_column)]
+
+    return mutations
+
 def measures_from_spec(
     measure_specs: t.Mapping[MeasureName, MeasureSpec],
     id_gen: t.Iterator[int] = default_id_gen,

@@ -48,7 +48,19 @@ class StudyTable(ImmutableBaseModelOrm):
 class IndexColumn(ImmutableBaseModelOrm):
     id: IndexColumnId
     name: IndexColumnName
+    title: str
+    description: t.Optional[str]
     codemap_id: CodeMapId
+
+    @classmethod
+    def from_spec(cls, id: int, name: IndexColumnName, spec: IndexColumnSpec, codemap_id: CodeMapId):
+        return cls(
+            id=id,
+            name=name,
+            title=spec.title,
+            description=spec.description,
+            codemap_id=codemap_id,
+        )
 
 ### Measures
 class MeasureNodeBase(ImmutableBaseModel):
@@ -231,6 +243,8 @@ class AddMeasureMutator(ImmutableBaseModel):
 class AddMeasureNodeMutator(ImmutableBaseModel):
     measure_node: MeasureNode
 
+class AddIndexColumnMutator(ImmutableBaseModel):
+    index_column: IndexColumn
 
 #class ConnectNodeToTable(ImmutableBaseModel):
 #    node_name: t.Union[MeasureNodeName, IndexColumnName]
@@ -240,4 +254,5 @@ StudyMutation = t.Union[
     AddCodeMapMutator,
     AddMeasureMutator,
     AddMeasureNodeMutator,
+    AddIndexColumnMutator,
 ]

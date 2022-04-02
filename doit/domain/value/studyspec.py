@@ -129,7 +129,7 @@ class InstrumentSpec(ImmutableBaseModel):
     items: t.Tuple[InstrumentNodeSpec, ...]
 
 
-class IndexSpec(ImmutableBaseModel):
+class IndexColumnSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     values: CodeMapSpec
@@ -138,7 +138,7 @@ class IndexSpec(ImmutableBaseModel):
 class ConfigSpec(ImmutableBaseModel):
     name: str
     description: t.Optional[str]
-    indices: t.Mapping[IndexColumnName, IndexSpec]
+    indices: t.Mapping[IndexColumnName, IndexColumnSpec]
 
 class StudySpec(ImmutableBaseModel):
     config: ConfigSpec
