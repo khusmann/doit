@@ -79,8 +79,17 @@ def study_from_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = default_id_
     mutations: t.List[StudyMutation] = []
     mutations += index_columns_from_spec(study_spec.config.indices, id_gen)
     mutations += measures_from_spec(study_spec.measures, id_gen)
-    mutations += instruments_from_spec(study_spec.instruments,  id_gen)
+    #mutations += instruments_from_spec(study_spec.instruments,  id_gen)
+
+    context = CreationContext.from_mutations(mutations)
+
+    entities = [
+        m.create(context) for m in mutations
+    ]
+
+    print(entities)
     return mutations
+
 
 def instruments_from_spec(
     instrument_specs: t.Mapping[InstrumentName, InstrumentSpec],
@@ -180,102 +189,85 @@ def instrument_nodes_from_spec(
 def index_columns_from_spec(
     index_column_specs: t.Mapping[IndexColumnName, IndexColumnSpec],
     id_gen: t.Iterator[int] = default_id_gen,
-) -> t.List[AddIndexColumnMutator | AddCodeMapMutator]:
+) -> t.List[AddIndexColumnMutator | AddIndexCodeMapMutator]:
 
-    mutations: t.List[AddIndexColumnMutator | AddCodeMapMutator] = []
+    codemaps = [
+        AddIndexCodeMapMutator(
+            id=next(id_gen),
+            rel_name=name,
+            spec=spec.values,
+        ) for name, spec in index_column_specs.items()
+    ]
 
-    for name, spec in index_column_specs.items():
-        codemap_mutation = (
-            AddCodeMapMutator(
-                id=next(id_gen),
-                name=CodeMapName(".".join(["indices", name])),
-                spec=spec.values,
-            )
-        )
-        mutations += [codemap_mutation]
+    index_columns = [
+        AddIndexColumnMutator(
+            id=next(id_gen),
+            name=name,
+            spec=spec,
+            codemap_id=codemap.id,
+        ) for codemap, name, spec in zip(codemaps, index_column_specs.keys(), index_column_specs.values())
+    ]
 
-        mutations += [
-            AddIndexColumnMutator(
-                id=next(id_gen),
-                name=name,
-                spec=spec,
-                codemap_id=codemap_mutation.id,
-            )
-        ]
-
-    return mutations
+    return [*codemaps, *index_columns]
 
 def measures_from_spec(
     measure_specs: t.Mapping[MeasureName, MeasureSpec],
     id_gen: t.Iterator[int] = default_id_gen,
 ) -> t.List[AddMeasureMutator | AddCodeMapMutator | AddMeasureNodeMutator]:
 
-    mutations: t.List[AddMeasureMutator | AddCodeMapMutator | AddMeasureNodeMutator] = []
+    measures = [
+        AddMeasureMutator(
+            id=next(id_gen),
+            name=name,
+            spec=spec,
+        ) for name, spec in measure_specs.items()
+    ]
 
-    for name, spec in measure_specs.items():
-        measure_mutation = (
-            AddMeasureMutator(
-                id=next(id_gen),
-                name=name,
-                spec=spec,
-            )
-        )
+    codemaps = [
+        AddCodeMapMutator(
+            id=next(id_gen),
+            rel_name=rel_name,
+            root_measure_id=measure.id,
+            spec=spec
+        ) for spec, measure in zip(measure_specs.values(), measures)
+            for rel_name, spec in spec.codes.items()
+    ]
 
-        codemap_mutations = [
-            AddCodeMapMutator(
-                id=next(id_gen),
-                name=CodeMapName(".".join([name, rel_name])),
-                spec=spec
-            ) for rel_name, spec in spec.codes.items()
-        ]
-
-        node_mutations = measure_nodes_from_spec(
+    nodes = sum([
+        measure_nodes_from_spec(
             measure_node_specs=spec.items,
-            parent=measure_mutation,
-            root_measure_name=name,
+            parent_id=measure.id,
+            root_measure_id=measure.id,
             id_gen=id_gen,
-        )
+        ) for spec, measure in zip(measure_specs.values(), measures)
+    ], [])
 
-        mutations += [measure_mutation]
-        mutations += codemap_mutations
-        mutations += node_mutations
-
-    return mutations
+    return [*measures, *codemaps, *nodes]
 
 def measure_nodes_from_spec(
     measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
-    parent: AddMeasureMutator | AddMeasureNodeMutator,
-    root_measure_name: MeasureName,
+    parent_id: MeasureId | MeasureNodeId,
+    root_measure_id: MeasureId,
     id_gen: t.Iterator[int] = default_id_gen,
 ) -> t.List[AddMeasureNodeMutator]:
+    
+    measure_nodes = [
+        AddMeasureNodeMutator(
+            id=next(id_gen),
+            rel_name=rel_name,
+            parent_id=parent_id,
+            root_measure_id=root_measure_id,
+            spec=spec,
+        ) for rel_name, spec in measure_node_specs.items()
+    ]
 
-    mutations: t.List[AddMeasureNodeMutator] = []
+    child_measure_nodes = sum([
+        measure_nodes_from_spec(
+            measure_node_specs=spec.items,
+            parent_id=parent.id,
+            root_measure_id=root_measure_id,
+            id_gen=id_gen
+        ) for spec, parent in zip(measure_node_specs.values(), measure_nodes) if spec.type == 'group'
+    ], [])
 
-    for rel_name, spec in measure_node_specs.items():
-        match spec:
-            case OrdinalMeasureItemSpec():
-                mutations += [AddOrdinalMeasureItemMutator(
-                    id=next(id_gen),
-                    rel_name=rel_name,
-                    parent=parent,
-                    spec=spec,
-                    codemap_name=".".join([root_measure_name, spec.codes]),
-                )]
-            case SimpleMeasureItemSpec():
-                mutations += [AddSimpleMeasureItemMutator(
-                    id=next(id_gen),
-                    rel_name=rel_name,
-                    parent=parent,
-                    spec=spec,
-                )]
-            case MeasureItemGroupSpec():
-                m = AddMeasureItemGroupMutator(
-                    id=next(id_gen),
-                    rel_name=rel_name,
-                    parent=parent,
-                    spec=spec,
-                )
-                mutations += [m]
-                mutations += measure_nodes_from_spec(spec.items, m, root_measure_name, id_gen)
-
-    return mutations
+    return [*measure_nodes, *child_measure_nodes]

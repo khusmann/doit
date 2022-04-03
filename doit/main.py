@@ -85,7 +85,7 @@ def debug():
 
     study_spec = StudySpecManager().load_study_spec()
 
-    print(study_from_spec(study_spec))
+    study_from_spec(study_spec)
     #study_repo = study_repo.mutate(study_from_spec(study_spec))
 
 #    sources = SourceTableRepoManager().load_reader()
