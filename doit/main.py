@@ -90,6 +90,7 @@ def debug():
     print(study_repo.query_entity_by_name(MeasureName("ssis"), Measure).dict())
     print(study_repo.query_column_info_by_name(ColumnName("ssis.q01")).dict())
     print(study_repo.query_entity_by_name(ColumnName("ssis.q02"), OrdinalMeasureItem).dict())
+    print(study_repo.query_measures()[0].json())
 
 #    sources = SourceTableRepoManager().load_reader()
 

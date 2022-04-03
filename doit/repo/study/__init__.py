@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from sqlalchemy import create_engine, select
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager
 
 from ...domain.value import *
 from ...domain.service import *
@@ -20,6 +20,28 @@ class StudyRepoReader:
         assert path.exists()
         self.url = "sqlite:///{}".format(path)
         self.engine = create_engine(self.url, echo=False)
+
+    def query_instruments(self) -> t.List[Instrument]:
+        session = Session(self.engine)
+        result = (
+            session.query(InstrumentSql) # type: ignore
+                   .options(contains_eager(InstrumentSql.items))
+                   .join(InstrumentNodeSql)
+                   .filter(InstrumentNodeSql.parent_node_id == None)
+                   .all()
+        )
+        return parse_obj_as(t.List[Instrument], result)
+
+    def query_measures(self) -> t.List[Measure]:
+        session = Session(self.engine)
+        result = (
+            session.query(MeasureSql) # type: ignore
+                   .options(contains_eager(MeasureSql.items))
+                   .join(ColumnInfoNodeSql)
+                   .filter(ColumnInfoNodeSql.parent_node_id == None)
+                   .all()
+        )
+        return parse_obj_as(t.List[Measure], result)
 
     def query_entity_by_id(
         self,

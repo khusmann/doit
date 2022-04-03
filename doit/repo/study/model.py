@@ -31,7 +31,7 @@ class StudyTableSql(Base):
     )
 
     def __repr__(self):
-        return "Table(tag: {}, indices={})".format(self.tag, self.indices)
+        return "Table(name: {}, indices={})".format(self.name, self.indices)
 
     def __init__(self, o: StudyTable):
         self.id=o.id
@@ -69,10 +69,10 @@ class CodeMapSql(Base):
 
 class DumpableNode:
     def __repr__(self):
-        return "{}(type={}, tag={})".format(
+        return "{}(type={}, id={})".format(
             type(self),
             self.type,
-            self.tag,
+            self.id,
         )
 
     def dump(self, _indent=0):
