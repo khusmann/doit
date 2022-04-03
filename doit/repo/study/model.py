@@ -173,13 +173,31 @@ class InstrumentNodeSql(Base, DumpableNode):
             case QuestionInstrumentItem():
                 self.source_column_name=o.source_column_name
                 self.measure_node_id=o.measure_node_id
+                self.index_column_id=o.index_column_id
                 self.prompt=o.prompt
             case HiddenInstrumentItem():
                 self.source_column_name=o.source_column_name
                 self.measure_node_id=o.measure_node_id
+                self.index_column_id=o.index_column_id
             case ConstantInstrumentItem():
                 self.measure_node_id=o.measure_node_id
+                self.index_column_id=o.index_column_id
                 self.value=o.value
             case InstrumentItemGroup():
                 self.prompt=o.prompt
                 self.title=o.title
+
+sql_lookup: t.Mapping[t.Type[StudyEntity], Base] = {
+    CodeMap: CodeMapSql,
+    Measure: MeasureSql,
+    OrdinalMeasureItem: MeasureNodeSql,
+    SimpleMeasureItem: MeasureNodeSql,
+    MeasureItemGroup: MeasureNodeSql,
+    IndexColumn: IndexColumnSql,
+    Instrument: InstrumentSql,
+    QuestionInstrumentItem: InstrumentNodeSql,
+    ConstantInstrumentItem: InstrumentNodeSql,
+    HiddenInstrumentItem: InstrumentNodeSql,
+    InstrumentItemGroup: InstrumentNodeSql,
+    StudyTable: StudyTableSql,
+}

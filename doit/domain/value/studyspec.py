@@ -82,7 +82,7 @@ class QuestionInstrumentItemSpec(ImmutableBaseModel):
     prompt: str
     type: t.Literal['question']
     remote_id: SourceColumnName
-    id: t.Optional[MeasureNodeName]
+    id: t.Optional[ColumnName]
     map: t.Optional[RecodeTransform]
 
     # TODO: Custom export dict() rule to drop map if map is None
@@ -90,12 +90,12 @@ class QuestionInstrumentItemSpec(ImmutableBaseModel):
 class ConstantInstrumentItemSpec(ImmutableBaseModel):
     type: t.Literal['constant']
     value: str
-    id: MeasureNodeName
+    id: ColumnName
 
 class HiddenInstrumentItemSpec(ImmutableBaseModel):
     type: t.Literal['hidden']
     remote_id: SourceColumnName
-    id: MeasureNodeName
+    id: ColumnName
     map: t.Optional[RecodeTransform]
 
 InstrumentItemSpec = t.Annotated[
@@ -137,7 +137,7 @@ class InstrumentSpec(ImmutableBaseModel):
         return impl(self.items)
 
     def index_column_names(self):
-        return (IndexColumnName(i.id) for i in self.flat_items() if i.type != 'group' and i.id is not None and i.id.startswith('index.'))
+        return (RelativeIndexColumnName(i.id.removeprefix("indices.")) for i in self.flat_items() if i.type != 'group' and i.id is not None and i.id.startswith('indices.'))
 
 class IndexColumnSpec(ImmutableBaseModel):
     title: str
@@ -148,7 +148,7 @@ class IndexColumnSpec(ImmutableBaseModel):
 class ConfigSpec(ImmutableBaseModel):
     name: str
     description: t.Optional[str]
-    indices: t.Mapping[IndexColumnName, IndexColumnSpec]
+    indices: t.Mapping[RelativeIndexColumnName, IndexColumnSpec]
 
 class StudySpec(ImmutableBaseModel):
     config: ConfigSpec
@@ -157,8 +157,8 @@ class StudySpec(ImmutableBaseModel):
 
 ### Table
 class TableSpec(ImmutableBaseModel):
-    indices: t.FrozenSet[MeasureNodeName]
-    columns: t.FrozenSet[MeasureNodeName]
+    indices: t.FrozenSet[ColumnName]
+    columns: t.FrozenSet[ColumnName]
     @property
     def tag(self):
         return '-'.join(sorted(self.indices))

@@ -81,12 +81,12 @@ FormatType = t.Literal['qualtrics']
 
 MeasureId = t.NewType("MeasureId", int)
 MeasureName = t.NewType("MeasureName", str)
-class MeasureNodeName(Uri): pass # e.g. measure.group.item
+class ColumnName(Uri): pass # e.g. measure.group.item
 RelativeMeasureNodeName = t.NewType('RelativeMeasureNodeName', str)
 MeasureNodeId = t.NewType('MeasureNodeId', int)
 
 IndexColumnId = t.NewType('IndexId', int)
-IndexColumnName = t.NewType('IndexName', str)
+RelativeIndexColumnName = t.NewType('RelativeIndexName', str)
 
 ### CodeMap
 

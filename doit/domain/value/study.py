@@ -42,7 +42,7 @@ class AddCodeMapMutator(ImmutableBaseModel):
 
 class AddIndexCodeMapMutator(ImmutableBaseModel):
     id: CodeMapId
-    rel_name: IndexColumnName
+    rel_name: RelativeIndexColumnName
     spec: CodeMapSpec
 
     def create(self, context: CreationContext) -> CodeMap:
@@ -56,24 +56,21 @@ class AddIndexCodeMapMutator(ImmutableBaseModel):
 
 class IndexColumn(ImmutableBaseModelOrm):
     id: IndexColumnId
-    name: IndexColumnName
+    name: ColumnName
     title: str
     description: t.Optional[str]
+    codemap_id: CodeMapId
 
 class AddIndexColumnMutator(ImmutableBaseModel):
     id: IndexColumnId
-    name: IndexColumnName
+    rel_name: RelativeIndexColumnName
     spec: IndexColumnSpec
     codemap_id: CodeMapId
-
-    @property
-    def codemap_name(self):
-        return CodeMapName(".".join(['indices', self.name]))
 
     def create(self, context: CreationContext) -> IndexColumn:
         return IndexColumn(
             id=self.id,
-            name=self.name,
+            name=context.index_column_name_by_id[self.id],
             title=self.spec.title,
             description=self.spec.description,
             codemap_id=self.codemap_id,
@@ -82,7 +79,7 @@ class AddIndexColumnMutator(ImmutableBaseModel):
 ### Measures
 class MeasureNodeBase(ImmutableBaseModel):
     id: MeasureNodeId
-    name: MeasureNodeName
+    name: ColumnName
     parent_node_id: t.Optional[MeasureNodeId]
     parent_measure_id: t.Optional[MeasureId]
 
@@ -156,6 +153,8 @@ class AddMeasureNodeMutator(ImmutableBaseModel):
                     items=(),
                 )
 
+### Measure
+
 class Measure(ImmutableBaseModelOrm):
     id: MeasureId
     name: MeasureName
@@ -185,16 +184,6 @@ class InstrumentNodeBase(ImmutableBaseModelOrm):
     parent_node_id: t.Optional[InstrumentNodeId]
     parent_instrument_id: t.Optional[InstrumentId]
 
-    @classmethod
-    def from_parent(cls, id: int, parent: Instrument | InstrumentNode):
-        parent_node_id = parent.id if parent.type != 'root' else None
-        parent_instrument_id = parent.id if parent.type == 'root' else None
-        return cls(
-            id=id,
-            parent_node_id=parent_node_id,
-            parent_instrument_id=parent_instrument_id,
-        )
-
 class QuestionInstrumentItem(InstrumentNodeBase):
     measure_node_id: t.Optional[MeasureNodeId]
     index_column_id: t.Optional[IndexColumnId]
@@ -202,48 +191,17 @@ class QuestionInstrumentItem(InstrumentNodeBase):
     prompt: str
     type: t.Literal['question']
 
-    @classmethod
-    def from_spec(cls, base: InstrumentNodeBase, spec: QuestionInstrumentItemSpec):
-        return cls(
-            id=base.id,
-            parent_node_id=base.parent_node_id,
-            parent_instrument_id=base.parent_instrument_id,
-            source_column_name=spec.remote_id,
-            prompt=spec.prompt,
-            type=spec.type,
-        )
-
 class ConstantInstrumentItem(InstrumentNodeBase):
     measure_node_id: t.Optional[MeasureNodeId]
     index_column_id: t.Optional[IndexColumnId]
     type: t.Literal['constant']
     value: str
-    @classmethod
-    def from_spec(cls, base: InstrumentNodeBase, spec: ConstantInstrumentItemSpec):
-        return cls(
-            id=base.id,
-            parent_node_id=base.parent_node_id,
-            parent_instrument_id=base.parent_instrument_id,
-            value=spec.value,
-            type=spec.type,
-        )
 
 class HiddenInstrumentItem(InstrumentNodeBase):
     measure_node_id: t.Optional[MeasureNodeId]
     index_column_id: t.Optional[IndexColumnId]
     source_column_name: SourceColumnName
     type: t.Literal['hidden']
-
-    @classmethod
-    def from_spec(cls, base: InstrumentNodeBase, spec: HiddenInstrumentItemSpec):
-        return cls(
-            id=base.id,
-            parent_node_id=base.parent_node_id,
-            parent_instrument_id=base.parent_instrument_id,
-            source_column_name=spec.remote_id,
-            type=type,
-        )
-
 
 InstrumentItem = t.Annotated[
     t.Union[
@@ -259,19 +217,6 @@ class InstrumentItemGroup(InstrumentNodeBase):
     title: str
     items: t.Tuple[InstrumentNode, ...]
 
-    @classmethod
-    def from_spec(cls, base: InstrumentNodeBase, spec: InstrumentItemGroupSpec):
-        return cls(
-            id=base.id,
-            parent_node_id=base.parent_node_id,
-            parent_instrument_id=base.parent_instrument_id,
-            type=spec.type,
-            prompt=spec.prompt,
-            title=spec.title,
-            items=[],
-        )
-
-
 InstrumentNode = t.Annotated[
     t.Union[
         InstrumentItem,
@@ -281,6 +226,56 @@ InstrumentNode = t.Annotated[
 
 InstrumentItemGroup.update_forward_refs()
 
+class AddInstrumentNodeMutator(ImmutableBaseModel):
+    id: InstrumentNodeId
+    parent_id: t.Union[InstrumentNodeId, InstrumentNode]
+    root_instrument_id: InstrumentId
+    spec: InstrumentNodeSpec
+
+    def create(self, context: CreationContext) -> InstrumentNode:
+        base = dict(
+            id=self.id,
+            parent_node_id=self.parent_id if self.parent_id != self.root_instrument_id else None,
+            parent_instrument_id=self.parent_id if self.parent_id == self.root_instrument_id else None
+        )
+
+        match self.spec:
+            case QuestionInstrumentItemSpec():
+                return QuestionInstrumentItem(
+                    **base,
+                    source_column_name=self.spec.remote_id,
+                    measure_node_id=context.measure_node_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    index_column_id=context.index_column_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    prompt=self.spec.prompt,
+                    type=self.spec.type,
+                )
+            case ConstantInstrumentItemSpec():
+                return ConstantInstrumentItem(
+                    **base,
+                    measure_node_id=context.measure_node_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    index_column_id=context.index_column_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    value=self.spec.value,
+                    type=self.spec.type,
+                )
+            case HiddenInstrumentItemSpec():
+                return HiddenInstrumentItem(
+                    **base,
+                    measure_node_id=context.measure_node_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    index_column_id=context.index_column_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    source_column_name=self.spec.remote_id,
+                    type=self.spec.type,
+                )
+            case InstrumentItemGroupSpec():
+                return InstrumentItemGroup(
+                    **base,
+                    prompt=self.spec.prompt,
+                    title=self.spec.title,
+                    type=self.spec.type,
+                    items=(),
+                )
+
+### Instrument
+
 class Instrument(ImmutableBaseModelOrm):
     id: InstrumentId
     name: InstrumentName
@@ -288,16 +283,20 @@ class Instrument(ImmutableBaseModelOrm):
     title: str
     description: t.Optional[str]
     items: t.Tuple[InstrumentNode, ...]
-    type: t.Literal['root'] = 'root'
 
-    @classmethod
-    def from_spec(cls, id: int, name: InstrumentName, spec: InstrumentSpec, studytable_id: StudyTableId):
-        return cls(
-            id=id,
-            name=name,
-            studytable_id=studytable_id,
-            title=spec.title,
-            description=spec.description,
+class AddInstrumentMutator(ImmutableBaseModel):
+    id: InstrumentId
+    name: InstrumentName
+    spec: InstrumentSpec
+    studytable_id: StudyTableId
+
+    def create(self, _: CreationContext) -> Instrument:
+        return Instrument(
+            id=self.id,
+            name=self.name,
+            studytable_id=self.studytable_id,
+            title=self.spec.title,
+            description=self.spec.description,
             items=(),
         )
 
@@ -306,15 +305,18 @@ class Instrument(ImmutableBaseModelOrm):
 class StudyTable(ImmutableBaseModelOrm):
     id: StudyTableId
     name: StudyTableName
-    index_names: t.Tuple[IndexColumnName, ...]
+    index_names: t.Tuple[RelativeIndexColumnName, ...]
     measure_items: t.Tuple[MeasureItem, ...]
 
-    @classmethod
-    def from_indices(cls, id: int, indices: t.FrozenSet[IndexColumnName]):
-        return cls(
-            id=id,
-            name="-".join(sorted(indices)),
-            index_names=tuple(sorted(indices)),
+class AddStudyTableMutator(ImmutableBaseModel):
+    id: StudyTableId
+    index_names: t.FrozenSet[RelativeIndexColumnName]
+
+    def create(self, context: CreationContext) -> StudyTable:
+        return StudyTable(
+            id=self.id,
+            name=context.studytable_name_by_id[self.id],
+            index_names=tuple(sorted(self.index_names)),
             measure_items=(),
         )
 
@@ -324,14 +326,20 @@ class CreationContext(BaseModel):
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}
     measure_name_by_id: t.Mapping[MeasureId, MeasureName] = {}
     codemap_name_by_id: t.Mapping[CodeMapId, CodeMapName] = {}
-    measure_node_name_by_id: t.Mapping[MeasureNodeId, MeasureNodeName] = {}
+    measure_node_name_by_id: t.Mapping[MeasureNodeId, ColumnName] = {}
+    index_column_name_by_id: t.Mapping[IndexColumnId, ColumnName] = {}
 
     @property
-    def measure_id_by_name(self):
-        return { name: id for (id, name) in self.measure_name_by_id.items() }
+    def measure_node_id_by_name(self):
+        return { name: id for (id, name) in self.measure_node_name_by_id.items() }
 
-    studytable_id_by_columns: t.Mapping[t.FrozenSet[IndexColumnName], StudyTableId] = {}
+    @property
+    def index_column_id_by_name(self):
+        return { name: id for (id, name) in self.index_column_name_by_id.items() }
+
+    studytable_name_by_id: t.Mapping[StudyTableId, StudyTableName] = {}
     studytable_id_by_measure_node_id: t.Mapping[MeasureNodeId, StudyTableId] = {}
+    studytable_id_by_instrument_id: t.Mapping[InstrumentId, StudyTableId] = {}
 
     def mutate(self, m: StudyMutation):
         match m:
@@ -340,10 +348,13 @@ class CreationContext(BaseModel):
 
             case AddMeasureNodeMutator():
                 if m.root_measure_id == m.parent_id:
-                    base = MeasureNodeName(self.measure_name_by_id[m.root_measure_id])
+                    base = ColumnName(self.measure_name_by_id[m.root_measure_id])
                 else:
                     base = self.measure_node_name_by_id[MeasureNodeId(m.parent_id)]
                 self.measure_node_name_by_id |= { m.id: base / m.rel_name }
+
+            case AddIndexColumnMutator():
+                self.index_column_name_by_id |= { m.id: ColumnName("indices") / m.rel_name }
 
             case AddCodeMapMutator():
                 base = self.measure_name_by_id[m.root_measure_id]
@@ -351,7 +362,23 @@ class CreationContext(BaseModel):
                 self.codemap_id_by_measure_relname |= { (m.root_measure_id, m.rel_name): m.id }
 
             case AddIndexCodeMapMutator():
-                self.codemap_name_by_id |= { m.id: CodeMapName(".".join(["index", m.rel_name]))}
+                self.codemap_name_by_id |= { m.id: CodeMapName(".".join(["indices", m.rel_name]))}
+
+            case AddStudyTableMutator():
+                self.studytable_name_by_id |= { m.id: StudyTableName("-".join(sorted(m.index_names)))}
+
+            case AddInstrumentMutator():
+                self.studytable_id_by_instrument_id |= { m.id: m.studytable_id }
+
+            case AddInstrumentNodeMutator():
+                spec = m.spec
+                if spec.type != "group" and spec.id:
+                    if spec.id.startswith("indices."):
+                        pass
+                    else:
+                        measure_node_id = self.measure_node_id_by_name[spec.id]
+                        studytable_id = self.studytable_id_by_instrument_id[m.root_instrument_id]
+                        self.studytable_id_by_measure_node_id |= { measure_node_id: studytable_id }
 
             case _:
                 pass
@@ -364,89 +391,6 @@ class CreationContext(BaseModel):
         return ctx
 
 
-class AddInstrumentMutator(ImmutableBaseModel):
-    id: InstrumentId
-    name: InstrumentName
-    spec: InstrumentSpec
-    studytable_id: StudyTableId
-
-    def create(self, _: CreationContext) -> Instrument:
-        return Instrument.from_spec(
-            self.id,
-            self.name,
-            self.spec,
-            self.studytable_id,
-        )
-
-def instrument_node_base_helper(id: int, parent: AddInstrumentNodeMutator | AddInstrumentMutator):
-    parent_node_id = parent.id if not isinstance(parent, AddInstrumentMutator) else None
-    parent_instrument_id = parent.id if isinstance(parent, AddInstrumentMutator) else None
-    return InstrumentNodeBase(
-        id=id,
-        parent_node_id=parent_node_id,
-        parent_instrument_id=parent_instrument_id,
-    )
-
-class AddQuestionInstrumentItemMutator(ImmutableBaseModel):
-    id: InstrumentNodeId
-    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
-    spec: QuestionInstrumentItemSpec
-    studytable_id: StudyTableId
-
-    def create(self, context: CreationContext) -> QuestionInstrumentItem:
-        base=instrument_node_base_helper(self.id, self.parent)
-        return QuestionInstrumentItem.from_spec(base, self.spec)
-
-class AddConstantInstrumentItemMutator(ImmutableBaseModel):
-    id: InstrumentNodeId
-    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
-    spec: ConstantInstrumentItemSpec
-    studytable_id: StudyTableId
-
-    def create(self, context: CreationContext) -> ConstantInstrumentItem:
-        base=instrument_node_base_helper(self.id, self.parent)
-        return ConstantInstrumentItem.from_spec(base, self.spec)
-
-class AddHiddenInstrumentItemMutator(ImmutableBaseModel):
-    id: InstrumentNodeId
-    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
-    spec: HiddenInstrumentItemSpec
-    studytable_id: StudyTableId
-
-    def create(self, context: CreationContext) -> HiddenInstrumentItem:
-        base=instrument_node_base_helper(self.id, self.parent)
-        return HiddenInstrumentItem.from_spec(base, self.spec)
-
-class AddInstrumentItemGroupMutator(ImmutableBaseModel):
-    id: InstrumentNodeId
-    parent: t.Union[AddInstrumentMutator, AddInstrumentNodeMutator]
-    spec: InstrumentItemGroupSpec
-    studytable_id: StudyTableId
-
-    def create(self, context: CreationContext) -> InstrumentItemGroup:
-        base=instrument_node_base_helper(self.id, self.parent)
-        return InstrumentItemGroup.from_spec(base, self.spec)
-
-AddInstrumentNodeMutator = AddQuestionInstrumentItemMutator | AddConstantInstrumentItemMutator | AddHiddenInstrumentItemMutator | AddInstrumentItemGroupMutator
-
-AddQuestionInstrumentItemMutator.update_forward_refs()
-AddConstantInstrumentItemMutator.update_forward_refs()
-AddHiddenInstrumentItemMutator.update_forward_refs()
-AddInstrumentItemGroupMutator.update_forward_refs()
-
-
-
-class AddStudyTableMutator(ImmutableBaseModel):
-    id: StudyTableId
-    indices: t.FrozenSet[IndexColumnName]
-
-    def create(self, context: CreationContext) -> StudyTable:
-        return StudyTable(
-            id=self.id,
-            name="-".join(sorted(self.indices)),
-            indices=self.indices,
-        )
-
 StudyMutation = t.Union[
     AddCodeMapMutator,
     AddIndexCodeMapMutator,
@@ -456,4 +400,14 @@ StudyMutation = t.Union[
     AddInstrumentMutator,
     AddInstrumentNodeMutator,
     AddStudyTableMutator,
+]
+
+StudyEntity = t.Union[
+    CodeMap,
+    Measure,
+    MeasureNode,
+    IndexColumn,
+    Instrument,
+    InstrumentNode,
+    StudyTable,
 ]
