@@ -96,41 +96,39 @@ def instruments_from_spec(
     id_gen: t.Iterator[int] = default_id_gen,
 ) -> t.List[AddInstrumentMutator | AddInstrumentNodeMutator | AddStudyTableMutator]:
 
-    mutations: t.List[AddInstrumentMutator | AddInstrumentNodeMutator | AddStudyTableMutator] = []
 
+    studytables: t.List[AddStudyTableMutator] = []
     studytable_lookup: t.Mapping[t.FrozenSet[RelativeIndexColumnName], AddStudyTableMutator] = {}
-
-    for name, spec in instrument_specs.items():
+    for spec in instrument_specs.values():
         index_names = frozenset(spec.index_column_names())
-
-        studytable = studytable_lookup.get(index_names)
-        if studytable is None:
-            studytable = (
-                AddStudyTableMutator(
-                    id=next(id_gen),
-                    index_names=index_names,
-                )
+        studytable = studytable_lookup.get(index_names) or (
+            AddStudyTableMutator(
+                id=next(id_gen),
+                index_names=index_names,
             )
-            studytable_lookup |= { index_names: studytable }
-            mutations += [studytable]
+        )
+        studytable_lookup |= { index_names: studytable }
+        studytables += [studytable]
 
-        instrument = AddInstrumentMutator(
+    instruments = [
+        AddInstrumentMutator(
             id=next(id_gen),
             name=name,
             spec=spec,
             studytable_id=studytable.id,
-        )
+        ) for studytable, (name, spec) in zip(studytables, instrument_specs.items())
+    ]
 
-        mutations += [instrument]
-
-        mutations += instrument_nodes_from_spec(
+    instrument_nodes = sum([
+        instrument_nodes_from_spec(
             instrument_node_specs=spec.items,
             parent_id=instrument.id,
             root_instrument_id=instrument.id,
             id_gen=id_gen,
-        )
+        ) for instrument, spec in zip(instruments, instrument_specs.values())
+    ], [])
 
-    return mutations
+    return [*set(studytables), *instruments, *instrument_nodes]
 
 def instrument_nodes_from_spec(
     instrument_node_specs: t.Sequence[InstrumentNodeSpec],
@@ -177,7 +175,7 @@ def index_columns_from_spec(
             rel_name=rel_name,
             spec=spec,
             codemap_id=codemap.id,
-        ) for codemap, rel_name, spec in zip(codemaps, index_column_specs.keys(), index_column_specs.values())
+        ) for codemap, (rel_name, spec) in zip(codemaps, index_column_specs.items())
     ]
 
     return [*codemaps, *index_columns]
@@ -205,7 +203,7 @@ def measures_from_spec(
             for rel_name, spec in spec.codes.items()
     ]
 
-    nodes = sum([
+    measure_nodes = sum([
         measure_nodes_from_spec(
             measure_node_specs=spec.items,
             parent_id=measure.id,
@@ -214,7 +212,7 @@ def measures_from_spec(
         ) for spec, measure in zip(measure_specs.values(), measures)
     ], [])
 
-    return [*measures, *codemaps, *nodes]
+    return [*measures, *codemaps, *measure_nodes]
 
 def measure_nodes_from_spec(
     measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
