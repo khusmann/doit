@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing as t
 from itertools import count
+from functools import reduce
 from ..value import *
 from ..model import *
 
@@ -17,7 +18,7 @@ def entities_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = de
 
     return [ creator.create(context) for creator in creators ]
 
-################
+#### Creators from Spec
 
 def index_column_creators_from_spec(
     index_column_specs: t.Mapping[RelativeIndexColumnName, IndexColumnSpec],
@@ -108,6 +109,7 @@ def instrument_creators_from_spec(
     studytable_lookup: t.Mapping[t.FrozenSet[RelativeIndexColumnName], StudyTableCreator] = {}
     for spec in instrument_specs.values():
         index_names = frozenset(spec.index_column_names())
+        # Ensure we only create unique tables
         studytable = studytable_lookup.get(index_names) or (
             StudyTableCreator(
                 id=next(id_gen),
@@ -115,7 +117,7 @@ def instrument_creators_from_spec(
             )
         )
         studytable_lookup |= { index_names: studytable }
-        studytables += [studytable]
+        studytables += [studytable] # To point each instrument to a Studytable
 
     instruments = [
         InstrumentCreator(
@@ -158,8 +160,19 @@ def instrument_node_creators_from_spec(root_instrument_id: InstrumentId, id_gen:
         return [*instrument_nodes, *child_instrument_nodes]
     return impl
 
+### CreationContext Reducer
+#
+# Here's where the magic happens
+#
+# The object copying / updating semantics of pydantic aren't type safe,
+# not to mention really awkard :'(
+#
+# So we allow the reducer for CreationContext to directly modify the object
+# but return "self" for faux-purity.
 
 def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> CreationContext:
+    # TODO: Include filename / root spec in creators,
+    # so that errors can provide more debug info
     match m:
         case MeasureCreator():
             ctx.measure_name_by_id |= { m.id: m.name }

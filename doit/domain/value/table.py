@@ -40,7 +40,7 @@ class TableFetchInfo(ImmutableBaseModel):
     # SHA1?
 
 class TableFileInfo(ImmutableBaseModel):
-    format: FormatType
+    format: SourceFormatType
     remote: RemoteTable
     data_path: Path
     schema_path: Path
@@ -53,12 +53,12 @@ class UnsafeSourceTable(ImmutableBaseModel):
 
 ### SafeTable
 
-ColumnT = t.TypeVar('ColumnT', bound=ColumnTypeStr)
-DataT = t.TypeVar('DataT', bound=ColumnDataType)
+ColumnT = t.TypeVar('ColumnT', bound=SourceColumnTypeStr)
+DataT = t.TypeVar('DataT', bound=SourceColumnDataType)
 
 class SourceColumnMeta(ImmutableBaseModel):
     column_id: SourceColumnName
-    type: ColumnTypeStr
+    type: SourceColumnTypeStr
     prompt: str
     sanitizer_meta: t.Optional[str]
 
@@ -78,7 +78,7 @@ SourceColumn = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-def new_source_column(column_id: SourceColumnName, meta: SourceColumnMeta, column_type: ColumnTypeStr, values: t.Sequence[t.Any | None]) -> SourceColumn:
+def new_source_column(column_id: SourceColumnName, meta: SourceColumnMeta, column_type: SourceColumnTypeStr, values: t.Sequence[t.Any | None]) -> SourceColumn:
     match column_type:
         case 'bool':
             new_func = SourceColumnBase[t.Literal['bool'], StrictBool]
@@ -112,7 +112,7 @@ class SourceTable(ImmutableBaseModel):
 
 class LinkedColumn(ImmutableBaseModel):
     column_id: SourceColumnName
-    type: ColumnTypeStr
+    type: SourceColumnTypeStr
     values: t.Tuple[t.Any, ...]
 
 class LinkedTable(ImmutableBaseModel):

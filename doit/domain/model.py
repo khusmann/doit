@@ -52,7 +52,7 @@ class IndexCodeMapCreator(ImmutableBaseModel):
         )
 
 ### Measures
-class MeasureNodeBase(ImmutableBaseModel):
+class MeasureNodeBase(ImmutableBaseModelOrm):
     id: ColumnInfoId
     name: ColumnName
     parent_node_id: t.Optional[ColumnInfoId]
@@ -189,7 +189,6 @@ class MeasureCreator(ImmutableBaseModel):
             description=self.spec.description,
             items=(),
         )
-
 
 ### Instruments
 
@@ -332,7 +331,7 @@ class StudyTableCreator(ImmutableBaseModel):
             measure_items=(),
         )
 
-### StudyEntity / EntityCreator
+### StudyEntities / Creators
 
 StudyEntity = t.Union[
     CodeMap,
@@ -341,6 +340,17 @@ StudyEntity = t.Union[
     IndexColumn,
     Instrument,
     InstrumentNode,
+    StudyTable,
+]
+
+NamedStudyEntity = t.Union[
+    CodeMap,
+    Measure,
+    MeasureNode,
+    IndexColumn,
+    MeasureItem,
+    Instrument,
+    # Instrument Nodes don't have unique names
     StudyTable,
 ]
 
@@ -356,6 +366,14 @@ EntityCreator = t.Union[
 ]
 
 ### CreationContext
+
+# The object copying / updating semantics of pydantic aren't type safe,
+# not to mention really awkard :'(
+#
+# So we allow the reducer for CreationContext to directly modify the object
+# but return "self" for faux-purity.
+# 
+# Therefore here we inherit from BaseModel instead of ImmuntableBaseModel.
 
 class CreationContext(BaseModel):
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}

@@ -179,7 +179,16 @@ class InstrumentNodeSql(Base, DumpableNode):
                 self.prompt=o.prompt
                 self.title=o.title
 
-sql_lookup: t.Mapping[t.Type[StudyEntity], Base] = {
+SqlEntity = t.Union[
+    CodeMapSql,
+    MeasureSql,
+    ColumnInfoNodeSql,
+    InstrumentSql,
+    InstrumentNodeSql,
+    StudyTableSql,
+]
+
+sql_lookup: t.Mapping[t.Type[StudyEntity], SqlEntity] = {
     CodeMap: CodeMapSql,
     Measure: MeasureSql,
     OrdinalMeasureItem: ColumnInfoNodeSql,
@@ -192,4 +201,5 @@ sql_lookup: t.Mapping[t.Type[StudyEntity], Base] = {
     HiddenInstrumentItem: InstrumentNodeSql,
     InstrumentItemGroup: InstrumentNodeSql,
     StudyTable: StudyTableSql,
+    ColumnInfo: ColumnInfoNodeSql,
 }
