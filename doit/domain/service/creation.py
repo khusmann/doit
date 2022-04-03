@@ -172,7 +172,9 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
             ctx.column_info_name_by_id |= { m.id: base / m.rel_name }
 
         case IndexColumnCreator():
-            ctx.column_info_name_by_id |= { m.id: ColumnName("indices") / m.rel_name }
+            column_name = ColumnName("indices") / m.rel_name
+            ctx.index_column_name_by_rel_name |= { m.rel_name: column_name }
+            ctx.column_info_name_by_id |= { m.id: column_name }
 
         case CodeMapCreator():
             base = ctx.measure_name_by_id[m.root_measure_id]
@@ -190,14 +192,11 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
 
         case InstrumentNodeCreator():
             spec = m.spec
-            if spec.type != "group" and spec.id:
-                if spec.id.startswith("indices."):
-                    pass # TODO: Make join table between StudyTable <-> Indices
-                else:
-                    measure_node_id = ctx.column_info_id_by_name[spec.id]
-                    studytable_id = ctx.studytable_id_by_instrument_id[m.root_instrument_id]
-                    existing_val = ctx.studytable_id_by_measure_node_id.get(measure_node_id)
-                    if existing_val is not None and existing_val != studytable_id:
-                        raise Exception("Error measure items must only belong to one table. (Measure: {})".format(spec.id))
-                    ctx.studytable_id_by_measure_node_id |= { measure_node_id: studytable_id }
+            if (spec.type != "group") and (spec.id is not None) and (not spec.id.startswith("indices.")):
+                measure_node_id = ctx.column_info_id_by_name[spec.id]
+                studytable_id = ctx.studytable_id_by_instrument_id[m.root_instrument_id]
+                existing_val = ctx.studytable_id_by_measure_node_id.get(measure_node_id)
+                if existing_val is not None and existing_val != studytable_id:
+                    raise Exception("Error measure items must only belong to one table. (Measure: {})".format(spec.id))
+                ctx.studytable_id_by_measure_node_id |= { measure_node_id: studytable_id }
     return ctx

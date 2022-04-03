@@ -317,7 +317,7 @@ class InstrumentCreator(ImmutableBaseModel):
 class StudyTable(ImmutableBaseModelOrm):
     id: StudyTableId
     name: StudyTableName
-    index_names: t.Tuple[RelativeIndexColumnName, ...]
+    index_names: t.Tuple[ColumnName, ...]
     measure_items: t.Tuple[MeasureNode, ...]
 
 class StudyTableCreator(ImmutableBaseModel):
@@ -328,7 +328,7 @@ class StudyTableCreator(ImmutableBaseModel):
         return StudyTable(
             id=self.id,
             name=ctx.studytable_name_by_id[self.id],
-            index_names=tuple(sorted(self.index_names)),
+            index_names=(ctx.index_column_name_by_rel_name[rn] for rn in sorted(self.index_names)),
             measure_items=(),
         )
 
@@ -365,6 +365,7 @@ class CreationContext(BaseModel):
     studytable_name_by_id: t.Mapping[StudyTableId, StudyTableName] = {}
     studytable_id_by_measure_node_id: t.Mapping[ColumnInfoId, StudyTableId] = {}
     studytable_id_by_instrument_id: t.Mapping[InstrumentId, StudyTableId] = {}
+    index_column_name_by_rel_name: t.Mapping[RelativeIndexColumnName, ColumnName] = {}
 
     @property
     def column_info_id_by_name(self):
