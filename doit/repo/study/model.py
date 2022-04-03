@@ -62,6 +62,12 @@ class CodeMapSql(Base):
     name = Column(String, nullable=False)
     values = Column(JSON, nullable=False)
 
+    column_info = relationship(
+        "ColumnInfoNodeSql",
+        backref="codemap",
+        order_by="ColumnInfoNodeSql.id"
+    )
+
     def __init__(self, o: CodeMap):
         self.id=o.id
         self.name=o.name
@@ -100,6 +106,11 @@ class ColumnInfoNodeSql(Base, DumpableNode):
         backref=backref("parent_node", remote_side=id),
         order_by="ColumnInfoNodeSql.id",
     )
+    instrument_items = relationship(
+        "InstrumentNodeSql",
+        backref="column_info",
+        order_by="InstrumentNodeSql.id"
+    )
 
     def __init__(self, o: MeasureNode | IndexColumn):
         self.id=o.id
@@ -125,6 +136,7 @@ class ColumnInfoNodeSql(Base, DumpableNode):
 class InstrumentSql(Base):
     __tablename__ = "__instruments__"
     id = Column(Integer, primary_key=True)
+    studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
     name = Column(String, nullable=False, unique=True)
     title = Column(String)
     description = Column(String)

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Measure: {{measure.tag}}{% endblock %}
+{% block title %}Measure: {{measure.name}}{% endblock %}
 
 {% block body_class %}index{% endblock %}
 
@@ -14,23 +14,23 @@
 {% endblock %}
 
 {% block content %}
-<h1>Measure ID: {{measure.tag}}</h1>
+<h1>Measure ID: {{measure.name}}</h1>
 <h1>Title: {{measure.title}}</h1>
 <h1>Description:</h1>
 <p>{{measure.description}}</p>
 <br>
 {% for item in measure.items recursive %}
     {% if item.type == 'group' %}
-    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.tag}}">
-        <h2>{{item.tag}} {% if item.prompt %}: {{item.prompt}} {% endif %}</h2>
+    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.name}}">
+        <h2>{{item.name}} {% if item.prompt %}: {{item.prompt}} {% endif %}</h2>
         {{ loop(item.items) }}
     </div>
     {% else %}
-    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.tag}}">
+    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.name}}">
         <h2>
             {{item.prompt}} {% if item.is_idx %}(Index){% endif %}
         </h2>
-        <p>Measure: {{item.tag}}</p>
+        <p>Measure: {{item.name}}</p>
         <p>Measure type: {{item.type}}</p>
         {% if item.type == 'ordinal' %}
         <table>
@@ -39,7 +39,7 @@
                 <th>Tag</th>
                 <th>Text</th>
             </tr>
-            {% for row in item.codes.values %}
+            {% for row in item.codemap.values %}
             <tr>
                 <td>{{row.value}}</td>
                 <td>{{row.tag}}</td>

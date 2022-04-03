@@ -69,6 +69,7 @@ class OrdinalMeasureItem(MeasureNodeBase):
     codemap_id: CodeMapId
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'categorical_array']
+    codemap: t.Optional[CodeMap]
 
 class SimpleMeasureItem(MeasureNodeBase):
     studytable_id: t.Optional[StudyTableId]
@@ -78,7 +79,7 @@ class SimpleMeasureItem(MeasureNodeBase):
 class MeasureItemGroup(MeasureNodeBase):
     prompt: t.Optional[str]
     type: t.Literal['group']
-    items: t.Tuple[MeasureNode, ...]
+    items: t.Optional[t.Tuple[MeasureNode, ...]]
 
 MeasureItem = t.Annotated[
     t.Union[
@@ -131,7 +132,6 @@ class MeasureNodeCreator(ImmutableBaseModel):
                     **base,
                     prompt=self.spec.prompt,
                     type=self.spec.type,
-                    items=(),
                 )
 
 ### IndexItem
@@ -204,17 +204,20 @@ class InstrumentNodeBaseDict(t.TypedDict):
 
 class QuestionInstrumentItem(InstrumentNodeBase):
     column_info_id: t.Optional[ColumnInfoId]
+    column_info: t.Optional[ColumnInfo]
     source_column_name: SourceColumnName
     prompt: str
     type: t.Literal['question']
 
 class ConstantInstrumentItem(InstrumentNodeBase):
     column_info_id: t.Optional[ColumnInfoId]
+    column_info: t.Optional[ColumnInfo]
     type: t.Literal['constant']
     value: str
 
 class HiddenInstrumentItem(InstrumentNodeBase):
     column_info_id: t.Optional[ColumnInfoId]
+    column_info: t.Optional[ColumnInfo]
     source_column_name: SourceColumnName
     type: t.Literal['hidden']
 

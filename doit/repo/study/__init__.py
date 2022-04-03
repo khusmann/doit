@@ -43,6 +43,34 @@ class StudyRepoReader:
         )
         return parse_obj_as(t.List[Measure], result)
 
+    def query_instrument(self, name: InstrumentName) -> Instrument:
+        session = Session(self.engine)
+        result: t.Optional[InstrumentSql] = (
+            session.query(InstrumentSql) # type: ignore
+                   .options(contains_eager(InstrumentSql.items))
+                   .join(InstrumentNodeSql)
+                   .filter(InstrumentSql.name == name)
+                   .filter(InstrumentNodeSql.parent_node_id == None)
+                   .one_or_none()
+        )
+        if result is None:
+            raise Exception("Instrument not found (name={})".format(name))
+        return parse_obj_as(Instrument, result)
+
+    def query_measure(self, name: MeasureName) -> Measure:
+        session = Session(self.engine)
+        result: t.Optional[MeasureSql] = (
+            session.query(MeasureSql) # type: ignore
+                   .options(contains_eager(MeasureSql.items))
+                   .join(ColumnInfoNodeSql)
+                   .filter(MeasureSql.name == name)
+                   .filter(ColumnInfoNodeSql.parent_node_id == None)
+                   .one_or_none()
+        )
+        if result is None:
+            raise Exception("Measure not found (name={})".format(name))
+        return parse_obj_as(Measure, result)
+
     def query_entity_by_id(
         self,
         id: StudyEntityId,
