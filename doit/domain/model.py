@@ -58,6 +58,12 @@ class MeasureNodeBase(ImmutableBaseModel):
     parent_node_id: t.Optional[ColumnInfoId]
     root_measure_id: MeasureId
 
+class MeasureNodeBaseDict(t.TypedDict): # TODO: This is not needed if pydantic's BaseModel supports field unpacking...
+    id: ColumnInfoId
+    name: ColumnName
+    parent_node_id: t.Optional[ColumnInfoId]
+    root_measure_id: MeasureId
+
 class OrdinalMeasureItem(MeasureNodeBase):
     studytable_id: t.Optional[StudyTableId]
     codemap_id: CodeMapId
@@ -98,7 +104,7 @@ class MeasureNodeCreator(ImmutableBaseModel):
     spec: MeasureNodeSpec
 
     def create(self, ctx: CreationContext) -> MeasureNode:
-        base = dict(
+        base = MeasureNodeBaseDict(
             id=self.id,
             name=ctx.column_info_name_by_id[self.id],
             parent_node_id=self.parent_node_id,
@@ -107,7 +113,7 @@ class MeasureNodeCreator(ImmutableBaseModel):
         match self.spec:
             case OrdinalMeasureItemSpec():
                 return OrdinalMeasureItem(
-                    **base,                    
+                    **base,                   
                     studytable_id=ctx.studytable_id_by_measure_node_id.get(self.id),
                     prompt=self.spec.prompt,
                     type=self.spec.type,
@@ -115,7 +121,7 @@ class MeasureNodeCreator(ImmutableBaseModel):
                 )
             case SimpleMeasureItemSpec():
                 return SimpleMeasureItem(
-                    **base,                    
+                    **base,
                     studytable_id=ctx.studytable_id_by_measure_node_id.get(self.id),
                     prompt=self.spec.prompt,
                     type=self.spec.type,
@@ -181,13 +187,18 @@ class MeasureCreator(ImmutableBaseModel):
             name=self.name,
             title=self.spec.title,
             description=self.spec.description,
-            items=[],
+            items=(),
         )
 
 
 ### Instruments
 
 class InstrumentNodeBase(ImmutableBaseModelOrm):
+    id: InstrumentNodeId
+    parent_node_id: t.Optional[InstrumentNodeId]
+    root_instrument_id: InstrumentId
+
+class InstrumentNodeBaseDict(t.TypedDict):
     id: InstrumentNodeId
     parent_node_id: t.Optional[InstrumentNodeId]
     root_instrument_id: InstrumentId
@@ -238,12 +249,11 @@ class InstrumentNodeCreator(ImmutableBaseModel):
     spec: InstrumentNodeSpec
 
     def create(self, ctx: CreationContext) -> InstrumentNode:
-        base = dict(
+        base = InstrumentNodeBaseDict(
             id=self.id,
             parent_node_id=self.parent_node_id,
             root_instrument_id=self.root_instrument_id,
         )
-
         match self.spec:
             case QuestionInstrumentItemSpec():
                 return QuestionInstrumentItem(
