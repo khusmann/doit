@@ -26,7 +26,7 @@ class StudyTableSql(Base):
     name = Column(String, nullable=False, unique=True)
     index_names = Column(JSON, nullable=False)
     columns = relationship(
-        "MeasureNodeSql",
+        "ColumnInfoNodeSql",
         backref="parent_table"
     )
 
@@ -45,9 +45,9 @@ class MeasureSql(Base):
     title = Column(String)
     description = Column(String)
     items = relationship(
-        "MeasureNodeSql",
+        "ColumnInfoNodeSql",
         backref="parent_measure",
-        order_by="MeasureNodeSql.id",
+        order_by="ColumnInfoNodeSql.id",
     )
 
     def __init__(self, o: Measure):
@@ -67,17 +67,6 @@ class CodeMapSql(Base):
         self.name=o.name
         self.values=o.values
 
-class IndexColumnSql(Base):
-    __tablename__ = "__indices__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
-    codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
-
-    def __init__(self, o: IndexColumn):
-        self.id=o.id
-        self.name=o.name
-        self.codemap_id=o.codemap_id
-
 class DumpableNode:
     def __repr__(self):
         return "{}(type={}, tag={})".format(
@@ -94,8 +83,8 @@ class DumpableNode:
             + "".join([c.dump(_indent + 1) for c in self.items.values()])
         )
 
-class MeasureNodeSql(Base, DumpableNode):
-    __tablename__ = "__measure_nodes__"
+class ColumnInfoNodeSql(Base, DumpableNode):
+    __tablename__ = "__column_info__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
     parent_node_id = Column(Integer, ForeignKey(id))
@@ -103,28 +92,35 @@ class MeasureNodeSql(Base, DumpableNode):
     studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
     codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
     prompt = Column(String)
+    title = Column(String)
+    description = Column(String)
     type = Column(String, nullable=False)
     items = relationship(
-        "MeasureNodeSql",
+        "ColumnInfoNodeSql",
         backref=backref("parent_node", remote_side=id),
-        order_by="MeasureNodeSql.id",
+        order_by="ColumnInfoNodeSql.id",
     )
 
-    def __init__(self, o: MeasureNode):
+    def __init__(self, o: MeasureNode | IndexColumn):
         self.id=o.id
         self.name=o.name
-        self.parent_node_id=o.parent_node_id
-        self.parent_measure_id=o.parent_measure_id
-        self.prompt=o.prompt
         self.type=o.type
-        match o:
-            case MeasureItemGroup():
-                pass
-            case OrdinalMeasureItem():
-                self.studytable_id=o.studytable_id
-                self.codemap_id=o.codemap_id
-            case SimpleMeasureItem():
-                self.studytable_id=o.studytable_id
+        if (o.type == 'index'):
+            self.title=o.title
+            self.description=o.description
+            self.codemap_id=o.codemap_id
+        else:
+            self.parent_node_id=o.parent_node_id
+            self.parent_measure_id=o.parent_measure_id
+            self.prompt=o.prompt
+            match o:
+                case MeasureItemGroup():
+                    pass
+                case OrdinalMeasureItem():
+                    self.studytable_id=o.studytable_id
+                    self.codemap_id=o.codemap_id
+                case SimpleMeasureItem():
+                    self.studytable_id=o.studytable_id
 
 class InstrumentSql(Base):
     __tablename__ = "__instruments__"
@@ -151,8 +147,7 @@ class InstrumentNodeSql(Base, DumpableNode):
     id = Column(Integer, primary_key=True)
     parent_node_id = Column(Integer, ForeignKey(id))
     parent_instrument_id = Column(Integer, ForeignKey(InstrumentSql.id))
-    measure_node_id = Column(Integer, ForeignKey(MeasureNodeSql.id))
-    index_column_id = Column(Integer, ForeignKey(IndexColumnSql.id))
+    column_info_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
     source_column_name = Column(String)
     type = Column(String, nullable=False)
     title = Column(String)
@@ -172,16 +167,13 @@ class InstrumentNodeSql(Base, DumpableNode):
         match o:
             case QuestionInstrumentItem():
                 self.source_column_name=o.source_column_name
-                self.measure_node_id=o.measure_node_id
-                self.index_column_id=o.index_column_id
+                self.column_info_id=o.column_info_id
                 self.prompt=o.prompt
             case HiddenInstrumentItem():
                 self.source_column_name=o.source_column_name
-                self.measure_node_id=o.measure_node_id
-                self.index_column_id=o.index_column_id
+                self.column_info_id=o.column_info_id
             case ConstantInstrumentItem():
-                self.measure_node_id=o.measure_node_id
-                self.index_column_id=o.index_column_id
+                self.column_info_id=o.column_info_id
                 self.value=o.value
             case InstrumentItemGroup():
                 self.prompt=o.prompt
@@ -190,10 +182,10 @@ class InstrumentNodeSql(Base, DumpableNode):
 sql_lookup: t.Mapping[t.Type[StudyEntity], Base] = {
     CodeMap: CodeMapSql,
     Measure: MeasureSql,
-    OrdinalMeasureItem: MeasureNodeSql,
-    SimpleMeasureItem: MeasureNodeSql,
-    MeasureItemGroup: MeasureNodeSql,
-    IndexColumn: IndexColumnSql,
+    OrdinalMeasureItem: ColumnInfoNodeSql,
+    SimpleMeasureItem: ColumnInfoNodeSql,
+    MeasureItemGroup: ColumnInfoNodeSql,
+    IndexColumn: ColumnInfoNodeSql,
     Instrument: InstrumentSql,
     QuestionInstrumentItem: InstrumentNodeSql,
     ConstantInstrumentItem: InstrumentNodeSql,
