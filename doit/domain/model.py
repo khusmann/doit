@@ -1,10 +1,9 @@
 from __future__ import annotations
 import typing as t
-
-from .common import *
 from pydantic import Field
 
-from .studyspec import *
+from .value.studyspec import *
+from .value.common import *
 
 ### CodeMap
 
@@ -27,7 +26,7 @@ class CodeMap(ImmutableBaseModelOrm):
 
 CodeMap.update_forward_refs()
 
-class AddCodeMapMutator(ImmutableBaseModel):
+class CodeMapCreator(ImmutableBaseModel):
     id: CodeMapId
     rel_name: RelativeCodeMapName
     root_measure_id: MeasureId
@@ -40,7 +39,7 @@ class AddCodeMapMutator(ImmutableBaseModel):
             values=self.spec.__root__
         )
 
-class AddIndexCodeMapMutator(ImmutableBaseModel):
+class IndexCodeMapCreator(ImmutableBaseModel):
     id: CodeMapId
     rel_name: RelativeIndexColumnName
     spec: CodeMapSpec
@@ -91,7 +90,7 @@ MeasureNode = t.Annotated[
 
 MeasureItemGroup.update_forward_refs()
 
-class AddMeasureNodeMutator(ImmutableBaseModel):
+class MeasureNodeCreator(ImmutableBaseModel):
     id: ColumnInfoId
     rel_name: RelativeMeasureNodeName
     parent_id: t.Union[ColumnInfoId, MeasureId]
@@ -139,7 +138,7 @@ class IndexColumn(ImmutableBaseModelOrm):
     codemap_id: CodeMapId
     type: t.Literal['index']
 
-class AddIndexColumnMutator(ImmutableBaseModel):
+class IndexColumnCreator(ImmutableBaseModel):
     id: ColumnInfoId
     rel_name: RelativeIndexColumnName
     spec: IndexColumnSpec
@@ -171,7 +170,7 @@ class Measure(ImmutableBaseModelOrm):
     description: t.Optional[str]
     items: t.Tuple[MeasureNode, ...]
 
-class AddMeasureMutator(ImmutableBaseModel):
+class MeasureCreator(ImmutableBaseModel):
     id: MeasureId
     name: MeasureName
     spec: MeasureSpec
@@ -232,7 +231,7 @@ InstrumentNode = t.Annotated[
 
 InstrumentItemGroup.update_forward_refs()
 
-class AddInstrumentNodeMutator(ImmutableBaseModel):
+class InstrumentNodeCreator(ImmutableBaseModel):
     id: InstrumentNodeId
     parent_id: t.Union[InstrumentNodeId, InstrumentNode]
     root_instrument_id: InstrumentId
@@ -287,7 +286,7 @@ class Instrument(ImmutableBaseModelOrm):
     description: t.Optional[str]
     items: t.Tuple[InstrumentNode, ...]
 
-class AddInstrumentMutator(ImmutableBaseModel):
+class InstrumentCreator(ImmutableBaseModel):
     id: InstrumentId
     name: InstrumentName
     spec: InstrumentSpec
@@ -311,7 +310,7 @@ class StudyTable(ImmutableBaseModelOrm):
     index_names: t.Tuple[RelativeIndexColumnName, ...]
     measure_items: t.Tuple[MeasureNode, ...]
 
-class AddStudyTableMutator(ImmutableBaseModel):
+class StudyTableCreator(ImmutableBaseModel):
     id: StudyTableId
     index_names: t.FrozenSet[RelativeIndexColumnName]
 
@@ -323,7 +322,30 @@ class AddStudyTableMutator(ImmutableBaseModel):
             measure_items=(),
         )
 
-### Study Mutators
+### StudyEntity / EntityCreator
+
+StudyEntity = t.Union[
+    CodeMap,
+    Measure,
+    MeasureNode,
+    IndexColumn,
+    Instrument,
+    InstrumentNode,
+    StudyTable,
+]
+
+EntityCreator = t.Union[
+    CodeMapCreator,
+    IndexCodeMapCreator,
+    MeasureCreator,
+    MeasureNodeCreator,
+    IndexColumnCreator,
+    InstrumentCreator,
+    InstrumentNodeCreator,
+    StudyTableCreator,
+]
+
+### CreationContext
 
 class CreationContext(BaseModel):
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}
@@ -337,76 +359,3 @@ class CreationContext(BaseModel):
     @property
     def column_info_id_by_name(self):
         return { name: id for (id, name) in self.column_info_name_by_id.items() }
-
-    def mutate(self, m: StudyMutation):
-        match m:
-            case AddMeasureMutator():
-                self.measure_name_by_id |= { m.id: m.name }
-
-            case AddMeasureNodeMutator():
-                if m.root_measure_id == m.parent_id:
-                    base = ColumnName(self.measure_name_by_id[m.root_measure_id])
-                else:
-                    base = self.column_info_name_by_id[ColumnInfoId(m.parent_id)]
-                self.column_info_name_by_id |= { m.id: base / m.rel_name }
-
-            case AddIndexColumnMutator():
-                self.column_info_name_by_id |= { m.id: ColumnName("indices") / m.rel_name }
-
-            case AddCodeMapMutator():
-                base = self.measure_name_by_id[m.root_measure_id]
-                self.codemap_name_by_id |= { m.id: CodeMapName(".".join([base, m.rel_name]))}
-                self.codemap_id_by_measure_relname |= { (m.root_measure_id, m.rel_name): m.id }
-
-            case AddIndexCodeMapMutator():
-                self.codemap_name_by_id |= { m.id: CodeMapName(".".join(["indices", m.rel_name]))}
-
-            case AddStudyTableMutator():
-                self.studytable_name_by_id |= { m.id: StudyTableName("-".join(sorted(m.index_names)))}
-
-            case AddInstrumentMutator():
-                self.studytable_id_by_instrument_id |= { m.id: m.studytable_id }
-
-            case AddInstrumentNodeMutator():
-                spec = m.spec
-                if spec.type != "group" and spec.id:
-                    if spec.id.startswith("indices."):
-                        pass
-                    else:
-                        measure_node_id = self.column_info_id_by_name[spec.id]
-                        studytable_id = self.studytable_id_by_instrument_id[m.root_instrument_id]
-                        existing_val = self.studytable_id_by_measure_node_id.get(measure_node_id)
-                        if existing_val is not None and existing_val != studytable_id:
-                            raise Exception("Error measure items must only belong to one table. (Measure: {})".format(spec.id))
-                        self.studytable_id_by_measure_node_id |= { measure_node_id: studytable_id }
-
-            case _:
-                pass
-
-    @classmethod
-    def from_mutations(cls, mutations: t.List[StudyMutation]) -> CreationContext:
-        result = cls()
-        for m in mutations:
-            result.mutate(m)
-        return result
-
-StudyMutation = t.Union[
-    AddCodeMapMutator,
-    AddIndexCodeMapMutator,
-    AddMeasureMutator,
-    AddMeasureNodeMutator,
-    AddIndexColumnMutator,
-    AddInstrumentMutator,
-    AddInstrumentNodeMutator,
-    AddStudyTableMutator,
-]
-
-StudyEntity = t.Union[
-    CodeMap,
-    Measure,
-    MeasureNode,
-    IndexColumn,
-    Instrument,
-    InstrumentNode,
-    StudyTable,
-]

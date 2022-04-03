@@ -10,7 +10,7 @@ from .manager.unsafetable import UnsafeTableManager
 from .manager.sourcetable import SourceTableRepoManager
 from .remote import fetch_table_listing
 from .domain.value import InstrumentName, RemoteServiceName, SourceColumnName
-from .domain.service import sanitize_table, study_from_spec
+from .domain.service import sanitize_table, entities_from_study_spec
 from .repo.study import StudyRepo
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
@@ -85,7 +85,7 @@ def debug():
 
     study_spec = StudySpecManager().load_study_spec()
 
-    study_repo = study_repo.add_entities(study_from_spec(study_spec))
+    study_repo = study_repo.add_entities(entities_from_study_spec(study_spec))
 
 #    sources = SourceTableRepoManager().load_reader()
 
