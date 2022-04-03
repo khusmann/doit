@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
-from ...domain.value.study import *
+from ...domain.model import *
 
 from sqlalchemy.orm import (
     backref,
@@ -88,7 +88,7 @@ class ColumnInfoNodeSql(Base, DumpableNode):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
     parent_node_id = Column(Integer, ForeignKey(id))
-    parent_measure_id = Column(Integer, ForeignKey(MeasureSql.id))
+    root_measure_id = Column(Integer, ForeignKey(MeasureSql.id))
     studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
     codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
     prompt = Column(String)
@@ -111,7 +111,7 @@ class ColumnInfoNodeSql(Base, DumpableNode):
             self.codemap_id=o.codemap_id
         else:
             self.parent_node_id=o.parent_node_id
-            self.parent_measure_id=o.parent_measure_id
+            self.root_measure_id=o.root_measure_id
             self.prompt=o.prompt
             match o:
                 case MeasureItemGroup():
@@ -146,7 +146,7 @@ class InstrumentNodeSql(Base, DumpableNode):
     __tablename__ = "__instrument_nodes__"
     id = Column(Integer, primary_key=True)
     parent_node_id = Column(Integer, ForeignKey(id))
-    parent_instrument_id = Column(Integer, ForeignKey(InstrumentSql.id))
+    root_instrument_id = Column(Integer, ForeignKey(InstrumentSql.id))
     column_info_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
     source_column_name = Column(String)
     type = Column(String, nullable=False)
@@ -162,7 +162,7 @@ class InstrumentNodeSql(Base, DumpableNode):
     def __init__(self, o: InstrumentNode):
         self.id=o.id
         self.parent_node_id=o.parent_node_id
-        self.parent_instrument_id=o.parent_instrument_id
+        self.root_instrument_id=o.root_instrument_id
         self.type=o.type
         match o:
             case QuestionInstrumentItem():

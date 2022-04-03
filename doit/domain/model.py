@@ -56,7 +56,7 @@ class MeasureNodeBase(ImmutableBaseModel):
     id: ColumnInfoId
     name: ColumnName
     parent_node_id: t.Optional[ColumnInfoId]
-    parent_measure_id: t.Optional[MeasureId]
+    root_measure_id: MeasureId
 
 class OrdinalMeasureItem(MeasureNodeBase):
     studytable_id: t.Optional[StudyTableId]
@@ -93,7 +93,7 @@ MeasureItemGroup.update_forward_refs()
 class MeasureNodeCreator(ImmutableBaseModel):
     id: ColumnInfoId
     rel_name: RelativeMeasureNodeName
-    parent_id: t.Union[ColumnInfoId, MeasureId]
+    parent_node_id: t.Optional[ColumnInfoId]
     root_measure_id: MeasureId
     spec: MeasureNodeSpec
 
@@ -101,8 +101,8 @@ class MeasureNodeCreator(ImmutableBaseModel):
         base = dict(
             id=self.id,
             name=ctx.column_info_name_by_id[self.id],
-            parent_node_id=self.parent_id if self.parent_id != self.root_measure_id else None,
-            parent_measure_id=self.parent_id if self.parent_id == self.root_measure_id else None
+            parent_node_id=self.parent_node_id,
+            root_measure_id=self.root_measure_id,
         )
         match self.spec:
             case OrdinalMeasureItemSpec():
@@ -190,7 +190,7 @@ class MeasureCreator(ImmutableBaseModel):
 class InstrumentNodeBase(ImmutableBaseModelOrm):
     id: InstrumentNodeId
     parent_node_id: t.Optional[InstrumentNodeId]
-    parent_instrument_id: t.Optional[InstrumentId]
+    root_instrument_id: InstrumentId
 
 class QuestionInstrumentItem(InstrumentNodeBase):
     column_info_id: t.Optional[ColumnInfoId]
@@ -233,15 +233,15 @@ InstrumentItemGroup.update_forward_refs()
 
 class InstrumentNodeCreator(ImmutableBaseModel):
     id: InstrumentNodeId
-    parent_id: t.Union[InstrumentNodeId, InstrumentNode]
+    parent_node_id: t.Optional[InstrumentNodeId]
     root_instrument_id: InstrumentId
     spec: InstrumentNodeSpec
 
     def create(self, ctx: CreationContext) -> InstrumentNode:
         base = dict(
             id=self.id,
-            parent_node_id=self.parent_id if self.parent_id != self.root_instrument_id else None,
-            parent_instrument_id=self.parent_id if self.parent_id == self.root_instrument_id else None
+            parent_node_id=self.parent_node_id,
+            root_instrument_id=self.root_instrument_id,
         )
 
         match self.spec:

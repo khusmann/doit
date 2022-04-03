@@ -2,6 +2,7 @@ from __future__ import annotations
 import typing as t
 from itertools import count
 from ..value import *
+from ..model import *
 
 default_id_gen = count(0)
 
@@ -68,7 +69,7 @@ def measure_creators_from_spec(
     measure_nodes = sum([
         measure_node_creators_from_spec(measure.id, id_gen)(
             measure_node_specs=spec.items,
-            parent_id=measure.id,
+            parent_node_id=None,
         ) for spec, measure in zip(measure_specs.values(), measures)
     ], [])
 
@@ -77,22 +78,22 @@ def measure_creators_from_spec(
 def measure_node_creators_from_spec(root_measure_id: MeasureId, id_gen: t.Iterator[int] = default_id_gen):
     def impl(
         measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
-        parent_id: MeasureId | ColumnInfoId,
+        parent_node_id: t.Optional[ColumnInfoId],
     ) -> t.List[MeasureNodeCreator]:
         
         measure_nodes = [
             MeasureNodeCreator(
                 id=next(id_gen),
                 rel_name=rel_name,
-                parent_id=parent_id,
+                parent_node_id=parent_node_id,
                 root_measure_id=root_measure_id,
                 spec=spec,
             ) for rel_name, spec in measure_node_specs.items()
         ]
 
         child_measure_nodes = sum([
-            impl(spec.items, parent.id) 
-                for spec, parent in zip(measure_node_specs.values(), measure_nodes) if spec.type == 'group'
+            impl(spec.items, measure_node.id) 
+                for spec, measure_node in zip(measure_node_specs.values(), measure_nodes) if spec.type == 'group'
         ], [])
 
         return [*measure_nodes, *child_measure_nodes]
@@ -128,7 +129,7 @@ def instrument_creators_from_spec(
     instrument_nodes = sum([
         instrument_node_creators_from_spec(instrument.id, id_gen)(
             instrument_node_specs=spec.items,
-            parent_id=instrument.id,
+            parent_node_id=None,
         ) for spec, instrument in zip(instrument_specs.values(), instruments)
     ], [])
 
@@ -137,13 +138,13 @@ def instrument_creators_from_spec(
 def instrument_node_creators_from_spec(root_instrument_id: InstrumentId, id_gen: t.Iterator[int] = default_id_gen):
     def impl(
         instrument_node_specs: t.Sequence[InstrumentNodeSpec],
-        parent_id: InstrumentId | InstrumentNodeId,
+        parent_node_id: t.Optional[InstrumentNodeId],
     ) -> t.List[InstrumentNodeCreator]:
 
         instrument_nodes = [
             InstrumentNodeCreator(
                 id=next(id_gen),
-                parent_id=parent_id,
+                parent_node_id=parent_node_id,
                 root_instrument_id=root_instrument_id,
                 spec=spec,
             ) for spec in instrument_node_specs
@@ -164,10 +165,10 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
             ctx.measure_name_by_id |= { m.id: m.name }
 
         case MeasureNodeCreator():
-            if m.root_measure_id == m.parent_id:
-                base = ColumnName(ctx.measure_name_by_id[m.root_measure_id])
-            else:
-                base = ctx.column_info_name_by_id[ColumnInfoId(m.parent_id)]
+            base = (
+                ColumnName(ctx.measure_name_by_id[m.root_measure_id]) if m.parent_node_id is None
+                else ctx.column_info_name_by_id[m.parent_node_id]
+            )
             ctx.column_info_name_by_id |= { m.id: base / m.rel_name }
 
         case IndexColumnCreator():
