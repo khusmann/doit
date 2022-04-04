@@ -199,7 +199,7 @@ class StudyRepoDataWriter(StudyRepoReader):
 
         rowwise = (dict(zip(mutation.columns.keys(), v)) for v in zip(*mutation.columns.values()))
 
-        session.execute(
+        session.execute( # type: ignore
             insert(self.datatables[mutation.studytable_id]), list(rowwise)
         )
 

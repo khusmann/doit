@@ -18,18 +18,20 @@ def mutations_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = d
 
     return [ creator.create(context) for creator in creators ]
 
-def link_from_source_column(instrument_item: InstrumentItem, column: SourceColumn) -> t.Iterable[t.Any]:
-    # TODO: if there's a remap here, use it. Later, there may be a need to pull from codemap as well
-    return column.values
+def link_from_source_column(instrument_item: QuestionInstrumentItem | HiddenInstrumentItem, column: SourceColumn) -> t.Iterable[t.Any]:
+    if instrument_item.map is None:
+        return column.values
+    else:
+        return (instrument_item.map.get(str(v), v) for v in column.values)
 
 def link_to_column_values(source: t.Iterable[t.Any], dest: ColumnInfo) -> t.Iterable[t.Any]:
     if isinstance(dest, SimpleMeasureItem):
         return source
-    assert(dest.codemap is not None)
-
-    cm = dest.codemap.tag_to_value_map()
-    # TODO: What to do when a value is not in codemap
-    return (cm.get(i) for i in source)
+    else:
+        assert(dest.codemap is not None)
+        cm = dest.codemap.tag_to_value_map()
+        # TODO: What to do when a value is not in codemap
+        return (cm.get(i) for i in source)
 
 def link_source_table(instrument: Instrument, source_table: SourceTable) -> AddSourceDataMutation:
     def link_values(instrument_item: InstrumentItem):

@@ -37,7 +37,7 @@ RelativeCodeMapName = t.NewType('RelativeCodeMapName', str)
 
 CodeValue = t.NewType('CodeValue', int)
 CodeValueTag = t.NewType('CodeValueTag', str)
-RecodeTransform = t.Mapping[CodeValueTag, t.Optional[CodeValueTag]]
+RecodeTransform = t.Mapping[str, t.Optional[str]]
 
 ### Entity Ids
 

@@ -173,6 +173,7 @@ class InstrumentNodeSql(Base, DumpableNode):
     source_column_name = Column(String)
     type = Column(String, nullable=False)
     entity_type = 'instrument_node'
+    map = Column(JSON)
     title = Column(String)
     prompt = Column(String)
     value = Column(String)
@@ -192,9 +193,11 @@ class InstrumentNodeSql(Base, DumpableNode):
                 self.source_column_name=o.source_column_name
                 self.column_info_id=o.column_info_id
                 self.prompt=o.prompt
+                self.map=o.map
             case HiddenInstrumentItem():
                 self.source_column_name=o.source_column_name
                 self.column_info_id=o.column_info_id
+                self.map=o.map
             case ConstantInstrumentItem():
                 self.column_info_id=o.column_info_id
                 self.value=o.value

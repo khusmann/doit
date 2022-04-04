@@ -225,6 +225,7 @@ class QuestionInstrumentItem(InstrumentNodeBase):
     source_column_name: SourceColumnName
     prompt: str
     type: t.Literal['question']
+    map: t.Optional[RecodeTransform]
 
 class ConstantInstrumentItem(InstrumentNodeBase):
     column_info_id: t.Optional[ColumnInfoNodeId]
@@ -237,6 +238,7 @@ class HiddenInstrumentItem(InstrumentNodeBase):
     column_info: t.Optional[ColumnInfo]
     source_column_name: SourceColumnName
     type: t.Literal['hidden']
+    map: t.Optional[RecodeTransform]
 
 InstrumentItem = t.Annotated[
     t.Union[
@@ -285,6 +287,7 @@ class InstrumentNodeCreator(ImmutableBaseModel):
                     source_column_name=self.spec.remote_id,
                     prompt=self.spec.prompt,
                     type=self.spec.type,
+                    map=self.spec.map,
                 )
             case ConstantInstrumentItemSpec():
                 return ConstantInstrumentItem(
@@ -299,6 +302,7 @@ class InstrumentNodeCreator(ImmutableBaseModel):
                     column_info_id=ctx.column_info_node_id_by_name.get(self.spec.id) if self.spec.id else None,
                     source_column_name=self.spec.remote_id,
                     type=self.spec.type,
+                    map=self.spec.map,
                 )
             case InstrumentItemGroupSpec():
                 return InstrumentItemGroup(
