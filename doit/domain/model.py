@@ -5,7 +5,7 @@ from pydantic import Field
 from .value.studyspec import *
 from .value.common import *
 
-### CodeMap
+### CodeMap TODO: Elevate this somehow so DRY with CodeMapSpec
 
 class CodeMap(ImmutableBaseModelOrm):
     id: CodeMapId
@@ -19,10 +19,10 @@ class CodeMap(ImmutableBaseModelOrm):
     values: t.Tuple[CodeMap.Value, ...]
 
     def tag_to_value(self):
-        return { pair['tag']: pair['value'] for pair in self.values }
+        return { v['tag']: v['value'] for v in self.values }
 
     def value_to_tag(self):
-        return { pair['value']: pair['tag'] for pair in self.values }
+        return { v['value']: v['tag'] for v in self.values }
 
 CodeMap.update_forward_refs()
 

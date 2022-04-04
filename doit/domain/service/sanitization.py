@@ -52,7 +52,7 @@ def sanitize_table(table: UnsafeSourceTable) -> SourceTable:
         ),
     )
 
-def stub_instrument_item(column_id: SourceColumnName, column: SourceColumn) -> InstrumentItemSpec:
+def stub_instrument_item(column_id: SourceColumnName, column: SourceColumn) -> InstrumentNodeSpec:
     return QuestionInstrumentItemSpec(
         type='question',
         remote_id=column_id,

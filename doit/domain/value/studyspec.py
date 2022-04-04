@@ -48,13 +48,6 @@ class SimpleMeasureItemSpec(ImmutableBaseModel):
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
 
-MeasureItemSpec = t.Annotated[
-    t.Union[
-        OrdinalMeasureItemSpec,
-        SimpleMeasureItemSpec,
-    ], Field(discriminator='type')
-]
-
 class MeasureItemGroupSpec(ImmutableBaseModel):
     prompt: t.Optional[str]
     type: t.Literal['group']
@@ -63,7 +56,8 @@ class MeasureItemGroupSpec(ImmutableBaseModel):
 MeasureNodeSpec = t.Annotated[
     t.Union[
         MeasureItemGroupSpec,
-        MeasureItemSpec,
+        OrdinalMeasureItemSpec,
+        SimpleMeasureItemSpec,
     ], Field(discriminator='type')
 ]
 
@@ -84,7 +78,6 @@ class QuestionInstrumentItemSpec(ImmutableBaseModel):
     remote_id: SourceColumnName
     id: t.Optional[ColumnName]
     map: t.Optional[RecodeTransform]
-
     # TODO: Custom export dict() rule to drop map if map is None
 
 class ConstantInstrumentItemSpec(ImmutableBaseModel):
@@ -98,14 +91,6 @@ class HiddenInstrumentItemSpec(ImmutableBaseModel):
     id: ColumnName
     map: t.Optional[RecodeTransform]
 
-InstrumentItemSpec = t.Annotated[
-    t.Union[
-        QuestionInstrumentItemSpec,
-        ConstantInstrumentItemSpec,
-        HiddenInstrumentItemSpec,
-    ], Field(discriminator='type')
-]
-
 class InstrumentItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[InstrumentNodeSpec, ...]
@@ -114,7 +99,9 @@ class InstrumentItemGroupSpec(ImmutableBaseModel):
 
 InstrumentNodeSpec = t.Annotated[
     t.Union[
-        InstrumentItemSpec,
+        QuestionInstrumentItemSpec,
+        ConstantInstrumentItemSpec,
+        HiddenInstrumentItemSpec,
         InstrumentItemGroupSpec,
     ], Field(discriminator='type')
 ]
@@ -137,7 +124,11 @@ class InstrumentSpec(ImmutableBaseModel):
         return impl(self.items)
 
     def index_column_names(self):
-        return (RelativeIndexColumnName(i.id.removeprefix("indices.")) for i in self.flat_items() if i.type != 'group' and i.id is not None and i.id.startswith('indices.'))
+        return (
+            RelativeIndexColumnName(i.id.removeprefix("indices.")) 
+                for i in self.flat_items()
+                    if (i.type != 'group') and (i.id is not None) and i.id.startswith('indices.')
+        )
 
 class IndexColumnSpec(ImmutableBaseModel):
     title: str
@@ -154,11 +145,3 @@ class StudySpec(ImmutableBaseModel):
     config: ConfigSpec
     measures: t.Mapping[MeasureName, MeasureSpec]
     instruments: t.Mapping[InstrumentName, InstrumentSpec]
-
-### Table
-class TableSpec(ImmutableBaseModel):
-    indices: t.FrozenSet[ColumnName]
-    columns: t.FrozenSet[ColumnName]
-    @property
-    def tag(self):
-        return '-'.join(sorted(self.indices))

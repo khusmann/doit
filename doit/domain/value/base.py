@@ -5,12 +5,12 @@ from pydantic.generics import GenericModel
 
 class ImmutableBaseModel(BaseModel):
     class Config:
-        allow_mutation=False
+        frozen=True
         smart_union = True
 
 class ImmutableGenericModel(GenericModel):
     class Config:
-        allow_mutation=False
+        frozen=True
         smart_union = True
 
 class ImmutableBaseModelOrm(ImmutableBaseModel):
