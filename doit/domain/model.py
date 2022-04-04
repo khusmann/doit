@@ -32,11 +32,13 @@ class CodeMapCreator(ImmutableBaseModel):
     root_measure_id: MeasureId
     spec: CodeMapSpec
 
-    def create(self, ctx: CreationContext) -> CodeMap:
-        return CodeMap(
-            id=self.id,
-            name=ctx.codemap_name_by_id[self.id],
-            values=self.spec.__root__
+    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
+        return AddSimpleEntityMutation(
+            entity=CodeMap(
+                id=self.id,
+                name=ctx.codemap_name_by_id[self.id],
+                values=self.spec.__root__
+            )
         )
 
 class IndexCodeMapCreator(ImmutableBaseModel):
@@ -44,11 +46,14 @@ class IndexCodeMapCreator(ImmutableBaseModel):
     rel_name: RelativeIndexColumnName
     spec: CodeMapSpec
 
-    def create(self, ctx: CreationContext) -> CodeMap:
-        return CodeMap(
-            id=self.id,
-            name=ctx.codemap_name_by_id[self.id],
-            values=self.spec.__root__
+    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
+        print(self.spec)
+        return AddSimpleEntityMutation(
+            entity=CodeMap(
+                id=self.id,
+                name=ctx.codemap_name_by_id[self.id],
+                values=self.spec.__root__
+            )
         )
 
 ### Measures
@@ -104,7 +109,12 @@ class MeasureNodeCreator(ImmutableBaseModel):
     root_measure_id: MeasureId
     spec: MeasureNodeSpec
 
-    def create(self, ctx: CreationContext) -> MeasureNode:
+    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
+        return AddSimpleEntityMutation(
+            entity=self.create_helper(ctx)
+        )
+
+    def create_helper(self, ctx: CreationContext) -> MeasureNode:
         base = MeasureNodeBaseDict(
             id=self.id,
             name=ctx.column_info_name_by_id[self.id],
@@ -150,14 +160,16 @@ class IndexColumnCreator(ImmutableBaseModel):
     spec: IndexColumnSpec
     codemap_id: CodeMapId
 
-    def create(self, ctx: CreationContext) -> IndexColumn:
-        return IndexColumn(
-            id=self.id,
-            name=ctx.column_info_name_by_id[self.id],
-            title=self.spec.title,
-            description=self.spec.description,
-            codemap_id=self.codemap_id,
-            type='index',
+    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
+        return AddSimpleEntityMutation(
+            entity=IndexColumn(
+                id=self.id,
+                name=ctx.column_info_name_by_id[self.id],
+                title=self.spec.title,
+                description=self.spec.description,
+                codemap_id=self.codemap_id,
+                type='index',
+            )
         )
 
 ColumnInfo = t.Annotated[
@@ -181,13 +193,15 @@ class MeasureCreator(ImmutableBaseModel):
     name: MeasureName
     spec: MeasureSpec
 
-    def create(self, _: CreationContext) -> Measure:
-        return Measure(
-            id=self.id,
-            name=self.name,
-            title=self.spec.title,
-            description=self.spec.description,
-            items=(),
+    def create(self, _: CreationContext) -> AddSimpleEntityMutation:
+        return AddSimpleEntityMutation(
+            entity=Measure(
+                id=self.id,
+                name=self.name,
+                title=self.spec.title,
+                description=self.spec.description,
+                items=(),
+            )
         )
 
 ### Instruments
@@ -250,7 +264,12 @@ class InstrumentNodeCreator(ImmutableBaseModel):
     root_instrument_id: InstrumentId
     spec: InstrumentNodeSpec
 
-    def create(self, ctx: CreationContext) -> InstrumentNode:
+    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
+        return AddSimpleEntityMutation(
+            entity=self.create_helper(ctx)
+        )
+
+    def create_helper(self, ctx: CreationContext) -> InstrumentNode:
         base = InstrumentNodeBaseDict(
             id=self.id,
             parent_node_id=self.parent_node_id,
@@ -304,14 +323,16 @@ class InstrumentCreator(ImmutableBaseModel):
     spec: InstrumentSpec
     studytable_id: StudyTableId
 
-    def create(self, _: CreationContext) -> Instrument:
-        return Instrument(
-            id=self.id,
-            name=self.name,
-            studytable_id=self.studytable_id,
-            title=self.spec.title,
-            description=self.spec.description,
-            items=(),
+    def create(self, _: CreationContext) -> StudyMutation:
+        return AddSimpleEntityMutation(
+            entity=Instrument(
+                id=self.id,
+                name=self.name,
+                studytable_id=self.studytable_id,
+                title=self.spec.title,
+                description=self.spec.description,
+                items=(),
+            )
         )
 
 ### StudyTable
@@ -326,12 +347,14 @@ class StudyTableCreator(ImmutableBaseModel):
     id: StudyTableId
     index_names: t.FrozenSet[RelativeIndexColumnName]
 
-    def create(self, ctx: CreationContext) -> StudyTable:
-        return StudyTable(
-            id=self.id,
-            name=ctx.studytable_name_by_id[self.id],
-            index_names=(ctx.index_column_name_by_rel_name[rn] for rn in sorted(self.index_names)),
-            measure_items=(),
+    def create(self, ctx: CreationContext) -> StudyMutation:
+        return AddSimpleEntityMutation(
+            entity = StudyTable(
+                id=self.id,
+                name=ctx.studytable_name_by_id[self.id],
+                index_names=(ctx.index_column_name_by_rel_name[rn] for rn in sorted(self.index_names)),
+                measure_items=(),
+            )
         )
 
 ### StudyEntities / Creators
@@ -366,6 +389,30 @@ EntityCreator = t.Union[
     InstrumentCreator,
     InstrumentNodeCreator,
     StudyTableCreator,
+]
+
+### Study Mutators
+
+class AddSimpleEntityMutation(ImmutableBaseModel):
+    entity: StudyEntity
+
+class StudyTableAssociation(ImmutableBaseModel):
+    studytable_id: StudyTableId
+    column_info_id: ColumnInfoId
+
+class AddInstrumentNodeMutation(ImmutableBaseModel):
+    instrument_node: InstrumentNode
+    association: t.Optional[StudyTableAssociation]
+
+class AddSourceDataMutation(ImmutableBaseModel):
+    table_id: StudyTableId
+    indices: t.Mapping[ColumnName, t.Tuple[int, ...]]
+    columns: t.Mapping[ColumnName, t.Tuple[t.Any, ...]]
+
+StudyMutation = t.Union[
+    AddSimpleEntityMutation,
+    AddInstrumentNodeMutation,
+    AddSourceDataMutation,
 ]
 
 ### CreationContext

@@ -7,7 +7,7 @@ from ..model import *
 
 default_id_gen = count(0)
 
-def entities_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = default_id_gen):
+def mutations_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = default_id_gen):
     creators = [
         *index_column_creators_from_spec(study_spec.config.indices, id_gen),
         *measure_creators_from_spec(study_spec.measures, id_gen),

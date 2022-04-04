@@ -21,12 +21,6 @@ class CodeMapSpec(ImmutableBaseModel):
         else:
             return [ {'value': i, 'tag': v, 'text': v} for (i, v) in enumerate(input) ]
 
-    def tag_to_value(self):
-        return { pair['tag']: pair['value'] for pair in self.__root__ }
-
-    def value_to_tag(self):
-        return { pair['value']: pair['tag'] for pair in self.__root__ }
-
     ## TODO: Validate uniqueness of pair.*
 
 CodeMapSpec.update_forward_refs()

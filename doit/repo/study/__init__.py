@@ -120,11 +120,17 @@ class StudyRepo(StudyRepoReader):
         self.engine = create_engine(self.url, echo=False)
         Base.metadata.create_all(self.engine)
 
-    def add_entities(self, entities: t.Sequence[StudyEntity]):
+    def mutate(self, mutations: t.Sequence[StudyMutation]):
         session = Session(self.engine)
 
-        for e in entities:
-            session.add(sql_lookup[type(e)](e)) # type: ignore
+        for m in mutations:
+            match m:
+                case AddSimpleEntityMutation():
+                    session.add(sql_lookup[type(m.entity)](m.entity)) # type: ignore
+                case AddInstrumentNodeMutation():
+                    pass
+                case AddSourceDataMutation():
+                    pass
 
         session.commit()
 
