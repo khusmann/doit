@@ -9,7 +9,7 @@ from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
 from .manager.sourcetable import SourceTableRepoManager
 from .remote import fetch_table_listing
-from .domain.value import InstrumentName, RemoteServiceName, SourceColumnName
+from .domain.value import InstrumentName, RemoteServiceName, SourceColumnName, StudyTableName
 from .domain.service import sanitize_table, mutations_from_study_spec, ColumnName
 from .repo.study import StudyRepo
 
@@ -87,8 +87,9 @@ def debug():
 
     study_repo = study_repo.mutate(mutations_from_study_spec(study_spec))
 
-    print(study_repo.query_column_info_by_name(ColumnName("ssis.q01")).dict())
-    print(study_repo.query_measures()[0].json())
+    #print(study_repo.query_column_info(ColumnName("ssis.q01")).dict())
+    #print(study_repo.query_measures()[0].json())
+    print(study_repo.query_studytable(StudyTableName("cid-wave-year")).json())
 
 #    sources = SourceTableRepoManager().load_reader()
 

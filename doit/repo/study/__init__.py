@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, insert, and_
 
 from sqlalchemy.orm import Session, contains_eager
 
@@ -49,9 +49,9 @@ class StudyRepoReader:
     def _query_entity_by_name(
         self,
         name: StudyEntityName,
-        entity_type: t.Type[NamedStudyEntity],
+        entity_type: t.Type[NamedEntityT],
         type_str: t.Optional[str] = None,
-    ) -> NamedStudyEntity:
+    ) -> NamedEntityT:
 
         session = Session(self.engine)
         sql_type = sql_lookup[entity_type]
@@ -65,7 +65,7 @@ class StudyRepoReader:
         if result is None:
             raise Exception("{} not found (name={})".format(type_str or entity_type.__name__, name))
 
-        return parse_obj_as(EntityT, result) # type: ignore
+        return parse_obj_as(NamedEntityT, result) # type: ignore
 
     def _query_roots(self, parent_child: RootEntityT):
         session = Session(self.engine)
@@ -110,8 +110,11 @@ class StudyRepoReader:
             raise Exception("Instrument not found (name={})".format(name))
         return parse_obj_as(Instrument, result)
 
-    def query_column_info_by_name(self, name: ColumnName) -> ColumnInfo:
-        return self._query_entity_by_name(name, ColumnInfo, "ColumnInfo") # type: ignore
+    def query_column_info(self, name: ColumnName) -> ColumnInfo:
+        return self._query_entity_by_name(name, ColumnInfo, "ColumnInfo")
+
+    def query_studytable(self, name: StudyTableName) -> StudyTable:
+        return self._query_entity_by_name(name, StudyTable)
 
 class StudyRepo(StudyRepoReader):
     def __init__(self, path: Path):
@@ -129,7 +132,20 @@ class StudyRepo(StudyRepoReader):
                     session.add(sql_lookup[type(m.entity)](m.entity)) # type: ignore
                 case AddInstrumentNodeMutation():
                     session.add(sql_lookup[type(m.instrument_node)](m.instrument_node)) # type: ignore
-                    print(m.association)                    
+                    if (m.association):
+                        exist = session.execute( # type: ignore
+                            select(TableColumnAssociationSql)
+                                   .where(
+                                       and_(
+                                            TableColumnAssociationSql.c.studytable_id == m.association['studytable_id'],
+                                            TableColumnAssociationSql.c.column_info_node_id == m.association['column_info_node_id'],
+                                       )
+                                   )
+                        ).all()
+                        if not exist:
+                            session.execute( # type: ignore
+                                insert(TableColumnAssociationSql).values(**m.association)
+                            )
                 case AddSourceDataMutation():
                     pass
 

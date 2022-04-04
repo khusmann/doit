@@ -34,7 +34,7 @@ RecodeTransform = t.Mapping[CodeValueTag, t.Optional[CodeValueTag]]
 
 CodeMapId = t.NewType('CodeMapId', int)
 MeasureId = t.NewType("MeasureId", int)
-ColumnInfoId = t.NewType('ColumnInfoId', int)
+ColumnInfoNodeId = t.NewType('ColumnInfoId', int)
 InstrumentId = t.NewType('InstrumentId', int)
 InstrumentNodeId = t.NewType('InstrumentNodeId', int)
 StudyTableId = t.NewType('TableId', int)
@@ -42,7 +42,7 @@ StudyTableId = t.NewType('TableId', int)
 StudyEntityId = t.Union[
     CodeMapId,
     MeasureId,
-    ColumnInfoId,
+    ColumnInfoNodeId,
     InstrumentId,
     InstrumentNodeId,
     StudyTableId,

@@ -79,7 +79,7 @@ def measure_creators_from_spec(
 def measure_node_creators_from_spec(root_measure_id: MeasureId, id_gen: t.Iterator[int] = default_id_gen):
     def impl(
         measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
-        parent_node_id: t.Optional[ColumnInfoId],
+        parent_node_id: t.Optional[ColumnInfoNodeId],
     ) -> t.List[MeasureNodeCreator]:
         
         measure_nodes = [
@@ -180,14 +180,14 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
         case MeasureNodeCreator():
             base = (
                 ColumnName(ctx.measure_name_by_id[m.root_measure_id]) if m.parent_node_id is None
-                else ctx.column_info_name_by_id[m.parent_node_id]
+                else ctx.column_info_node_name_by_id[m.parent_node_id]
             )
-            ctx.column_info_name_by_id |= { m.id: base / m.rel_name }
+            ctx.column_info_node_name_by_id |= { m.id: base / m.rel_name }
 
         case IndexColumnCreator():
             column_name = ColumnName("indices") / m.rel_name
             ctx.index_column_name_by_rel_name |= { m.rel_name: column_name }
-            ctx.column_info_name_by_id |= { m.id: column_name }
+            ctx.column_info_node_name_by_id |= { m.id: column_name }
 
         case CodeMapCreator():
             base = ctx.measure_name_by_id[m.root_measure_id]
@@ -206,7 +206,7 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
         case InstrumentNodeCreator():
             spec = m.spec
             if (spec.type != "group") and (spec.id is not None) and (not spec.id.startswith("indices.")):
-                measure_node_id = ctx.column_info_id_by_name[spec.id]
+                measure_node_id = ctx.column_info_node_id_by_name[spec.id]
                 studytable_id = ctx.studytable_id_by_instrument_id[m.root_instrument_id]
                 existing_val = ctx.studytable_id_by_measure_node_id.get(measure_node_id)
                 if existing_val is not None and existing_val != studytable_id:

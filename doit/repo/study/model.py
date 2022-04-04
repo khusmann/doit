@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     JSON,
     ForeignKey,
+    Table,
 )
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -21,22 +22,20 @@ from sqlalchemy.orm import (
 Base = declarative_base()
 
 class StudyTableSql(Base):
-    __tablename__ = "__tables__"
+    __tablename__ = "__table_info__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
-    index_names = Column(JSON, nullable=False)
     columns = relationship(
         "ColumnInfoNodeSql",
-        backref="parent_table"
+        secondary=lambda: TableColumnAssociationSql,
     )
 
     def __repr__(self):
-        return "Table(name: {}, indices={})".format(self.name, self.indices)
+        return "Table(name: {}, columns={})".format(self.name, self.columns)
 
     def __init__(self, o: StudyTable):
         self.id=o.id
         self.name=o.name
-        self.index_names=o.index_names
 
 class MeasureSql(Base):
     __tablename__ = "__measures__"
@@ -95,7 +94,6 @@ class ColumnInfoNodeSql(Base, DumpableNode):
     name = Column(String, nullable=False, unique=True)
     parent_node_id = Column(Integer, ForeignKey(id))
     root_measure_id = Column(Integer, ForeignKey(MeasureSql.id))
-    studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
     codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
     prompt = Column(String)
     title = Column(String)
@@ -128,10 +126,16 @@ class ColumnInfoNodeSql(Base, DumpableNode):
                 case MeasureItemGroup():
                     pass
                 case OrdinalMeasureItem():
-                    self.studytable_id=o.studytable_id
                     self.codemap_id=o.codemap_id
                 case SimpleMeasureItem():
-                    self.studytable_id=o.studytable_id
+                    pass
+
+TableColumnAssociationSql = Table(
+    "__table_column_association__",
+    Base.metadata,
+    Column('studytable_id', ForeignKey(StudyTableSql.id), primary_key=True),
+    Column('column_info_node_id', ForeignKey(ColumnInfoNodeSql.id), primary_key=True),
+)
 
 class InstrumentSql(Base):
     __tablename__ = "__instruments__"
