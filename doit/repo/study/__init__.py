@@ -128,7 +128,8 @@ class StudyRepo(StudyRepoReader):
                 case AddSimpleEntityMutation():
                     session.add(sql_lookup[type(m.entity)](m.entity)) # type: ignore
                 case AddInstrumentNodeMutation():
-                    pass
+                    session.add(sql_lookup[type(m.instrument_node)](m.instrument_node)) # type: ignore
+                    print(m.association)                    
                 case AddSourceDataMutation():
                     pass
 

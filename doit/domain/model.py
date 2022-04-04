@@ -10,21 +10,18 @@ from .value.common import *
 class CodeMap(ImmutableBaseModelOrm):
     id: CodeMapId
     name: CodeMapName
+    values: t.Tuple[CodeMap.Value, ...]
 
     class Value(t.TypedDict):
         value: CodeValue
         tag: CodeValueTag
         text: str
 
-    values: t.Tuple[CodeMap.Value, ...]
-
     def tag_to_value(self):
         return { v['tag']: v['value'] for v in self.values }
 
     def value_to_tag(self):
         return { v['value']: v['tag'] for v in self.values }
-
-CodeMap.update_forward_refs()
 
 class CodeMapCreator(ImmutableBaseModel):
     id: CodeMapId
@@ -99,8 +96,6 @@ MeasureNode = t.Annotated[
         MeasureItem,
     ], Field(discriminator='type')
 ]
-
-MeasureItemGroup.update_forward_refs()
 
 class MeasureNodeCreator(ImmutableBaseModel):
     id: ColumnInfoId
@@ -256,17 +251,16 @@ InstrumentNode = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-InstrumentItemGroup.update_forward_refs()
-
 class InstrumentNodeCreator(ImmutableBaseModel):
     id: InstrumentNodeId
     parent_node_id: t.Optional[InstrumentNodeId]
     root_instrument_id: InstrumentId
     spec: InstrumentNodeSpec
 
-    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
-        return AddSimpleEntityMutation(
-            entity=self.create_helper(ctx)
+    def create(self, ctx: CreationContext) -> AddInstrumentNodeMutation:
+        return AddInstrumentNodeMutation(
+            instrument_node=self.create_helper(ctx),
+            association=None,
         )
 
     def create_helper(self, ctx: CreationContext) -> InstrumentNode:
@@ -396,13 +390,14 @@ EntityCreator = t.Union[
 class AddSimpleEntityMutation(ImmutableBaseModel):
     entity: StudyEntity
 
-class StudyTableAssociation(ImmutableBaseModel):
-    studytable_id: StudyTableId
-    column_info_id: ColumnInfoId
-
 class AddInstrumentNodeMutation(ImmutableBaseModel):
     instrument_node: InstrumentNode
-    association: t.Optional[StudyTableAssociation]
+    association: t.Optional[AddInstrumentNodeMutation.StudyTableAssociation]
+    
+    class StudyTableAssociation(ImmutableBaseModel):
+        studytable_id: StudyTableId
+        column_info_id: ColumnInfoId
+
 
 class AddSourceDataMutation(ImmutableBaseModel):
     table_id: StudyTableId
@@ -438,3 +433,10 @@ class CreationContext(BaseModel):
     @property
     def column_info_id_by_name(self):
         return { name: id for (id, name) in self.column_info_name_by_id.items() }
+
+
+# Update refs
+CodeMap.update_forward_refs()
+AddInstrumentNodeMutation.update_forward_refs()
+MeasureItemGroup.update_forward_refs()
+InstrumentItemGroup.update_forward_refs()
