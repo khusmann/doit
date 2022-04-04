@@ -90,7 +90,10 @@ def debug():
     #print(study_repo.query_column_info(ColumnName("ssis.q01")).dict())
     #print(study_repo.query_measures()[0].json())
     #print(study_repo.query_studytable(StudyTableName("cid-wave-year")).json())
-    print(study_repo.query_studytables())
+
+    study_repo = study_repo.create_tables()
+
+    print(study_repo)
 
 #    sources = SourceTableRepoManager().load_reader()
 

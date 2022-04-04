@@ -11,6 +11,7 @@ class CodeMap(ImmutableBaseModelOrm):
     id: CodeMapId
     name: CodeMapName
     values: t.Tuple[CodeMap.Value, ...]
+    entity_type: t.Literal['codemap']
 
     class Value(t.TypedDict):
         value: CodeValue
@@ -34,7 +35,8 @@ class CodeMapCreator(ImmutableBaseModel):
             entity=CodeMap(
                 id=self.id,
                 name=ctx.codemap_name_by_id[self.id],
-                values=self.spec.__root__
+                values=self.spec.__root__,
+                entity_type='codemap',
             )
         )
 
@@ -48,7 +50,8 @@ class IndexCodeMapCreator(ImmutableBaseModel):
             entity=CodeMap(
                 id=self.id,
                 name=ctx.codemap_name_by_id[self.id],
-                values=self.spec.__root__
+                values=self.spec.__root__,
+                entity_type='codemap',
             )
         )
 
@@ -58,22 +61,24 @@ class MeasureNodeBase(ImmutableBaseModelOrm):
     name: ColumnName
     parent_node_id: t.Optional[ColumnInfoNodeId]
     root_measure_id: MeasureId
+    entity_type: t.Literal['column_info_node']
 
 class MeasureNodeBaseDict(t.TypedDict): # TODO: This is not needed if pydantic's BaseModel supports field unpacking...
     id: ColumnInfoNodeId
     name: ColumnName
     parent_node_id: t.Optional[ColumnInfoNodeId]
     root_measure_id: MeasureId
+    entity_type: t.Literal['column_info_node']
 
 class OrdinalMeasureItem(MeasureNodeBase):
     codemap_id: CodeMapId
     prompt: str
-    type: t.Literal['ordinal', 'categorical', 'categorical_array']
+    type: OrdinalStudyColumnTypeStr
     codemap: t.Optional[CodeMap]
 
 class SimpleMeasureItem(MeasureNodeBase):
     prompt: str
-    type: t.Literal['text', 'real', 'integer', 'bool']
+    type: SimpleStudyColumnTypeStr
 
 class MeasureItemGroup(MeasureNodeBase):
     prompt: t.Optional[str]
@@ -112,6 +117,7 @@ class MeasureNodeCreator(ImmutableBaseModel):
             name=ctx.column_info_node_name_by_id[self.id],
             parent_node_id=self.parent_node_id,
             root_measure_id=self.root_measure_id,
+            entity_type='column_info_node',
         )
         match self.spec:
             case OrdinalMeasureItemSpec():
@@ -143,6 +149,7 @@ class IndexColumn(ImmutableBaseModelOrm):
     description: t.Optional[str]
     codemap_id: CodeMapId
     type: t.Literal['index']
+    entity_type: t.Literal['column_info_node']
 
 class IndexColumnCreator(ImmutableBaseModel):
     id: ColumnInfoNodeId
@@ -159,6 +166,7 @@ class IndexColumnCreator(ImmutableBaseModel):
                 description=self.spec.description,
                 codemap_id=self.codemap_id,
                 type='index',
+                entity_type='column_info_node',
             )
         )
 
@@ -177,6 +185,7 @@ class Measure(ImmutableBaseModelOrm):
     title: str
     description: t.Optional[str]
     items: t.Tuple[MeasureNode, ...]
+    entity_type: t.Literal['measure']
 
 class MeasureCreator(ImmutableBaseModel):
     id: MeasureId
@@ -191,6 +200,7 @@ class MeasureCreator(ImmutableBaseModel):
                 title=self.spec.title,
                 description=self.spec.description,
                 items=(),
+                entity_type='measure',
             )
         )
 
@@ -200,11 +210,13 @@ class InstrumentNodeBase(ImmutableBaseModelOrm):
     id: InstrumentNodeId
     parent_node_id: t.Optional[InstrumentNodeId]
     root_instrument_id: InstrumentId
+    entity_type: t.Literal['instrument_node']
 
 class InstrumentNodeBaseDict(t.TypedDict):
     id: InstrumentNodeId
     parent_node_id: t.Optional[InstrumentNodeId]
     root_instrument_id: InstrumentId
+    entity_type: t.Literal['instrument_node']
 
 class QuestionInstrumentItem(InstrumentNodeBase):
     column_info_id: t.Optional[ColumnInfoNodeId]
@@ -237,7 +249,7 @@ class InstrumentItemGroup(InstrumentNodeBase):
     type: t.Literal['group']
     prompt: str
     title: str
-    items: t.Tuple[InstrumentNode, ...]
+    items: t.Optional[t.Tuple[InstrumentNode, ...]]
 
 InstrumentNode = t.Annotated[
     t.Union[
@@ -262,6 +274,7 @@ class InstrumentNodeCreator(ImmutableBaseModel):
             id=self.id,
             parent_node_id=self.parent_node_id,
             root_instrument_id=self.root_instrument_id,
+            entity_type='instrument_node',
         )
         match self.spec:
             case QuestionInstrumentItemSpec():
@@ -292,7 +305,6 @@ class InstrumentNodeCreator(ImmutableBaseModel):
                     prompt=self.spec.prompt,
                     title=self.spec.title,
                     type=self.spec.type,
-                    items=(),
                 )
 
 ### Instrument
@@ -303,7 +315,8 @@ class Instrument(ImmutableBaseModelOrm):
     studytable_id: StudyTableId
     title: str
     description: t.Optional[str]
-    items: t.Tuple[InstrumentNode, ...]
+    items: t.Optional[t.Tuple[InstrumentNode, ...]]
+    entity_type: t.Literal['instrument']
 
 class InstrumentCreator(ImmutableBaseModel):
     id: InstrumentId
@@ -311,7 +324,7 @@ class InstrumentCreator(ImmutableBaseModel):
     spec: InstrumentSpec
     studytable_id: StudyTableId
 
-    def create(self, _: CreationContext) -> StudyMutation:
+    def create(self, _: CreationContext) -> AddEntityMutation:
         return AddSimpleEntityMutation(
             entity=Instrument(
                 id=self.id,
@@ -319,7 +332,7 @@ class InstrumentCreator(ImmutableBaseModel):
                 studytable_id=self.studytable_id,
                 title=self.spec.title,
                 description=self.spec.description,
-                items=(),
+                entity_type='instrument',
             )
         )
 
@@ -328,31 +341,35 @@ class InstrumentCreator(ImmutableBaseModel):
 class StudyTable(ImmutableBaseModelOrm):
     id: StudyTableId
     name: StudyTableName
-    columns: t.Tuple[ColumnInfo, ...] = ()
+    columns: t.Optional[t.Tuple[ColumnInfo, ...]]
+    entity_type: t.Literal['studytable']
 
 class StudyTableCreator(ImmutableBaseModel):
     id: StudyTableId
     index_names: t.FrozenSet[RelativeIndexColumnName]
 
-    def create(self, ctx: CreationContext) -> StudyMutation:
+    def create(self, ctx: CreationContext) -> AddEntityMutation:
         return AddStudyTableMutation(
             table=StudyTable(
                 id=self.id,
                 name=ctx.studytable_name_by_id[self.id],
+                entity_type='studytable',
             ),
             column_info_node_ids=ctx.column_info_node_ids_by_studytable_id[self.id],
         )
 
 ### StudyEntities / Creators
 
-StudyEntity = t.Union[
-    CodeMap,
-    Measure,
-    MeasureNode,
-    IndexColumn,
-    Instrument,
-    InstrumentNode,
-    StudyTable,
+StudyEntity = t.Annotated[
+    t.Union[
+        CodeMap,
+        Measure,
+        MeasureNode,
+        IndexColumn,
+        Instrument,
+        InstrumentNode,
+        StudyTable,
+    ], Field(discriminator='entity_type')
 ]
 
 NamedStudyEntity = t.Union[
@@ -391,10 +408,9 @@ class AddSourceDataMutation(ImmutableBaseModel):
     indices: t.Mapping[ColumnName, t.Tuple[int, ...]]
     columns: t.Mapping[ColumnName, t.Tuple[t.Any, ...]]
 
-StudyMutation = t.Union[
+AddEntityMutation = t.Union[
     AddSimpleEntityMutation,
     AddStudyTableMutation,
-    AddSourceDataMutation,
 ]
 
 ### CreationContext

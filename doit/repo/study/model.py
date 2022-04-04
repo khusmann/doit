@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
+    Float,
     JSON,
     ForeignKey,
     Table,
@@ -25,6 +26,7 @@ class StudyTableSql(Base):
     __tablename__ = "__table_info__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
+    entity_type = 'studytable'
     columns = relationship(
         "ColumnInfoNodeSql",
         secondary=lambda: TableColumnAssociationSql,
@@ -43,6 +45,7 @@ class MeasureSql(Base):
     name = Column(String, nullable=False, unique=True)
     title = Column(String)
     description = Column(String)
+    entity_type = 'measure'
     items = relationship(
         "ColumnInfoNodeSql",
         backref="parent_measure",
@@ -60,6 +63,7 @@ class CodeMapSql(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     values = Column(JSON, nullable=False)
+    entity_type = 'codemap'
 
     column_info = relationship(
         "ColumnInfoNodeSql",
@@ -99,6 +103,7 @@ class ColumnInfoNodeSql(Base, DumpableNode):
     title = Column(String)
     description = Column(String)
     type = Column(String, nullable=False)
+    entity_type = 'column_info_node'
     items = relationship(
         "ColumnInfoNodeSql",
         backref=backref("parent_node", remote_side=id),
@@ -145,6 +150,7 @@ class InstrumentSql(Base):
     title = Column(String)
     description = Column(String)
     instructions = Column(String)
+    entity_type = 'instrument'
     items = relationship(
         "InstrumentNodeSql",
         backref="parent_instrument",
@@ -166,6 +172,7 @@ class InstrumentNodeSql(Base, DumpableNode):
     column_info_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
     source_column_name = Column(String)
     type = Column(String, nullable=False)
+    entity_type = 'instrument_node'
     title = Column(String)
     prompt = Column(String)
     value = Column(String)
@@ -218,4 +225,14 @@ sql_lookup: t.Mapping[t.Type[StudyEntity], SqlEntity] = {
     InstrumentItemGroup: InstrumentNodeSql,
     StudyTable: StudyTableSql,
     ColumnInfo: ColumnInfoNodeSql,
+}
+
+sql_column_lookup: t.Mapping[StudyColumnTypeStr, t.Type[t.Any]] = {
+    'ordinal': Integer,
+    'text': String,
+    'index': Integer,
+    'categorical': Integer,
+    'integer': Integer,
+    'real': Float,
+    'bool': Integer,
 }

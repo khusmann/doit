@@ -18,6 +18,15 @@ SourceColumnName = t.NewType('SourceColumnName', str)
 RemoteServiceName = t.Literal['qualtrics']
 SourceFormatType = t.Literal['qualtrics']
 
+### StudyTable Types
+OrdinalStudyColumnTypeStr = t.Literal['ordinal', 'categorical', 'index']
+SimpleStudyColumnTypeStr = t.Literal['text', 'real', 'integer', 'bool']
+
+StudyColumnTypeStr = t.Union[
+    OrdinalStudyColumnTypeStr,
+    SimpleStudyColumnTypeStr,
+]
+
 ### Relative Names (used by specs)
 
 RelativeMeasureNodeName = t.NewType('RelativeMeasureNodeName', str)

@@ -24,8 +24,9 @@ RootEntityT = t.TypeVar(
 class StudyRepoReader:
     def __init__(self, path: Path):
         assert path.exists()
-        self.url = "sqlite:///{}".format(path)
-        self.engine = create_engine(self.url, echo=False)
+        url = "sqlite:///{}".format(path)
+        self.engine = create_engine(url, echo=False)
+        self.datatables_cache: t.Optional[t.Mapping[StudyTableName, Table]] = None
 
     def _query_entity_by_id(
         self,
@@ -131,19 +132,51 @@ class StudyRepoReader:
     def query_studytables(self) -> t.Tuple[StudyTable, ...]:
         return self._query_all_entities(StudyTable)
 
+    @property
+    def _datatables(self) -> t.Mapping[StudyTableName, Table]:
+        # TODO: there's some state dragons in here.
+        # Mutations that change the schema should not be allowed after this is called.
+        if not self.datatables_cache:
+            self.datatables_cache = self._create_datatable_defs()
+        return self.datatables_cache
+
+    def _create_datatable_defs(self):
+        # TODO: Validate studytable info, that is, verify that each measure belongs to no more than ONE studytable
+        study_table_infos = self.query_studytables()
+
+        return {
+            i.name: Table(
+                i.name,
+                Base.metadata,
+                *[Column(c.name, sql_column_lookup[c.type], primary_key=True) for c in i.columns if c.type == 'index'],
+                *[Column(c.name, sql_column_lookup[c.type]) for c in i.columns if c.type != 'index'],
+            ) for i in study_table_infos if i.columns is not None
+        }
+
+
 class StudyRepo(StudyRepoReader):
     def __init__(self, path: Path):
         assert not path.exists()
-        self.url = "sqlite:///{}".format(path)
-        self.engine = create_engine(self.url, echo=False)
+        url = "sqlite:///{}".format(path)
+        self.engine = create_engine(url, echo=False)
+        self.datatables_cache: t.Optional[t.Mapping[StudyTableName, Table]] = None
         Base.metadata.create_all(self.engine)
 
-    def mutate(self, mutations: t.Sequence[StudyMutation]):
+    def create_tables(self):
+        self.datatables_cache = self._create_datatable_defs()
+        Base.metadata.create_all(self.engine)
+        return StudyRepoDataWriter(self)
+
+    def mutate(self, mutations: t.Sequence[AddEntityMutation]):
+        assert(self.datatables_cache is None)
+        
         session = Session(self.engine)
 
         for m in mutations:
             match m:
                 case AddSimpleEntityMutation():
+                    if isinstance(m.entity, Measure):
+                        print((type(m.entity), m.entity.name))
                     session.add(sql_lookup[type(m.entity)](m.entity)) # type: ignore
                 case AddStudyTableMutation():
                     session.add(sql_lookup[type(m.table)](m.table)) # type: ignore
@@ -153,9 +186,15 @@ class StudyRepo(StudyRepoReader):
                             for column_info_node_id in m.column_info_node_ids
                         ]
                     )
-                case AddSourceDataMutation():
-                    pass
 
         session.commit()
 
         return self
+
+class StudyRepoDataWriter(StudyRepoReader):
+    def __init__(self, repo: StudyRepo):
+        self.engine = repo.engine
+        self.datatables_cache = repo.datatables_cache
+
+    def add_source_data(self, mutation: AddSourceDataMutation):
+        pass
