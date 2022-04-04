@@ -204,12 +204,11 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
             ctx.studytable_id_by_instrument_id |= { m.id: m.studytable_id }
 
         case InstrumentNodeCreator():
-            spec = m.spec
-            if (spec.type != "group") and (spec.id is not None) and (not spec.id.startswith("indices.")):
-                measure_node_id = ctx.column_info_node_id_by_name[spec.id]
+            spec = m.spec # Help the type checker resolve this...
+            if spec.type != "group" and spec.id is not None:
+                column_info_node_id = ctx.column_info_node_id_by_name[spec.id]
                 studytable_id = ctx.studytable_id_by_instrument_id[m.root_instrument_id]
-                existing_val = ctx.studytable_id_by_measure_node_id.get(measure_node_id)
-                if existing_val is not None and existing_val != studytable_id:
-                    raise Exception("Error measure items must only belong to one table. (Measure: {})".format(spec.id))
-                ctx.studytable_id_by_measure_node_id |= { measure_node_id: studytable_id }
+                existing_set = ctx.column_info_node_ids_by_studytable_id.get(studytable_id, frozenset())
+                ctx.column_info_node_ids_by_studytable_id |= { studytable_id: existing_set | { column_info_node_id } }
+
     return ctx

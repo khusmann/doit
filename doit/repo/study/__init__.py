@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from sqlalchemy import create_engine, select, insert, and_
+from sqlalchemy import create_engine, select, insert
 
 from sqlalchemy.orm import Session, contains_eager
 
@@ -145,22 +145,14 @@ class StudyRepo(StudyRepoReader):
             match m:
                 case AddSimpleEntityMutation():
                     session.add(sql_lookup[type(m.entity)](m.entity)) # type: ignore
-                case AddInstrumentNodeMutation():
-                    session.add(sql_lookup[type(m.instrument_node)](m.instrument_node)) # type: ignore
-                    if (m.association):
-                        exist = session.execute( # type: ignore
-                            select(TableColumnAssociationSql)
-                                   .where(
-                                       and_(
-                                            TableColumnAssociationSql.c.studytable_id == m.association['studytable_id'],
-                                            TableColumnAssociationSql.c.column_info_node_id == m.association['column_info_node_id'],
-                                       )
-                                   )
-                        ).all()
-                        if not exist:
-                            session.execute( # type: ignore
-                                insert(TableColumnAssociationSql).values(**m.association)
-                            )
+                case AddStudyTableMutation():
+                    session.add(sql_lookup[type(m.table)](m.table)) # type: ignore
+                    session.execute( # type: ignore
+                        insert(TableColumnAssociationSql), [
+                            { 'studytable_id': m.table.id, 'column_info_node_id': column_info_node_id }
+                            for column_info_node_id in m.column_info_node_ids
+                        ]
+                    )
                 case AddSourceDataMutation():
                     pass
 

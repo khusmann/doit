@@ -252,18 +252,10 @@ class InstrumentNodeCreator(ImmutableBaseModel):
     root_instrument_id: InstrumentId
     spec: InstrumentNodeSpec
 
-    def create(self, ctx: CreationContext) -> AddInstrumentNodeMutation:
-        return AddInstrumentNodeMutation(
-            instrument_node=self.create_helper(ctx),
-            association=self.association_helper(ctx),
+    def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
+        return AddSimpleEntityMutation(
+            entity=self.create_helper(ctx),
         )
-
-    def association_helper(self, ctx: CreationContext) -> t.Optional[AddInstrumentNodeMutation.StudyTableAssociation]:
-        spec = self.spec # Create temp local var to help type checker...
-        return AddInstrumentNodeMutation.StudyTableAssociation(
-            studytable_id=ctx.studytable_id_by_instrument_id[self.root_instrument_id],
-            column_info_node_id=ctx.column_info_node_id_by_name[spec.id]
-        ) if not (spec.type == 'group') and (spec.id is not None) else None
 
     def create_helper(self, ctx: CreationContext) -> InstrumentNode:
         base = InstrumentNodeBaseDict(
@@ -343,11 +335,12 @@ class StudyTableCreator(ImmutableBaseModel):
     index_names: t.FrozenSet[RelativeIndexColumnName]
 
     def create(self, ctx: CreationContext) -> StudyMutation:
-        return AddSimpleEntityMutation(
-            entity = StudyTable(
+        return AddStudyTableMutation(
+            table=StudyTable(
                 id=self.id,
                 name=ctx.studytable_name_by_id[self.id],
-            )
+            ),
+            column_info_node_ids=ctx.column_info_node_ids_by_studytable_id[self.id],
         )
 
 ### StudyEntities / Creators
@@ -389,13 +382,9 @@ EntityCreator = t.Union[
 class AddSimpleEntityMutation(ImmutableBaseModel):
     entity: StudyEntity
 
-class AddInstrumentNodeMutation(ImmutableBaseModel):
-    instrument_node: InstrumentNode
-    association: t.Optional[AddInstrumentNodeMutation.StudyTableAssociation]
-    
-    class StudyTableAssociation(t.TypedDict):
-        studytable_id: StudyTableId
-        column_info_node_id: ColumnInfoNodeId
+class AddStudyTableMutation(ImmutableBaseModel):
+    table: StudyTable
+    column_info_node_ids: t.Set[ColumnInfoNodeId]
 
 class AddSourceDataMutation(ImmutableBaseModel):
     table_id: StudyTableId
@@ -404,7 +393,7 @@ class AddSourceDataMutation(ImmutableBaseModel):
 
 StudyMutation = t.Union[
     AddSimpleEntityMutation,
-    AddInstrumentNodeMutation,
+    AddStudyTableMutation,
     AddSourceDataMutation,
 ]
 
@@ -426,7 +415,7 @@ class CreationContext(BaseModel):
     studytable_name_by_id: t.Mapping[StudyTableId, StudyTableName] = {}
     studytable_id_by_instrument_id: t.Mapping[InstrumentId, StudyTableId] = {}
     index_column_name_by_rel_name: t.Mapping[RelativeIndexColumnName, ColumnName] = {}
-    studytable_id_by_measure_node_id: t.Mapping[ColumnInfoNodeId, StudyTableId] = {}
+    column_info_node_ids_by_studytable_id: t.Mapping[StudyTableId, t.FrozenSet[ColumnInfoNodeId]] = {}
 
     @property
     def column_info_node_id_by_name(self):
@@ -435,6 +424,5 @@ class CreationContext(BaseModel):
 
 # Update refs
 CodeMap.update_forward_refs()
-AddInstrumentNodeMutation.update_forward_refs()
 MeasureItemGroup.update_forward_refs()
 InstrumentItemGroup.update_forward_refs()
