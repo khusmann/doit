@@ -6,18 +6,16 @@ from pydantic.generics import GenericModel
 class ImmutableBaseModel(BaseModel):
     class Config:
         allow_mutation=False
-    def __hash__(self):
-        return hash((type(self),) + tuple(self.__dict__.values()))
-
-class ImmutableBaseModelOrm(ImmutableBaseModel):
-    class Config(ImmutableBaseModel.Config):
-        orm_mode = True
+        smart_union = True
 
 class ImmutableGenericModel(GenericModel):
     class Config:
         allow_mutation=False
-    def __hash__(self):
-        return hash((type(self),) + tuple(self.__dict__.values()))
+        smart_union = True
+
+class ImmutableBaseModelOrm(ImmutableBaseModel):
+    class Config(ImmutableBaseModel.Config):
+        orm_mode = True
 
 class Uri(str):
     def as_tuple(self) -> t.Tuple[str, ...]:
