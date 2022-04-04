@@ -107,15 +107,3 @@ class SourceTable(ImmutableBaseModel):
     instrument_id: InstrumentName
     meta: SourceTableMeta
     columns: t.Mapping[SourceColumnName, SourceColumn]
-
-### LinkedTable
-
-class LinkedColumn(ImmutableBaseModel):
-    column_id: SourceColumnName
-    type: SourceColumnTypeStr
-    values: t.Tuple[t.Any, ...]
-
-class LinkedTable(ImmutableBaseModel):
-    instrument_id: InstrumentName
-    table_id: StudyTableName
-    columns: t.Tuple[LinkedColumn, ...]

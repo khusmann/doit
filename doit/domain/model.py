@@ -18,10 +18,10 @@ class CodeMap(ImmutableBaseModelOrm):
         tag: CodeValueTag
         text: str
 
-    def tag_to_value(self):
+    def tag_to_value_map(self):
         return { v['tag']: v['value'] for v in self.values }
 
-    def value_to_tag(self):
+    def value_to_tag_map(self):
         return { v['value']: v['tag'] for v in self.values }
 
 class CodeMapCreator(ImmutableBaseModel):
@@ -150,6 +150,7 @@ class IndexColumn(ImmutableBaseModelOrm):
     codemap_id: CodeMapId
     type: t.Literal['index']
     entity_type: t.Literal['column_info_node']
+    codemap: t.Optional[CodeMap]
 
 class IndexColumnCreator(ImmutableBaseModel):
     id: ColumnInfoNodeId
@@ -315,8 +316,19 @@ class Instrument(ImmutableBaseModelOrm):
     studytable_id: StudyTableId
     title: str
     description: t.Optional[str]
-    items: t.Optional[t.Tuple[InstrumentNode, ...]]
+    items: t.Optional[t.Tuple[InstrumentNode, ...]] # <- TODO: should these be empty instead of optional? Reducing None checks?
     entity_type: t.Literal['instrument']
+
+    def flat_items(self):
+        def impl(nodes: t.Tuple[InstrumentNode, ...]) -> t.Generator[InstrumentItem, None, None]:
+            for n in nodes:
+                if n.type == 'group':
+                    if n.items is not None:
+                        yield from impl(n.items)
+                else:
+                    yield n
+        assert(self.items is not None)
+        return impl(self.items)
 
 class InstrumentCreator(ImmutableBaseModel):
     id: InstrumentId
@@ -404,9 +416,8 @@ class AddStudyTableMutation(ImmutableBaseModel):
     column_info_node_ids: t.Set[ColumnInfoNodeId]
 
 class AddSourceDataMutation(ImmutableBaseModel):
-    table_id: StudyTableId
-    indices: t.Mapping[ColumnName, t.Tuple[int, ...]]
-    columns: t.Mapping[ColumnName, t.Tuple[t.Any, ...]]
+    studytable_id: StudyTableId
+    columns: t.Mapping[ColumnName, t.Iterable[t.Any]]
 
 AddEntityMutation = t.Union[
     AddSimpleEntityMutation,

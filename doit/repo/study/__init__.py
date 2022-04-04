@@ -80,7 +80,7 @@ class StudyRepoReader:
 
         return parse_obj_as(NamedEntityT, result) # type: ignore
 
-    def _query_roots(self, parent_child: RootEntityT):
+    def _query_roots(self, parent_child: RootEntityT, conv_type: t.Type[EntityT]) -> t.Tuple[EntityT, ...]:
         session = Session(self.engine)
         parent, child = parent_child
         result = (
@@ -90,7 +90,7 @@ class StudyRepoReader:
                    .filter(child.parent_node_id == None)
                    .all()
         )
-        return result
+        return parse_obj_as(t.Tuple[EntityT, ...], result)
 
     def _query_root(self, name: str, parent_child: RootEntityT):
         session = Session(self.engine)
@@ -106,10 +106,10 @@ class StudyRepoReader:
         return result or None
 
     def query_measures(self) -> t.Tuple[Measure, ...]:
-        return parse_obj_as(t.Tuple[Measure, ...], self._query_roots((MeasureSql, ColumnInfoNodeSql)))
+        return self._query_roots((MeasureSql, ColumnInfoNodeSql), Measure)
 
     def query_instruments(self) -> t.Tuple[Instrument, ...]:
-        return parse_obj_as(t.Tuple[Instrument, ...], self._query_roots((InstrumentSql, InstrumentNodeSql)))
+        return self._query_roots((InstrumentSql, InstrumentNodeSql), Instrument)
 
     def query_measure(self, name: MeasureName) -> Measure:
         result = self._query_root(name, (MeasureSql, ColumnInfoNodeSql))
@@ -175,8 +175,6 @@ class StudyRepo(StudyRepoReader):
         for m in mutations:
             match m:
                 case AddSimpleEntityMutation():
-                    if isinstance(m.entity, Measure):
-                        print((type(m.entity), m.entity.name))
                     session.add(sql_lookup[type(m.entity)](m.entity)) # type: ignore
                 case AddStudyTableMutation():
                     session.add(sql_lookup[type(m.table)](m.table)) # type: ignore

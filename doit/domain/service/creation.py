@@ -1,6 +1,6 @@
 from __future__ import annotations
 import typing as t
-from itertools import count
+from itertools import count, repeat
 from functools import reduce
 from ..value import *
 from ..model import *
@@ -17,6 +17,34 @@ def mutations_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = d
     context = reduce(creation_context_reducer, creators, CreationContext())
 
     return [ creator.create(context) for creator in creators ]
+
+def link_from_source_column(instrument_item: InstrumentItem, column: SourceColumn) -> t.Iterable[t.Any]:
+    # TODO: if there's a remap here, use it. Later, there may be a need to pull from codemap as well
+    return column.values
+
+def link_to_column_values(source: t.Iterable[t.Any], dest: ColumnInfo) -> t.Iterable[t.Any]:
+    if isinstance(dest, SimpleMeasureItem):
+        return source
+    assert(dest.codemap is not None)
+
+    cm = dest.codemap.tag_to_value_map()
+    # TODO: What to do when a value is not in codemap
+    return (cm.get(i) for i in source)
+
+def link_source_table(instrument: Instrument, source_table: SourceTable) -> AddSourceDataMutation:
+    def link_values(instrument_item: InstrumentItem):
+        assert(instrument_item.column_info is not None)
+        if instrument_item.type == 'constant':
+            source = repeat(instrument_item.value)
+        else:
+            # TODO: Handle situation when source_column_name is not in source_table.columns...
+            source = link_from_source_column(instrument_item, source_table.columns[instrument_item.source_column_name])
+        return link_to_column_values(source, instrument_item.column_info)
+
+    return AddSourceDataMutation(
+        studytable_id=instrument.studytable_id,
+        columns={ i.column_info.name: link_values(i) for i in instrument.flat_items() if i.column_info is not None },
+    )
 
 #### Creators from Spec
 

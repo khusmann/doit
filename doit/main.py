@@ -9,9 +9,9 @@ from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
 from .manager.sourcetable import SourceTableRepoManager
 from .remote import fetch_table_listing
-from .domain.value import InstrumentName, RemoteServiceName, SourceColumnName
-from .domain.service import sanitize_table, mutations_from_study_spec
 from .repo.study import StudyRepo
+
+from .domain.service import *
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -75,28 +75,22 @@ def list_unique(instrument_id: InstrumentName, column_id: SourceColumnName):
 @cli.command()
 def debug():
     """Debug"""
-    #studydb = StudyRepoReader(Path("./build/test.db"))
-    #print(studydb.query_instrument_listing())
-    #print(studydb.query_instrument(InstrumentId('student_behavior-y2w1')))
-    #print(studydb.query_measure_listing())
-    #print(studydb.query_measure(MeasureId('ssis')))
-
     study_repo = StudyRepo(Path("./build/test.db"))
 
     study_spec = StudySpecManager().load_study_spec()
 
     study_repo = study_repo.mutate(mutations_from_study_spec(study_spec))
-
-    #print(study_repo.query_column_info(ColumnName("ssis.q01")).dict())
-    #print(study_repo.query_measures()[0].json())
-    #print(study_repo.query_studytable(StudyTableName("cid-wave-year")).json())
-
     study_repo = study_repo.create_tables()
 
-    print(study_repo)
+    source_table_repo = SourceTableRepoManager().load_reader()
 
-#    sources = SourceTableRepoManager().load_reader()
-
+    instruments = study_repo.query_instruments()
+    for i in instruments:
+        source_table = source_table_repo.query(i.name)
+        data_mutation = link_source_table(i, source_table)
+        print("Table: {}".format(i.name))
+        print(list(data_mutation.columns.keys()))
+        print(list(zip(range(5), *data_mutation.columns.values())))
 #    for (instrument_id, instrument_spec) in study.instruments.items():
 #        source = sources.query(instrument_id)
 #        linked_source = link_table(source, instrument_spec, study.measures) 

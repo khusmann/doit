@@ -85,6 +85,13 @@ class HiddenInstrumentItemSpec(ImmutableBaseModel):
     id: ColumnName
     map: t.Optional[RecodeTransform]
 
+InstrumentItemSpec = t.Annotated[
+    t.Union[
+        QuestionInstrumentItemSpec,
+        ConstantInstrumentItemSpec,
+        HiddenInstrumentItemSpec,
+    ], Field(discriminator='type')
+]
 class InstrumentItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[InstrumentNodeSpec, ...]
@@ -93,9 +100,7 @@ class InstrumentItemGroupSpec(ImmutableBaseModel):
 
 InstrumentNodeSpec = t.Annotated[
     t.Union[
-        QuestionInstrumentItemSpec,
-        ConstantInstrumentItemSpec,
-        HiddenInstrumentItemSpec,
+        InstrumentItemSpec,
         InstrumentItemGroupSpec,
     ], Field(discriminator='type')
 ]
@@ -110,18 +115,19 @@ class InstrumentSpec(ImmutableBaseModel):
     items: t.Tuple[InstrumentNodeSpec, ...]
 
     def flat_items(self):
-        def impl(nodes: t.Tuple[InstrumentNodeSpec, ...]) -> t.Generator[InstrumentNodeSpec, None, None]:
+        def impl(nodes: t.Tuple[InstrumentNodeSpec, ...]) -> t.Generator[InstrumentItemSpec, None, None]:
             for n in nodes:
-                yield n
                 if n.type == 'group':
                     yield from impl(n.items)
+                else:
+                    yield n
         return impl(self.items)
 
     def index_column_names(self):
         return (
             RelativeIndexColumnName(i.id.removeprefix("indices.")) 
                 for i in self.flat_items()
-                    if (i.type != 'group') and (i.id is not None) and i.id.startswith('indices.')
+                    if (i.id is not None) and i.id.startswith('indices.')
         )
 
 class IndexColumnSpec(ImmutableBaseModel):
