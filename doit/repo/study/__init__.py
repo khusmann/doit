@@ -46,6 +46,18 @@ class StudyRepoReader:
 
         return parse_obj_as(EntityT, result) # type: ignore
 
+    def _query_all_entities(
+        self,
+        entity_type: t.Type[EntityT],
+    ) -> t.Tuple[EntityT, ...]:
+
+        session = Session(self.engine)
+        sql_type = sql_lookup[entity_type]
+
+        result = session.query(sql_type).all()
+
+        return parse_obj_as(t.Tuple[EntityT, ...], result)
+
     def _query_entity_by_name(
         self,
         name: StudyEntityName,
@@ -92,11 +104,11 @@ class StudyRepoReader:
         )
         return result or None
 
-    def query_measures(self) -> t.List[Measure]:
-        return parse_obj_as(t.List[Measure], self._query_roots((MeasureSql, ColumnInfoNodeSql)))
+    def query_measures(self) -> t.Tuple[Measure, ...]:
+        return parse_obj_as(t.Tuple[Measure, ...], self._query_roots((MeasureSql, ColumnInfoNodeSql)))
 
-    def query_instruments(self) -> t.List[Instrument]:
-        return parse_obj_as(t.List[Instrument], self._query_roots((InstrumentSql, InstrumentNodeSql)))
+    def query_instruments(self) -> t.Tuple[Instrument, ...]:
+        return parse_obj_as(t.Tuple[Instrument, ...], self._query_roots((InstrumentSql, InstrumentNodeSql)))
 
     def query_measure(self, name: MeasureName) -> Measure:
         result = self._query_root(name, (MeasureSql, ColumnInfoNodeSql))
@@ -115,6 +127,9 @@ class StudyRepoReader:
 
     def query_studytable(self, name: StudyTableName) -> StudyTable:
         return self._query_entity_by_name(name, StudyTable)
+
+    def query_studytables(self) -> t.Tuple[StudyTable, ...]:
+        return self._query_all_entities(StudyTable)
 
 class StudyRepo(StudyRepoReader):
     def __init__(self, path: Path):

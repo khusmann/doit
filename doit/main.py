@@ -9,8 +9,8 @@ from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
 from .manager.sourcetable import SourceTableRepoManager
 from .remote import fetch_table_listing
-from .domain.value import InstrumentName, RemoteServiceName, SourceColumnName, StudyTableName
-from .domain.service import sanitize_table, mutations_from_study_spec, ColumnName
+from .domain.value import InstrumentName, RemoteServiceName, SourceColumnName
+from .domain.service import sanitize_table, mutations_from_study_spec
 from .repo.study import StudyRepo
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
@@ -89,7 +89,8 @@ def debug():
 
     #print(study_repo.query_column_info(ColumnName("ssis.q01")).dict())
     #print(study_repo.query_measures()[0].json())
-    print(study_repo.query_studytable(StudyTableName("cid-wave-year")).json())
+    #print(study_repo.query_studytable(StudyTableName("cid-wave-year")).json())
+    print(study_repo.query_studytables())
 
 #    sources = SourceTableRepoManager().load_reader()
 
