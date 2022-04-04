@@ -26,7 +26,7 @@ class StudyRepoReader:
         assert path.exists()
         url = "sqlite:///{}".format(path)
         self.engine = create_engine(url, echo=False)
-        self.datatables_cache: t.Optional[t.Mapping[StudyTableName, Table]] = None
+        self.datatables_cache: t.Optional[t.Mapping[StudyTableId, Table]] = None
 
     def _query_entity_by_id(
         self,
@@ -133,7 +133,7 @@ class StudyRepoReader:
         return self._query_all_entities(StudyTable)
 
     @property
-    def _datatables(self) -> t.Mapping[StudyTableName, Table]:
+    def datatables(self) -> t.Mapping[StudyTableId, Table]:
         # TODO: there's some state dragons in here.
         # Mutations that change the schema should not be allowed after this is called.
         if not self.datatables_cache:
@@ -145,7 +145,7 @@ class StudyRepoReader:
         study_table_infos = self.query_studytables()
 
         return {
-            i.name: Table(
+            i.id: Table(
                 i.name,
                 Base.metadata,
                 *[Column(c.name, sql_column_lookup[c.type], primary_key=True) for c in i.columns if c.type == 'index'],
@@ -159,7 +159,7 @@ class StudyRepo(StudyRepoReader):
         assert not path.exists()
         url = "sqlite:///{}".format(path)
         self.engine = create_engine(url, echo=False)
-        self.datatables_cache: t.Optional[t.Mapping[StudyTableName, Table]] = None
+        self.datatables_cache: t.Optional[t.Mapping[StudyTableId, Table]] = None
         Base.metadata.create_all(self.engine)
 
     def create_tables(self):
@@ -195,4 +195,12 @@ class StudyRepoDataWriter(StudyRepoReader):
         self.datatables_cache = repo.datatables_cache
 
     def add_source_data(self, mutation: AddSourceDataMutation):
-        pass
+        session = Session(self.engine)
+
+        rowwise = (dict(zip(mutation.columns.keys(), v)) for v in zip(*mutation.columns.values()))
+
+        session.execute(
+            insert(self.datatables[mutation.studytable_id]), list(rowwise)
+        )
+
+        session.commit()

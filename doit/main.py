@@ -85,16 +85,9 @@ def debug():
     source_table_repo = SourceTableRepoManager().load_reader()
 
     instruments = study_repo.query_instruments()
-    for i in instruments:
+    for i in tqdm(instruments):
         source_table = source_table_repo.query(i.name)
-        data_mutation = link_source_table(i, source_table)
-        print("Table: {}".format(i.name))
-        print(list(data_mutation.columns.keys()))
-        print(list(zip(range(5), *data_mutation.columns.values())))
-#    for (instrument_id, instrument_spec) in study.instruments.items():
-#        source = sources.query(instrument_id)
-#        linked_source = link_table(source, instrument_spec, study.measures) 
-#        studydb.add_data(linked_source)
+        study_repo.add_source_data(link_source_table(i, source_table))
 
     
 @source_cli.command(name="fetch")
