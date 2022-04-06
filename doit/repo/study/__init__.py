@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from sqlalchemy import create_engine, select, insert
+from sqlalchemy import create_engine, select, insert, update
 
 from sqlalchemy.orm import Session, contains_eager
 
@@ -189,6 +189,9 @@ class StudyRepo(StudyRepoReader):
 
         return self
 
+def rowwise(m: t.Mapping[ColumnName, t.Iterable[t.Any]]):
+    return (dict(zip(m.keys(), v)) for v in zip(*m.values()))
+
 class StudyRepoDataWriter(StudyRepoReader):
     def __init__(self, repo: StudyRepo):
         self.engine = repo.engine
@@ -197,10 +200,27 @@ class StudyRepoDataWriter(StudyRepoReader):
     def add_source_data(self, mutation: AddSourceDataMutation):
         session = Session(self.engine)
 
-        rowwise = (dict(zip(mutation.columns.keys(), v)) for v in zip(*mutation.columns.values()))
+        rowwise_data = rowwise(mutation.columns)
 
-        session.execute( # type: ignore
-            insert(self.datatables[mutation.studytable_id]), list(rowwise)
-        )
+        curr_table = self.datatables[mutation.studytable_id]
+
+        for row in rowwise_data:
+            index_params = [k == row[k.name] for k in curr_table.primary_key]
+            
+            exists = session.execute( # type:ignore
+                select(curr_table).where(*index_params)
+            ).one_or_none()
+
+            if exists:
+                session.execute( # type:ignore
+                    update(curr_table)
+                        .where(*index_params)
+                        .values(row)
+                )
+            else:
+                session.execute( # type: ignore
+                    insert(curr_table)
+                        .values(row)
+                )
 
         session.commit()
