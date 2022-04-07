@@ -108,23 +108,22 @@ def measure_creators_from_spec(
 
 def measure_node_creators_from_spec(root_measure_id: MeasureId, id_gen: t.Iterator[int] = default_id_gen):
     def impl(
-        measure_node_specs: t.Mapping[RelativeMeasureNodeName, MeasureNodeSpec],
+        measure_node_specs: t.Tuple[MeasureNodeSpec, ...],
         parent_node_id: t.Optional[ColumnInfoNodeId],
     ) -> t.List[MeasureNodeCreator]:
         
         measure_nodes = [
             MeasureNodeCreator(
                 id=next(id_gen),
-                rel_name=rel_name,
                 parent_node_id=parent_node_id,
                 root_measure_id=root_measure_id,
                 spec=spec,
-            ) for rel_name, spec in measure_node_specs.items()
+            ) for spec in measure_node_specs
         ]
 
         child_measure_nodes = sum([
             impl(spec.items, measure_node.id) 
-                for spec, measure_node in zip(measure_node_specs.values(), measure_nodes) if spec.type == 'group'
+                for spec, measure_node in zip(measure_node_specs, measure_nodes) if spec.type == 'group'
         ], [])
 
         return [*measure_nodes, *child_measure_nodes]
@@ -212,7 +211,7 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
                 ColumnName(ctx.measure_name_by_id[m.root_measure_id]) if m.parent_node_id is None
                 else ctx.column_info_node_name_by_id[m.parent_node_id]
             )
-            ctx.column_info_node_name_by_id |= { m.id: base / m.rel_name }
+            ctx.column_info_node_name_by_id |= { m.id: base / m.spec.id }
 
         case IndexColumnCreator():
             column_name = ColumnName("indices") / m.rel_name

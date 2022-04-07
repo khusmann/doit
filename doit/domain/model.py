@@ -104,7 +104,6 @@ MeasureNode = t.Annotated[
 
 class MeasureNodeCreator(ImmutableBaseModel):
     id: ColumnInfoNodeId
-    rel_name: RelativeMeasureNodeName
     parent_node_id: t.Optional[ColumnInfoNodeId]
     root_measure_id: MeasureId
     spec: MeasureNodeSpec

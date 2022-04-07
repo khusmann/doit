@@ -34,18 +34,21 @@ CodeMapSpec.update_forward_refs()
 #    items: t.Tuple[Measure.ItemId]
 
 class OrdinalMeasureItemSpec(ImmutableBaseModel):
+    id: RelativeMeasureNodeName
     prompt: str
     type: t.Literal['ordinal', 'categorical']
     codes: RelativeCodeMapName
 
 class SimpleMeasureItemSpec(ImmutableBaseModel):
+    id: RelativeMeasureNodeName
     prompt: str
     type: t.Literal['text', 'real', 'integer', 'bool']
 
 class MeasureItemGroupSpec(ImmutableBaseModel):
+    id: RelativeMeasureNodeName
     prompt: t.Optional[str]
     type: t.Literal['group']
-    items: t.OrderedDict[RelativeMeasureNodeName, MeasureNodeSpec]
+    items: t.Tuple[MeasureNodeSpec, ...]
 
 MeasureNodeSpec = t.Annotated[
     t.Union[
@@ -61,7 +64,7 @@ class MeasureSpec(ImmutableBaseModel):
     measure_id: MeasureName
     title: str
     description: t.Optional[str]
-    items: t.OrderedDict[RelativeMeasureNodeName, MeasureNodeSpec]
+    items: t.Tuple[MeasureNodeSpec, ...]
     codes: t.Mapping[RelativeCodeMapName, CodeMapSpec]
 
 ### Instrument
