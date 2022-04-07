@@ -24,8 +24,8 @@ RootEntityT = t.TypeVar(
 class StudyRepoReader:
     def __init__(self, path: Path):
         assert path.exists()
-        url = "sqlite:///{}".format(path)
-        self.engine = create_engine(url, echo=False)
+        self.path = path
+        self.engine = create_engine("sqlite:///{}".format(path), echo=False)
         self.datatables_cache: t.Optional[t.Mapping[StudyTableId, Table]] = None
 
     def _query_entity_by_id(
@@ -92,7 +92,7 @@ class StudyRepoReader:
         )
         return parse_obj_as(t.Tuple[EntityT, ...], result)
 
-    def _query_root(self, name: str, parent_child: RootEntityT):
+    def _query_root(self, name: str, parent_child: RootEntityT, conv_type: t.Type[EntityT]) -> EntityT:
         session = Session(self.engine)
         parent, child = parent_child
         result: t.Optional[parent] = (
@@ -103,7 +103,11 @@ class StudyRepoReader:
                    .filter(child.parent_node_id == None)
                    .one_or_none()
         )
-        return result or None
+
+        if result is None:
+            raise Exception("Measure not found (name={})".format(name))
+
+        return parse_obj_as(EntityT, result) # type: ignore
 
     def query_measures(self) -> t.Tuple[Measure, ...]:
         return self._query_roots((MeasureSql, ColumnInfoNodeSql), Measure)
@@ -112,16 +116,10 @@ class StudyRepoReader:
         return self._query_roots((InstrumentSql, InstrumentNodeSql), Instrument)
 
     def query_measure(self, name: MeasureName) -> Measure:
-        result = self._query_root(name, (MeasureSql, ColumnInfoNodeSql))
-        if result is None:
-            raise Exception("Measure not found (name={})".format(name))
-        return parse_obj_as(Measure, result)
+        return self._query_root(name, (MeasureSql, ColumnInfoNodeSql), Measure)
 
     def query_instrument(self, name: InstrumentName) -> Instrument:
-        result = self._query_root(name, (InstrumentSql, InstrumentNodeSql))
-        if result is None:
-            raise Exception("Instrument not found (name={})".format(name))
-        return parse_obj_as(Instrument, result)
+        return self._query_root(name, (InstrumentSql, InstrumentNodeSql), Instrument)
 
     def query_column_info(self, name: ColumnName) -> ColumnInfo:
         return self._query_entity_by_name(name, ColumnInfo, "ColumnInfo")
@@ -157,8 +155,8 @@ class StudyRepoReader:
 class StudyRepo(StudyRepoReader):
     def __init__(self, path: Path):
         assert not path.exists()
-        url = "sqlite:///{}".format(path)
-        self.engine = create_engine(url, echo=False)
+        self.path = path
+        self.engine = create_engine("sqlite:///{}".format(path), echo=False)
         self.datatables_cache: t.Optional[t.Mapping[StudyTableId, Table]] = None
         Base.metadata.create_all(self.engine)
 
@@ -194,6 +192,7 @@ def rowwise(m: t.Mapping[ColumnName, t.Iterable[t.Any]]):
 
 class StudyRepoDataWriter(StudyRepoReader):
     def __init__(self, repo: StudyRepo):
+        self.path = repo.path
         self.engine = repo.engine
         self.datatables_cache = repo.datatables_cache
 
