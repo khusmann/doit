@@ -84,7 +84,7 @@ def link():
     try:
         source_table_repo = SourceTableRepoManager().load_repo_readonly()
     except:
-        click.secho("Warning: Database written, but no source data to link...", fg='bright_red')
+        click.secho("Warning: Database created, but no source data to link...", fg='bright_red')
         print()
         source_table_repo = None
     
