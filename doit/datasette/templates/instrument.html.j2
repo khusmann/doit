@@ -45,8 +45,8 @@
             <tr>
                 <td>{{key}}</td>
                 <td>{{value}}</td>
-                <td>{% if item.column_info.type == 'ordinal' %}{{item.column_info.codemap.tag_to_value_map()[value] }}{% endif %}</td>
-                <td>{% if item.column_info.type == 'ordinal' %}{{item.column_info.codemap.tag_to_text_map()[value] }}{% endif %}</td>
+                <td>{% if item.column_info.codemap %}{{item.column_info.codemap.tag_to_value_map()[value] }}{% endif %}</td>
+                <td>{% if item.column_info.codemap %}{{item.column_info.codemap.tag_to_text_map()[value] }}{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
@@ -55,7 +55,7 @@
     {% endif %}
     {% if item.type == 'group' %}
     <div style="border-style: dashed; border-width: 3px; padding: 1em">
-        <h2>{{item.title}}</h2>
+        {% if item.title %}<h2>{{item.title}}</h2>{% endif %}
         <p>Prompt: {{item.prompt}}</p>
         {{ loop(item.items) }}
     </div>
