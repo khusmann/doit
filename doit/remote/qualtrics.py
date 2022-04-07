@@ -58,8 +58,8 @@ class QualtricsSchema(ImmutableBaseModel):
     title: str
 
 class QualtricsRemoteSettings(BaseSettings):
-    api_key: str
-    data_center: str
+    api_key: t.Optional[str]
+    data_center: t.Optional[str]
     api_url = "https://{data_center}.qualtrics.com/API/v3/{endpoint}"
 
     class Config(BaseSettings.Config):
@@ -72,6 +72,8 @@ class QualtricsRemote(RemoteIoApi):
         return self.settings.api_url.format(data_center=self.settings.data_center, endpoint=endpoint)
 
     def get_headers(self) -> t.Mapping[str, str]:
+        if not self.settings.api_key:
+            raise Exception("Error: QUALTRICS_API_KEY not set. Try making an .env file.")
         return {
             "content-type": "application/json",
             "x-api-token": self.settings.api_key,

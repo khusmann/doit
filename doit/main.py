@@ -79,20 +79,33 @@ def link():
     study_repo = study_repo.mutate(mutations_from_study_spec(study_spec))
     study_repo = study_repo.create_tables()
 
-    source_table_repo = SourceTableRepoManager().load_repo_readonly()
+    click.secho()
 
-    instruments = study_repo.query_instruments()
-    warnings: t.List[str] = []
-    print()
-    for i in tqdm(instruments):
-        try:
-            source_table = source_table_repo.query(i.name)
-            study_repo.add_source_data(link_source_table(i, source_table))
-        except:
-            warnings += ["Warning: instrument '{}' does not exist in source data".format(i.name)]
-    print()
-    for w in warnings:
-        print(w)
+    try:
+        source_table_repo = SourceTableRepoManager().load_repo_readonly()
+    except:
+        click.secho("Warning: Database written, but no source data to link...", fg='bright_red')
+        print()
+        source_table_repo = None
+    
+    if source_table_repo:
+        instruments = study_repo.query_instruments()
+        warnings: t.List[str] = []
+        for i in tqdm(instruments):
+            try:
+                source_table = source_table_repo.query(i.name)
+                study_repo.add_source_data(link_source_table(i, source_table))
+            except:
+                warnings += ["Warning: instrument '{}' does not exist in source data".format(i.name)]
+        click.secho()
+        for w in warnings:
+            click.secho(w, fg='bright_red')
+        click.secho()
+
+    click.secho("Linked database created. View by running:")
+    click.secho()
+    click.secho("datasette {}".format(study_repo.path), fg='bright_cyan')
+    click.secho()
 
 @cli.command()
 def debug():
