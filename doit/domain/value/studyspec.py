@@ -95,8 +95,8 @@ InstrumentItemSpec = t.Annotated[
 class InstrumentItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[InstrumentNodeSpec, ...]
-    prompt: str
-    title: str
+    prompt: t.Optional[str]
+    title: t.Optional[str]
 
 InstrumentNodeSpec = t.Annotated[
     t.Union[
@@ -135,13 +135,13 @@ class IndexColumnSpec(ImmutableBaseModel):
     description: t.Optional[str]
     values: CodeMapSpec
 
-### Study
-class ConfigSpec(ImmutableBaseModel):
-    name: str
+### Config
+class StudyConfigSpec(ImmutableBaseModel):
+    title: str
     description: t.Optional[str]
     indices: t.Mapping[RelativeIndexColumnName, IndexColumnSpec]
 
 class StudySpec(ImmutableBaseModel):
-    config: ConfigSpec
+    config: StudyConfigSpec
     measures: t.Mapping[MeasureName, MeasureSpec]
     instruments: t.Mapping[InstrumentName, InstrumentSpec]

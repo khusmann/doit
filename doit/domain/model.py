@@ -250,8 +250,8 @@ InstrumentItem = t.Annotated[
 
 class InstrumentItemGroup(InstrumentNodeBase):
     type: t.Literal['group']
-    prompt: str
-    title: str
+    prompt: t.Optional[str]
+    title: t.Optional[str]
     items: t.Optional[t.Tuple[InstrumentNode, ...]]
 
 InstrumentNode = t.Annotated[

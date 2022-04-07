@@ -5,11 +5,10 @@ load_dotenv('.env')
 import click
 from tqdm import tqdm
 import yaml
-from pathlib import Path
 from .manager.unsafetable import UnsafeTableManager
 from .manager.sourcetable import SourceTableRepoManager
+from .manager.study import StudyRepoManager
 from .remote import fetch_table_listing
-from .repo.study import StudyRepo
 
 from .domain.service import *
 
@@ -22,14 +21,13 @@ def cli():
 @cli.command()
 def sanitize():
     """Sanitize sources"""
-    unsafe_repo = UnsafeTableManager()
-    safe_repo = SourceTableRepoManager()
-    db_writer = safe_repo.load_writer()
+    unsafe_manager = UnsafeTableManager()
+    safe_repo = SourceTableRepoManager().load_repo()
 
-    for instrument_id in tqdm(unsafe_repo.tables()):
-        unsafe_table = unsafe_repo.load_table(instrument_id)
+    for instrument_id in tqdm(unsafe_manager.tables()):
+        unsafe_table = unsafe_manager.load_table(instrument_id)
         safe_table = sanitize_table(unsafe_table)
-        db_writer.insert(safe_table)
+        safe_repo.insert(safe_table)
 
 @cli.group('source')
 def source_cli():
@@ -67,7 +65,7 @@ def cli_stub_instrument(instrument_id: InstrumentName):
 @click.argument('column_id')
 def list_unique(instrument_id: InstrumentName, column_id: SourceColumnName):
     safe_repo = SourceTableRepoManager()
-    safe_reader = safe_repo.load_reader()
+    safe_reader = safe_repo.load_repo_readonly()
     safe_table = safe_reader.query(instrument_id)
     safe_column = safe_table.columns[column_id]
     print(yaml.dump(list(set(safe_column.values))))
@@ -75,14 +73,13 @@ def list_unique(instrument_id: InstrumentName, column_id: SourceColumnName):
 @cli.command()
 def debug():
     """Debug"""
-    study_repo = StudyRepo(Path("./build/test.db"))
-
+    study_repo = StudyRepoManager().load_repo()
     study_spec = StudySpecManager().load_study_spec()
 
     study_repo = study_repo.mutate(mutations_from_study_spec(study_spec))
     study_repo = study_repo.create_tables()
 
-    source_table_repo = SourceTableRepoManager().load_reader()
+    source_table_repo = SourceTableRepoManager().load_repo_readonly()
 
     instruments = study_repo.query_instruments()
     for i in tqdm(instruments):

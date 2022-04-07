@@ -1,25 +1,19 @@
-from pydantic import BaseSettings
-from pathlib import Path
+from __future__ import annotations
 from time import time
-
+from .settings import ProjectSettings
 from ..repo.sourcetable import SourceTableRepoWriter, SourceTableRepoReader
+from ..domain.value.base import ImmutableBaseModel
 
-class SourceTableRepoManager(BaseSettings):
-    repo_dir = Path("./build/safe/sanitized")
-    database_filename = "peak-sanitized.db"
 
-    def database_path(self):
-        return self.repo_dir / self.database_filename
+class SourceTableRepoManager(ImmutableBaseModel):
+    settings = ProjectSettings()
 
-    class Config(BaseSettings.Config):
-        env_prefix = "safetable_"
+    def load_repo_readonly(self) -> SourceTableRepoReader:
+        return SourceTableRepoReader(self.settings.source_database_path())
 
-    def load_reader(self) -> SourceTableRepoReader:
-        return SourceTableRepoReader(self.database_path())
-
-    def load_writer(self) -> SourceTableRepoWriter:
-        self.repo_dir.mkdir(exist_ok=True, parents=True)
-        oldpath = self.database_path()
+    def load_repo(self) -> SourceTableRepoWriter:
+        self.settings.safe_source_repo_dir.mkdir(exist_ok=True, parents=True)
+        oldpath = self.settings.source_database_path()
         if (oldpath.exists()):
             oldpath.rename(oldpath.with_name(".{}.{}".format(oldpath.name, int(time()))))
-        return SourceTableRepoWriter(self.database_path())
+        return SourceTableRepoWriter(self.settings.source_database_path())
