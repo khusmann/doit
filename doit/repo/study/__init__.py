@@ -88,6 +88,7 @@ class StudyRepoReader:
                    .options(contains_eager(parent.items))
                    .join(child)
                    .filter(child.parent_node_id == None)
+                   .order_by(parent.title)
                    .all()
         )
         return parse_obj_as(t.Tuple[EntityT, ...], result)
