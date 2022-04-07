@@ -9,7 +9,7 @@ class StudyRepoManager(ImmutableBaseModel):
     settings = ProjectSettings()
 
     def load_repo_readonly(self) -> StudyRepoReader:
-        return StudyRepo(self.settings.everything_database_path())
+        return StudyRepoReader(self.settings.everything_database_path())
 
     def load_repo(self) -> StudyRepo:
         self.settings.study_repo_dir.mkdir(exist_ok=True, parents=True)

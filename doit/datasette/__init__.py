@@ -1,6 +1,6 @@
 # type: ignore
 from datasette import hookimpl
-from ..repo.study import StudyRepoReader
+from ..manager.study import StudyRepoManager
 from pathlib import Path
 from datasette.utils.asgi import Response
 import html
@@ -68,5 +68,5 @@ def render_cell(value, column, table, database, datasette):
 @hookimpl
 def startup(datasette):
     async def inner():
-        datasette._doit = StudyRepoReader(Path("./build/test.db"))
+        datasette._doit = StudyRepoManager().load_repo_readonly()
     return inner
