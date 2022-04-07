@@ -71,8 +71,8 @@ def list_unique(instrument_id: InstrumentName, column_id: SourceColumnName):
     print(yaml.dump(list(set(safe_column.values))))
 
 @cli.command()
-def debug():
-    """Debug"""
+def link():
+    """Link study"""
     study_repo = StudyRepoManager().load_repo()
     study_spec = StudySpecManager().load_study_spec()
 
@@ -82,10 +82,22 @@ def debug():
     source_table_repo = SourceTableRepoManager().load_repo_readonly()
 
     instruments = study_repo.query_instruments()
+    warnings: t.List[str] = []
+    print()
     for i in tqdm(instruments):
-        source_table = source_table_repo.query(i.name)
-        study_repo.add_source_data(link_source_table(i, source_table))
+        try:
+            source_table = source_table_repo.query(i.name)
+            study_repo.add_source_data(link_source_table(i, source_table))
+        except:
+            warnings += ["Warning: instrument '{}' does not exist in source data".format(i.name)]
+    print()
+    for w in warnings:
+        print(w)
 
+@cli.command()
+def debug():
+    """Debug"""
+    print("Do debug stuff")
     
 @source_cli.command(name="fetch")
 @click.argument('instrument_id', required=False)
