@@ -23,24 +23,30 @@
 <br>
 {% for item in instrument.items recursive %}
     {% if item.type == 'question' %}
-    <div style="border-style: dashed; border-width: 3px; padding: 1em">
+        {% if item.column_info.name %}
+            <div style="border-style: dashed; border-width: 3px; padding: 1em">
+        {% else %}
+            <div style="border-style: dashed; border-width: 3px; padding: 1em; background-color: lightgray">
+        {% endif %}
         <h2>
-            {{item.prompt}} {% if item.column_info.type == 'index' %}(Index){% endif %}
+            {{item.prompt}}
         </h2>
-        <p>Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
-        <p>Measure type: {{item.column_info.type}}</p>
-        {% if item.column_info.type == 'ordinal' %}
+        <p>Linked Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
+        <p>Linked Measure type: {{item.column_info.type}}</p>
+        {% if item.map %}
         <table>
             <tr>
-                <th>Value</th>
-                <th>Tag</th>
-                <th>Text</th>
+                <th>Source Text</th>
+                <th>Measure Tag</th>
+                <th>Measure Value</th>
+                <th>Measure Text</th>
             </tr>
-            {% for row in item.column_info.codemap.values %}
+            {% for key, value in item.map.items() %}
             <tr>
-                <td>{{row.value}}</td>
-                <td>{{row.tag}}</td>
-                <td>{{row.text}}</td>
+                <td>{{key}}</td>
+                <td>{{value}}</td>
+                <td>{% if item.column_info.type == 'ordinal' %}{{item.column_info.codemap.tag_to_value_map()[value] }}{% endif %}</td>
+                <td>{% if item.column_info.type == 'ordinal' %}{{item.column_info.codemap.tag_to_text_map()[value] }}{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
@@ -49,8 +55,8 @@
     {% endif %}
     {% if item.type == 'group' %}
     <div style="border-style: dashed; border-width: 3px; padding: 1em">
-        <h2>{{item.prompt}}</h2>
-        <p>{{item.id}}</p>
+        <h2>{{item.title}}</h2>
+        <p>Prompt: {{item.prompt}}</p>
         {{ loop(item.items) }}
     </div>
     {% endif %}
