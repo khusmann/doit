@@ -66,7 +66,7 @@ def source_rm(instrument_id: str):
 
 def complete_instrument_name(ctx: click.Context, param: click.Parameter, incomplete: str):
     from .settings import ProjectSettings
-    return [i for i in ProjectSettings().get_unsafe_source_table_names() if i.startswith(incomplete)]
+    return [i for i in ProjectSettings().get_unsafe_table_names() if i.startswith(incomplete)]
 
 @cli.command()
 @click.argument('instrument_id', required=False, shell_complete=complete_instrument_name)
@@ -113,7 +113,7 @@ def sanitize():
 
     click.secho()
     for instrument_id in tqdm(unsafe_manager.tables()):
-        unsafe_table = unsafe_manager.load_table(instrument_id)
+        unsafe_table = unsafe_manager.load_unsafe_table(instrument_id)
         safe_table = sanitize_table(unsafe_table)
         safe_repo.insert(safe_table)
     click.secho()

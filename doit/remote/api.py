@@ -1,7 +1,7 @@
 import typing as t
 from abc import ABC, abstractmethod
 
-from ..domain.value import ImmutableBaseModel, RemoteTableListing, TableFetchInfo
+from ..domain.value import *
 
 from pathlib import Path
 

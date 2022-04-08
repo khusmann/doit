@@ -5,7 +5,6 @@ from sqlalchemy import create_engine, select, insert, update
 from sqlalchemy.orm import Session, contains_eager
 
 from ...domain.value import *
-from ...domain.service import *
 from ...domain.model import *
 
 from .model import *

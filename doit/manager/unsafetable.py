@@ -3,14 +3,7 @@ from urllib.parse import urlparse, ParseResult
 from time import time
 from ..settings import ProjectSettings
 
-from ..domain.value import (
-    ImmutableBaseModel,
-    UnsafeSourceTable,
-    InstrumentName,
-    RemoteTable,
-    TableFileInfo,
-    TableFetchInfo
-)
+from ..domain.value import *
 
 from ..remote import fetch_remote_table
 from ..io import read_unsafe_table_data
@@ -18,38 +11,38 @@ from ..io import read_unsafe_table_data
 class UnsafeTableManager(ImmutableBaseModel):
     settings = ProjectSettings()
 
-    def load_table(self, instrument_id: InstrumentName) -> UnsafeSourceTable:
-        file_info = self.load_file_info(instrument_id)
-        fetch_info = self.load_fetch_info(instrument_id)
+    def load_unsafe_table(self, instrument_name: InstrumentName) -> UnsafeTable:
+        file_info = self.load_file_info(instrument_name)
+        fetch_info = self.load_fetch_info(instrument_name)
         table = read_unsafe_table_data(file_info)
-        return UnsafeSourceTable(
-            instrument_id=instrument_id,
+        return UnsafeTable(
+            instrument_name=instrument_name,
             file_info=file_info,
             fetch_info=fetch_info,
             table=table,
         )
 
-    def load_file_info(self, instrument_id: InstrumentName) -> TableFileInfo:
-        return TableFileInfo.parse_file(self.settings.unsafe_source_fileinfo_file(instrument_id))
+    def load_file_info(self, instrument_name: InstrumentName) -> TableFileInfo:
+        return TableFileInfo.parse_file(self.settings.unsafe_table_fileinfo_file(instrument_name))
 
     def load_fetch_info(self, instrument_id: InstrumentName) -> TableFetchInfo:
-        return TableFetchInfo.parse_file(self.settings.unsafe_source_fetchinfo_file(instrument_id))
+        return TableFetchInfo.parse_file(self.settings.unsafe_table_fetchinfo_file(instrument_id))
 
     def fetch(
         self,
-        instrument_id: InstrumentName,
+        instrument_name: InstrumentName,
         progress_callback: t.Callable[[int], None] = lambda _: None,
-    ) -> UnsafeSourceTable:
-        file_info = self.load_file_info(instrument_id)
+    ) -> UnsafeTable:
+        file_info = self.load_file_info(instrument_name)
         fetch_info = fetch_remote_table(file_info, progress_callback)
 
-        with open(self.settings.unsafe_source_fetchinfo_file(instrument_id), 'w') as f:
+        with open(self.settings.unsafe_table_fetchinfo_file(instrument_name), 'w') as f:
             f.write(fetch_info.json())
 
-        return self.load_table(instrument_id)
+        return self.load_unsafe_table(instrument_name)
 
     def add(self, instrument_id: InstrumentName, uri: str) -> None:
-        self.settings.unsafe_source_workdir(instrument_id).mkdir(exist_ok=True, parents=True)
+        self.settings.unsafe_table_workdir(instrument_id).mkdir(exist_ok=True, parents=True)
         match urlparse(uri):
             case ParseResult(scheme="qualtrics", netloc=remote_id):
                 file_info =  TableFileInfo(
@@ -58,19 +51,19 @@ class UnsafeTableManager(ImmutableBaseModel):
                         id=remote_id,
                     ),
                     format="qualtrics",
-                    data_path=self.settings.unsafe_source_workdir(instrument_id) / "qualtrics-data.json",
-                    schema_path=self.settings.unsafe_source_workdir(instrument_id) / "qualtrics-schema.json",
+                    data_path=self.settings.unsafe_table_workdir(instrument_id) / "qualtrics-data.json",
+                    schema_path=self.settings.unsafe_table_workdir(instrument_id) / "qualtrics-schema.json",
                 )
             case _:
                 raise Exception("Unrecognized uri: {}".format(uri))
 
-        with open(self.settings.unsafe_source_fileinfo_file(instrument_id), 'w') as f:
+        with open(self.settings.unsafe_table_fileinfo_file(instrument_id), 'w') as f:
             f.write(file_info.json())
 
     def rm(self, instrument_id: InstrumentName) -> None:
-        oldfile = self.settings.unsafe_source_workdir(instrument_id)
+        oldfile = self.settings.unsafe_table_workdir(instrument_id)
         newfile = oldfile.with_name(".{}.{}".format(oldfile.name, int(time())))
         oldfile.rename(newfile)
 
     def tables(self) -> t.List[InstrumentName]:
-        return [InstrumentName(i) for i in self.settings.get_unsafe_source_table_names()]
+        return [InstrumentName(i) for i in self.settings.get_unsafe_table_names()]

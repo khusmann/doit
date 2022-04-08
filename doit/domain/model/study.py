@@ -2,8 +2,7 @@ from __future__ import annotations
 import typing as t
 from pydantic import Field
 
-from .value.studyspec import *
-from .value.common import *
+from ..value import *
 
 ### CodeMap TODO: Elevate this somehow so DRY with CodeMapSpec
 

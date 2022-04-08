@@ -3,7 +3,7 @@ import typing as t
 
 from pathlib import Path
 
-from ..domain.value.table import TableFetchInfo
+from ..domain.value.unsafetable import TableFetchInfo
 from datetime import datetime
 
 import requests

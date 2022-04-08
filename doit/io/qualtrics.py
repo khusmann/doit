@@ -75,7 +75,7 @@ class QualtricsData(ImmutableBaseModel):
 ## Functions
 def extract_responseId(rows: t.List[QualtricsDataRow]) -> ColumnImport:
     return ColumnImport(
-        column_id = "responseId",
+        source_column_name = "responseId",
         prompt = "Qualtrics Response ID",
         type = "safe_text",
         values = [row.responseId for row in rows]
@@ -86,7 +86,7 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
     list_data = [i for i in raw_data if i is None or isinstance(i, t.List)]
     str_data = [i for i in raw_data if i is None or isinstance(i, str)]
 
-    column_id = schema.exportTag if schema.dataType == 'question' else  "qualtrics_" + row_key
+    column_name = schema.exportTag if schema.dataType == 'question' else  "qualtrics_" + row_key
 
     if schema.type == 'array':
         assert list_data == raw_data
@@ -94,7 +94,7 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
         mapping = { i.const: i.label for i in schema.items.oneOf }
         return [
             ColumnImport(
-                column_id = "{}_{}".format(column_id, i),
+                source_column_name = "{}_{}".format(column_name, i),
                 prompt = "{} {}".format(schema.description, opt.label),
                 type = 'safe_bool',
                 values = (None if i is None else opt.const in i for i in list_data),
@@ -117,7 +117,7 @@ def extract_column(rows: t.List[QualtricsDataRow], row_key: str, schema: Qualtri
             values = str_data
 
     return [ColumnImport(
-        column_id = column_id,
+        source_column_name = column_name,
         prompt = schema.description,
         type = column_type,
         values = values,
@@ -145,10 +145,10 @@ def extract_table_data(qs: QualtricsSchema, data: QualtricsData) -> TableImport:
         sum([
             extract_column(data.responses, row_key, schema) for (row_key, schema) in valid_columns.items()
         ], []),
-        key=lambda i: i.column_id
+        key=lambda i: i.source_column_name
     )
 
     return TableImport(
         title=qs.title,
-        columns={ column.column_id: column for column in (extract_responseId(data.responses), *data_extracted) }
+        columns={ column.source_column_name: column for column in (extract_responseId(data.responses), *data_extracted) }
     )

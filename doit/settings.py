@@ -18,16 +18,16 @@ class ProjectSettings(BaseSettings):
     # UnsafeTableManager
     unsafe_source_repo_dir = Path("./build/unsafe/sources")
 
-    def unsafe_source_workdir(self, instrument_id: str) -> Path:
+    def unsafe_table_workdir(self, instrument_id: str) -> Path:
         return self.unsafe_source_repo_dir / instrument_id
 
-    def unsafe_source_fileinfo_file(self, instrument_id: str) -> Path:
-        return (self.unsafe_source_workdir(instrument_id) / instrument_id).with_suffix(".json")
+    def unsafe_table_fileinfo_file(self, instrument_id: str) -> Path:
+        return (self.unsafe_table_workdir(instrument_id) / instrument_id).with_suffix(".json")
 
-    def unsafe_source_fetchinfo_file(self, instrument_id: str) -> Path:
-        return (self.unsafe_source_workdir(instrument_id) / instrument_id).with_suffix(".fetch.json")
+    def unsafe_table_fetchinfo_file(self, instrument_id: str) -> Path:
+        return (self.unsafe_table_workdir(instrument_id) / instrument_id).with_suffix(".fetch.json")
 
-    def get_unsafe_source_table_names(self) -> t.List[str]:
+    def get_unsafe_table_names(self) -> t.List[str]:
         return [ i.name for i in self.unsafe_source_repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
 
     # SourceTableManager

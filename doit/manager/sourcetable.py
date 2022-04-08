@@ -2,7 +2,7 @@ from __future__ import annotations
 from time import time
 from ..settings import ProjectSettings
 from ..repo.sourcetable import SourceTableRepoWriter, SourceTableRepoReader
-from ..domain.value.base import ImmutableBaseModel
+from ..domain.value import *
 
 
 class SourceTableRepoManager(ImmutableBaseModel):
