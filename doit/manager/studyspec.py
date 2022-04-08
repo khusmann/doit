@@ -26,23 +26,15 @@ class StudySpecManager(ImmutableBaseModel):
 
     def load_config_spec(self) -> StudyConfigSpec:
         with open(self.settings.config_file, 'r') as f:
-            return StudyConfigSpec.parse_obj(
-                yaml.safe_load(f)
-            )
+            return StudyConfigSpec.parse_obj(yaml.safe_load(f))
 
     def load_instrument_spec(self, instrument_id: InstrumentName) -> InstrumentSpec:
         with open(self.settings.instrument_file(instrument_id), 'r') as f:
-            return InstrumentSpec.parse_obj({
-                "instrument_id": instrument_id,
-                **yaml.safe_load(f)
-            })
+            return InstrumentSpec.parse_obj(yaml.safe_load(f))
 
     def load_measure_spec(self, measure_id: MeasureName) -> MeasureSpec:
         with open(self.settings.measure_file(measure_id), 'r') as f:
-            return MeasureSpec.parse_obj({
-                "measure_id": measure_id,
-                **yaml.safe_load(f)
-            })
+            return MeasureSpec.parse_obj(yaml.safe_load(f))
 
     def save_instrument_spec(self, instrument_id: InstrumentName, instrument_spec: InstrumentSpec):
         file = self.settings.instrument_file(instrument_id)

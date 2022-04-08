@@ -61,7 +61,6 @@ MeasureNodeSpec = t.Annotated[
 MeasureItemGroupSpec.update_forward_refs()
 
 class MeasureSpec(ImmutableBaseModel):
-    measure_id: MeasureName
     title: str
     description: t.Optional[str]
     items: t.Tuple[MeasureNodeSpec, ...]
@@ -111,7 +110,6 @@ InstrumentNodeSpec = t.Annotated[
 InstrumentItemGroupSpec.update_forward_refs()
 
 class InstrumentSpec(ImmutableBaseModel):
-    instrument_id: InstrumentName
     title: str
     description: t.Optional[str]
     instructions: t.Optional[str]

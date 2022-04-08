@@ -21,20 +21,6 @@ def cli():
     """root doit-src description -- talk about what this thing does"""
     pass
 
-@cli.command()
-def sanitize():
-    """Sanitize sources"""
-    from .manager import UnsafeTableManager, SourceTableRepoManager
-    from .domain.service import sanitize_table
-
-    unsafe_manager = UnsafeTableManager()
-    safe_repo = SourceTableRepoManager().load_repo()
-
-    for instrument_id in tqdm(unsafe_manager.tables()):
-        unsafe_table = unsafe_manager.load_table(instrument_id)
-        safe_table = sanitize_table(unsafe_table)
-        safe_repo.insert(safe_table)
-
 @cli.command(name="add")
 @click.argument('instrument_id')
 @click.argument('uri')
@@ -114,6 +100,22 @@ def source_list(remote_service: str | None):
     else:
         for desc in fetch_table_listing(RemoteServiceName(remote_service)):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))
+    click.secho()
+
+@cli.command()
+def sanitize():
+    """Sanitize sources"""
+    from .manager import UnsafeTableManager, SourceTableRepoManager
+    from .domain.service import sanitize_table
+
+    unsafe_manager = UnsafeTableManager()
+    safe_repo = SourceTableRepoManager().load_repo()
+
+    click.secho()
+    for instrument_id in tqdm(unsafe_manager.tables()):
+        unsafe_table = unsafe_manager.load_table(instrument_id)
+        safe_table = sanitize_table(unsafe_table)
+        safe_repo.insert(safe_table)
     click.secho()
 
 @cli.command()

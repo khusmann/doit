@@ -63,7 +63,6 @@ def stub_instrument_item(column_id: SourceColumnName, column: ColumnImport) -> I
 
 def stub_instrument_spec(table: UnsafeSourceTable) -> InstrumentSpec:
     return InstrumentSpec(
-        instrument_id=table.instrument_id,
         title=table.table.title,
         description="description",
         instructions="instructions",
