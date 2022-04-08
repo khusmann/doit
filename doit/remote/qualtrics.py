@@ -3,7 +3,7 @@ import typing as t
 
 from pathlib import Path
 
-from ..domain.value.unsafetable import TableFetchInfo
+from ..domain.value.unsafetable import TableFetchInfo, RemoteServiceName
 from datetime import datetime
 
 import requests
@@ -110,7 +110,7 @@ class QualtricsRemote(RemoteIoApi):
         schema = QualtricsSchema.parse_file(schema_path)
 
         return TableFetchInfo(
-            service = 'qualtrics',
+            service = RemoteServiceName('qualtrics'),
             last_update_check = datetime.now(),
             last_updated = datetime.now(),
             title = schema.title,

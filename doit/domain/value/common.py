@@ -1,13 +1,5 @@
 from __future__ import annotations
 import typing as t
-
-from pydantic import (
-    StrictStr,
-    StrictInt,
-    StrictBool,
-    StrictFloat,
-)
-
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
 
@@ -55,11 +47,14 @@ class Uri(str):
 ### Source Table Types (TODO: Clean these up)
 
 SourceColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
-SourceColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
 SourceColumnName = t.NewType('SourceColumnName', str)
 
 RemoteServiceName = t.NewType('RemoveServiceName', str)
 SourceFormatType = t.Literal['qualtrics']
+
+### Source Table Entity Ids
+SourceTableInfoId = t.NewType("SourceTableId", int)
+SourceColumnInfoId = t.NewType("SourceColumnInfoId", int)
 
 ### StudyTable Types
 
@@ -83,7 +78,7 @@ CodeValue = t.NewType('CodeValue', int)
 CodeValueTag = t.NewType('CodeValueTag', str)
 RecodeTransform = t.Mapping[str, t.Optional[str]]
 
-### Entity Ids
+### Study Entity Ids
 
 CodeMapId = t.NewType('CodeMapId', int)
 MeasureId = t.NewType("MeasureId", int)

@@ -6,10 +6,10 @@ from pydantic import Field
 from pathlib import Path
 
 from .api import UnsafeTableIoApi
-from ..domain.value import ImmutableBaseModel, TableImport, ColumnImport
+from ..domain.value import ImmutableBaseModel, ColumnImport
 
 class QualtricsUnsafeTableIo(UnsafeTableIoApi):
-    def read_unsafe_table_data(self, data_path: Path, schema_path: Path) -> TableImport:
+    def read_unsafe_table_data(self, data_path: Path, schema_path: Path) -> t.Tuple[ColumnImport, ...]:
         qs = QualtricsSchema.parse_file(schema_path)
         data = QualtricsData.parse_file(data_path)
         return extract_table_data(qs, data)
@@ -135,7 +135,7 @@ IGNORE_ITEMS = [
     ".*_DO",
 ]
 
-def extract_table_data(qs: QualtricsSchema, data: QualtricsData) -> TableImport:
+def extract_table_data(qs: QualtricsSchema, data: QualtricsData) -> t.Tuple[ColumnImport, ...]:
     valid_columns = {
         key: value for (key, value) in qs.properties.values.properties.items()
         if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
@@ -148,7 +148,4 @@ def extract_table_data(qs: QualtricsSchema, data: QualtricsData) -> TableImport:
         key=lambda i: i.source_column_name
     )
 
-    return TableImport(
-        title=qs.title,
-        columns={ column.source_column_name: column for column in (extract_responseId(data.responses), *data_extracted) }
-    )
+    return (extract_responseId(data.responses), *data_extracted)

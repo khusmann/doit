@@ -7,7 +7,7 @@ from ..model import *
 
 default_id_gen = count(0)
 
-def mutations_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = default_id_gen):
+def mutations_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = default_id_gen): # table_info: SourceTableInfo
     creators = [
         *index_column_creators_from_spec(study_spec.config.indices, id_gen),
         *measure_creators_from_spec(study_spec.measures, id_gen),
@@ -18,7 +18,7 @@ def mutations_from_study_spec(study_spec: StudySpec, id_gen: t.Iterator[int] = d
 
     return [ creator.create(context) for creator in creators ]
 
-def link_from_source_column(instrument_item: QuestionInstrumentItem | HiddenInstrumentItem, column: SourceColumn) -> t.Iterable[t.Any]:
+def link_from_source_column(instrument_item: QuestionInstrumentItem | HiddenInstrumentItem, column: SourceColumnData) -> t.Iterable[t.Any]:
     if instrument_item.map is None:
         return column.values
     else:
@@ -40,7 +40,7 @@ def link_source_table(instrument: Instrument, source_table: SourceTable) -> AddS
             source = repeat(instrument_item.value)
         else:
             # TODO: Handle situation when source_column_name is not in source_table.columns...
-            source = link_from_source_column(instrument_item, source_table.columns[instrument_item.source_column_name])
+            source = link_from_source_column(instrument_item, source_table.data[instrument_item.source_column_name])
         return link_to_column_values(source, instrument_item.column_info)
 
     return AddSourceDataMutation(

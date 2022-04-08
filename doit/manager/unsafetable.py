@@ -1,10 +1,9 @@
 import typing as t
 from urllib.parse import urlparse, ParseResult
 from time import time
-from ..settings import ProjectSettings
 
 from ..domain.value import *
-
+from ..settings import ProjectSettings
 from ..remote import fetch_remote_table
 from ..io import read_unsafe_table_data
 
@@ -14,12 +13,12 @@ class UnsafeTableManager(ImmutableBaseModel):
     def load_unsafe_table(self, instrument_name: InstrumentName) -> UnsafeTable:
         file_info = self.load_file_info(instrument_name)
         fetch_info = self.load_fetch_info(instrument_name)
-        table = read_unsafe_table_data(file_info)
+        columns = read_unsafe_table_data(file_info)
         return UnsafeTable(
             instrument_name=instrument_name,
             file_info=file_info,
             fetch_info=fetch_info,
-            table=table,
+            columns=columns,
         )
 
     def load_file_info(self, instrument_name: InstrumentName) -> TableFileInfo:

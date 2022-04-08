@@ -17,18 +17,6 @@ class RemoteTable(ImmutableBaseModel):
     def uri(self) -> str:
         return "{}://{}".format(self.service, self.id)
 
-### TableImport
-
-class ColumnImport(ImmutableBaseModel):
-    type: t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
-    source_column_name: SourceColumnName
-    prompt: str
-    values: t.Tuple[t.Any, ...]
-
-class TableImport(ImmutableBaseModel):
-    title: str
-    columns: t.Mapping[SourceColumnName, ColumnImport]
-
 ### UnsafeTable
 
 class TableFetchInfo(ImmutableBaseModel):
@@ -44,8 +32,14 @@ class TableFileInfo(ImmutableBaseModel):
     data_path: Path
     schema_path: Path
 
+class ColumnImport(ImmutableBaseModel):
+    type: t.Literal['safe_bool', 'unsafe_numeric_text', 'safe_text', 'safe_ordinal', 'unsafe_text']
+    source_column_name: SourceColumnName
+    prompt: str
+    values: t.Tuple[t.Any, ...]
+
 class UnsafeTable(ImmutableBaseModel):
     instrument_name: InstrumentName
     fetch_info: TableFetchInfo
     file_info: TableFileInfo
-    table: TableImport
+    columns: t.Tuple[ColumnImport, ...]

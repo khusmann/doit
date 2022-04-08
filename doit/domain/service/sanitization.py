@@ -1,12 +1,11 @@
 import typing as t
-from itertools import starmap
 from ..value import *
 from ..model import *
 
 def is_integer_text_column(values: t.Sequence[str | None]):
     return all([i.lstrip('-+').isdigit() for i in values if i is not None])
 
-def sanitize_column(column: ColumnImport) -> SourceColumn:
+def sanitize_column_data(column: ColumnImport) -> SourceColumnData:
     match column.type:
         case 'safe_bool':
             (column_type, values) = ('bool', column.values)
@@ -27,45 +26,47 @@ def sanitize_column(column: ColumnImport) -> SourceColumn:
             column_type='real'
             values=[None if i is None else float(i) for i in column.values],
             
-    return new_source_column(
+    return SourceColumnData(
         source_column_name=column.source_column_name,
-        meta=SourceColumnInfo(
-            source_column_name=column.source_column_name,
-            prompt=column.prompt,
-            type=column_type,
-            sanitizer_meta="TODO"
-        ),
-        column_type=column_type,
-        values=values
+        type=column_type,
+        values=values,
     )
 
-def sanitize_table(table: UnsafeTable) -> SourceTable:
-    safe_columns = { column_id: sanitize_column(column) for (column_id, column) in table.table.columns.items() }
-    column_meta = { column_id: column.meta for (column_id, column) in safe_columns.items() }
+def sanitize_table(table: UnsafeTable) -> SourceTable: # sanitizers: t.Mapping[SourceColumnName, ColumnSanitizer]
+    data_columns = tuple(sanitize_column_data(column) for column in table.columns)
+
+    column_info = {
+        column.source_column_name: SourceColumnInfo(
+            source_column_name=column.source_column_name,
+            type=data_column.type,
+            prompt=column.prompt,
+            sanitizer_meta="TODO",
+        ) for column, data_column in zip(table.columns, data_columns) 
+    }
 
     return SourceTable(
         instrument_name=table.instrument_name,
-        columns=safe_columns,
-        meta=SourceTableInfo(
+        info=SourceTableInfo(
             instrument_name=table.instrument_name,
-            source_info=table.fetch_info,
-            columns=column_meta,
+            source_info="TODO",
+            columns=column_info,
         ),
+        data={ data_column.source_column_name: data_column for data_column in data_columns},
     )
 
-def stub_instrument_item(column_name: SourceColumnName, column: ColumnImport) -> InstrumentNodeSpec:
+def stub_instrument_item(column: ColumnImport) -> InstrumentNodeSpec:
     return QuestionInstrumentItemSpec(
         type='question',
-        remote_id=column_name,
+        remote_id=column.source_column_name,
         prompt=column.prompt,
         map={ i: None for i in column.values if i is not None } if column.type=='safe_ordinal' else None,
     )
 
 def stub_instrument_spec(table: UnsafeTable) -> InstrumentSpec:
     return InstrumentSpec(
-        title=table.table.title,
+        title=table.fetch_info.title,
         description="description",
         instructions="instructions",
-        items=list(starmap(stub_instrument_item, table.table.columns.items()))
+        items=(stub_instrument_item(column) for column in table.columns)
     )
 
