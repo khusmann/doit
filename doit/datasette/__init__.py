@@ -64,27 +64,22 @@ async def render_measure_listing(scope, receive, datasette, request):
         )
     )
 
-cached_column_codemaps = {}
+@cache
+def get_codemap(column, table, database, datasette):
+    try:
+        info = datasette._doit.query_column_info(column)
+        if isinstance(info, OrdinalMeasureItem) or isinstance(info, IndexColumn):
+            return info.codemap.value_to_text_map()
+        elif isinstance(info, SimpleMeasureItem) and info.type == 'bool':
+            return { 0: 'false', 1: 'true' }
+        else:
+            return {}
+    except:
+        return {}
 
 @hookimpl
 def render_cell(value, column, table, database, datasette):
-    key = (database, table, column)
-
-    codemap = cached_column_codemaps.get(key)
-
-    if codemap is None:
-        try:
-            info = datasette._doit.query_column_info(column)
-            if isinstance(info, OrdinalMeasureItem) or isinstance(info, IndexColumn):
-                codemap = info.codemap.value_to_text_map()
-            elif isinstance(info, SimpleMeasureItem) and info.type == 'bool':
-                codemap = { 0: 'false', 1: 'true' }
-            else:
-                codemap = {}
-        except:
-            codemap = {}
-        cached_column_codemaps[key] = codemap
-
+    codemap = get_codemap(column, table, database, datasette)
     if codemap and value is not None:
         return markupsafe.Markup("{} <em>{}</em>".format(codemap.get(value), value))
     else:
