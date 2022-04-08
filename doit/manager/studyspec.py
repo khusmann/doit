@@ -1,5 +1,5 @@
 import typing as t
-#from time import time
+from time import time
 from .settings import ProjectSettings
 import yaml
 from ..domain.value import (
@@ -44,16 +44,15 @@ class StudySpecManager(ImmutableBaseModel):
                 **yaml.safe_load(f)
             })
 
-#    def save_instrument(self, instrument: Instrument):
-#        file = self.instrument_file(instrument.instrument_id)
-#
-#        if file.exists():
-#            newfile = file.with_name("{}.{}".format(file.name, int(time())))
-#            file.rename(newfile)
-#
-#
-#        with open(file, 'w') as f:
-#            yaml.dump(instrument.dict(exclude={'instrument_id'}), f)
+    def save_instrument_spec(self, instrument_id: InstrumentName, instrument_spec: InstrumentSpec):
+        file = self.settings.instrument_file(instrument_id)
+
+        if file.exists():
+            newfile = file.with_name("{}.{}".format(file.name, int(time())))
+            file.rename(newfile)
+
+        with open(file, 'w') as f:
+            yaml.dump(instrument_spec.dict(), f)
 
     @property
     def instruments(self) -> t.Sequence[InstrumentName]:

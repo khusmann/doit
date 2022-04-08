@@ -52,21 +52,21 @@ def sanitize_table(table: UnsafeSourceTable) -> SourceTable:
         ),
     )
 
-def stub_instrument_item(column_id: SourceColumnName, column: SourceColumn) -> InstrumentNodeSpec:
+def stub_instrument_item(column_id: SourceColumnName, column: ColumnImport) -> InstrumentNodeSpec:
     return QuestionInstrumentItemSpec(
         type='question',
         remote_id=column_id,
         measure_id=None,
-        prompt=column.meta.prompt,
-        map={ i: None for i in column.values if i is not None } if column.type=='ordinal' else None,
+        prompt=column.prompt,
+        map={ i: None for i in column.values if i is not None } if column.type=='safe_ordinal' else None,
     )
 
-def stub_instrument(table: SourceTable) -> InstrumentSpec:
+def stub_instrument_spec(table: UnsafeSourceTable) -> InstrumentSpec:
     return InstrumentSpec(
         instrument_id=table.instrument_id,
-        title=table.meta.source_info.title,
+        title=table.table.title,
         description="description",
         instructions="instructions",
-        items=list(starmap(stub_instrument_item, table.columns.items()))
+        items=list(starmap(stub_instrument_item, table.table.columns.items()))
     )
 

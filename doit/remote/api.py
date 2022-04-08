@@ -5,9 +5,18 @@ from ..domain.value import ImmutableBaseModel, RemoteTableListing, TableFetchInf
 
 from pathlib import Path
 
+class Progressable(t.Protocol):
+    def update(self, n: int) -> None: ...
+    def close(self) -> None: ...
+
 class RemoteIoApi(ImmutableBaseModel, ABC):
     @abstractmethod
-    def fetch_remote_table(self, remote_id: str, data_path: Path, schema_path: Path) -> TableFetchInfo:
+    def fetch_remote_table(self,
+        remote_id: str,
+        data_path: Path,
+        schema_path: Path,
+        progress_callback: Progressable
+    ) -> TableFetchInfo:
         pass
 
     @abstractmethod

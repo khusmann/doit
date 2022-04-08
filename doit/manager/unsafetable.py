@@ -35,12 +35,18 @@ class UnsafeTableManager(ImmutableBaseModel):
     def load_fetch_info(self, instrument_id: InstrumentName) -> TableFetchInfo:
         return TableFetchInfo.parse_file(self.settings.unsafe_source_fetchinfo_file(instrument_id))
 
-    def fetch(self, instrument_id: InstrumentName) -> None:
+    def fetch(
+        self,
+        instrument_id: InstrumentName,
+        progress_callback: t.Callable[[int], None] = lambda _: None,
+    ) -> UnsafeSourceTable:
         file_info = self.load_file_info(instrument_id)
-        fetch_info = fetch_remote_table(file_info)
+        fetch_info = fetch_remote_table(file_info, progress_callback)
 
         with open(self.settings.unsafe_source_fetchinfo_file(instrument_id), 'w') as f:
             f.write(fetch_info.json())
+
+        return self.load_table(instrument_id)
 
     def add(self, instrument_id: InstrumentName, uri: str) -> None:
         self.settings.unsafe_source_workdir(instrument_id).mkdir(exist_ok=True, parents=True)

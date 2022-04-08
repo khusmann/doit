@@ -4,13 +4,21 @@ load_dotenv('.env')
 
 import click
 from tqdm import tqdm
-import yaml
 from .manager.unsafetable import UnsafeTableManager
 from .manager.sourcetable import SourceTableRepoManager
 from .manager.study import StudyRepoManager
 from .remote import fetch_table_listing
 
 from .domain.service import *
+
+def progress_callback(**args: t.Any):
+    pbar: tqdm[int] = tqdm(total=100, unit="pct", **args)
+    def update_fcn(n: int):
+        pbar.n = n
+        pbar.update(0)
+        if n == 100:
+            pbar.close()
+    return update_fcn
 
 #@click.group(context_settings={ "default_map": load_defaults(), "obj": load_study_context() })
 @click.group()
@@ -29,46 +37,63 @@ def sanitize():
         safe_table = sanitize_table(unsafe_table)
         safe_repo.insert(safe_table)
 
-@cli.group('source')
-def source_cli():
-    """Manipulate instrument sources"""
-    pass
-
-@source_cli.command(name="add")
+@cli.command(name="add")
 @click.argument('instrument_id')
 @click.argument('uri')
 def source_add(instrument_id: InstrumentName, uri: str):
     """Add an instrument source"""
-    unsafe_repo = UnsafeTableManager()
-    unsafe_repo.add(instrument_id, uri)
+    unsafe_manager = UnsafeTableManager()
+    study_spec = StudySpecManager()
+    unsafe_manager.add(instrument_id, uri)
 
-@source_cli.command(name="rm")
+    click.secho()
+    click.secho("Fetching instrument: {}".format(instrument_id))
+    update_fcn = progress_callback()
+    table = unsafe_manager.fetch(instrument_id, update_fcn)
+
+    click.secho()
+    click.secho("Stubbing instrument file: {}".format(study_spec.settings.instrument_file(instrument_id)))
+    if instrument_id in study_spec.instruments:
+        click.secho()
+        click.secho("Warning: {} instrument file already exists; saving backup...".format(instrument_id), fg='bright_red')
+    
+    instrument_spec = stub_instrument_spec(table)
+    study_spec.save_instrument_spec(instrument_id, instrument_spec)
+    click.secho()
+    click.secho("Done.")
+    click.secho()
+
+@cli.command(name="rm")
 @click.argument('instrument_id')
 def source_rm(instrument_id: InstrumentName):
     """Remove an instrument source"""
     unsafe_repo = UnsafeTableManager()
     unsafe_repo.rm(instrument_id)
 
-@cli.command(name='stub-instrument')
-@click.argument('instrument_id')
-def cli_stub_instrument(instrument_id: InstrumentName):
-    pass
-    #safe_repo = SafeTableDbRepo()
-    #safe_reader = safe_repo.query()
-    #safe_table = safe_reader.query(instrument_id)
-
-    #study_repo = StudySpecManager()
-    #study_repo.save_instrument(stub_instrument(safe_table))
-
 @cli.command()
-@click.argument('instrument_id')
-@click.argument('column_id')
-def list_unique(instrument_id: InstrumentName, column_id: SourceColumnName):
-    safe_repo = SourceTableRepoManager()
-    safe_reader = safe_repo.load_repo_readonly()
-    safe_table = safe_reader.query(instrument_id)
-    safe_column = safe_table.columns[column_id]
-    print(yaml.dump(list(set(safe_column.values))))
+@click.argument('instrument_id', required=False)
+def fetch(instrument_id: InstrumentName | None):
+    unsafe_repo = UnsafeTableManager()
+    id_list = unsafe_repo.tables() if instrument_id is None else [instrument_id]
+    click.secho()
+    for i in tqdm(id_list):
+        update_fcn = progress_callback(leave=False, desc=i)
+        unsafe_repo.fetch(i, update_fcn)
+    click.secho()
+
+@cli.command(name="list")
+@click.argument('remote_service', required=False)
+def source_list(remote_service: RemoteServiceName | None):
+    """List available instruments"""
+    unsafe_repo = UnsafeTableManager()
+    click.secho()
+    if (remote_service is None):
+        for (instrument_id, file_info) in map(lambda i: (i, unsafe_repo.load_file_info(i)), unsafe_repo.tables()):
+            click.secho(" {} : {}".format(click.style(instrument_id, fg='bright_cyan'), file_info.remote.uri))
+    else:
+        for desc in fetch_table_listing(remote_service):
+            click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))
+    click.secho()
 
 @cli.command()
 def link():
@@ -112,24 +137,3 @@ def debug():
     """Debug"""
     print("Do debug stuff")
     
-@source_cli.command(name="fetch")
-@click.argument('instrument_id', required=False)
-def source_fetch(instrument_id: InstrumentName | None):
-    unsafe_repo = UnsafeTableManager()
-    id_list = unsafe_repo.tables() if instrument_id is None else [instrument_id]
-    for i in id_list:
-        unsafe_repo.fetch(i)
-
-@source_cli.command(name="list")
-@click.argument('remote_service', required=False)
-def source_list(remote_service: RemoteServiceName | None):
-    """List available instruments"""
-    unsafe_repo = UnsafeTableManager()
-    click.secho()
-    if (remote_service is None):
-        for (instrument_id, file_info) in map(lambda i: (i, unsafe_repo.load_file_info(i)), unsafe_repo.tables()):
-            click.secho(" {} : {}".format(click.style(instrument_id, fg='bright_cyan'), file_info.remote.uri))
-    else:
-        for desc in fetch_table_listing(remote_service):
-            click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))
-    click.secho()

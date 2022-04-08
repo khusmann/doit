@@ -96,10 +96,17 @@ class QualtricsRemote(RemoteIoApi):
             ) for i in survey_list.elements
         ]
 
-    def fetch_remote_table(self, remote_id: str, data_path: Path, schema_path: Path) -> TableFetchInfo:
-        print("Fetching... qualtrics://{}".format(remote_id))
-        self.fetch_remote_table_data(remote_id, data_path)
+    def fetch_remote_table(
+        self,
+        remote_id: str,
+        data_path: Path,
+        schema_path: Path,
+        progress_callback: t.Callable[[int], None] = lambda _: None,
+    ) -> TableFetchInfo:
+        self.fetch_remote_table_data(remote_id, data_path, progress_callback)
         self.fetch_remote_table_schema(remote_id, schema_path)
+        progress_callback(100)
+
         schema = QualtricsSchema.parse_file(schema_path)
 
         return TableFetchInfo(
@@ -110,7 +117,12 @@ class QualtricsRemote(RemoteIoApi):
             # TODO: SHA?
         )
 
-    def fetch_remote_table_data(self, qualtrics_id: str, data_path: Path) -> None:
+    def fetch_remote_table_data(
+        self,
+        qualtrics_id: str,
+        data_path: Path,
+        progress_callback: t.Callable[[int], None] = lambda _: None,
+    ) -> None:
         endpoint_prefix = "surveys/{}/export-responses".format(qualtrics_id)
         response = self.post(endpoint_prefix, dict(format='json')).json()
         
@@ -118,19 +130,17 @@ class QualtricsRemote(RemoteIoApi):
         progressId = QualtricsExportResponse(**response['result']).progressId
 
         progressStatus = QualtricsExportStatusInProgress(
-            percentComplete = "0%",
+            percentComplete = "0",
             status="inProgress"
         )
 
         while progressStatus.status != "complete" and progressStatus.status != "failed":
-            print ("progressStatus=", progressStatus.status)
-            print("Download is " + progressStatus.percentComplete + " complete")
+            progress_callback(int(float(progressStatus.percentComplete)))
 
             response = self.get("{}/{}".format(endpoint_prefix, progressId)).json()
             assert 'result' in response
 
             progressStatus = parse_obj_as(QualtricsExportStatus, response['result'])
-            print(progressStatus.status)
 
         if progressStatus.status == "failed":
             raise Exception("export failed")
