@@ -27,6 +27,9 @@ class CodeMap(ImmutableBaseModelOrm):
     def tag_to_text_map(self):
         return { v['tag']: v['text'] for v in self.values }
 
+    def value_to_text_map(self):
+        return { v['value']: v['text'] for v in self.values }
+
 class CodeMapCreator(ImmutableBaseModel):
     id: CodeMapId
     rel_name: RelativeCodeMapName

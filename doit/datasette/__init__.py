@@ -1,8 +1,11 @@
 # type: ignore
 from datasette import hookimpl
+from ..domain.model import IndexColumn, OrdinalMeasureItem, SimpleMeasureItem
 from ..manager.study import StudyRepoManager
 from pathlib import Path
 from datasette.utils.asgi import Response
+from functools import cache
+import markupsafe
 import html
 
 @hookimpl
@@ -61,9 +64,31 @@ async def render_measure_listing(scope, receive, datasette, request):
         )
     )
 
+cached_column_codemaps = {}
+
 @hookimpl
 def render_cell(value, column, table, database, datasette):
-    pass
+    key = (database, table, column)
+
+    codemap = cached_column_codemaps.get(key)
+
+    if codemap is None:
+        try:
+            info = datasette._doit.query_column_info(column)
+            if isinstance(info, OrdinalMeasureItem) or isinstance(info, IndexColumn):
+                codemap = info.codemap.value_to_text_map()
+            elif isinstance(info, SimpleMeasureItem) and info.type == 'bool':
+                codemap = { 0: 'false', 1: 'true' }
+            else:
+                codemap = {}
+        except:
+            codemap = {}
+        cached_column_codemaps[key] = codemap
+
+    if codemap and value is not None:
+        return markupsafe.Markup("{} <em>{}</em>".format(codemap.get(value), value))
+    else:
+        return None
 
 @hookimpl
 def extra_css_urls():
