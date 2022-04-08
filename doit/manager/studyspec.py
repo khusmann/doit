@@ -44,7 +44,7 @@ class StudySpecManager(ImmutableBaseModel):
             file.rename(newfile)
 
         with open(file, 'w') as f:
-            yaml.dump(instrument_spec.dict(), f)
+            yaml.dump(instrument_spec.dict(exclude_none=True), f)
 
     @property
     def instruments(self) -> t.Sequence[InstrumentName]:

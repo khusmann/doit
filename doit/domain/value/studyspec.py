@@ -74,7 +74,6 @@ class QuestionInstrumentItemSpec(ImmutableBaseModel):
     remote_id: SourceColumnName
     id: t.Optional[ColumnName]
     map: t.Optional[RecodeTransform]
-    # TODO: Custom export dict() rule to drop map if map is None
 
 class ConstantInstrumentItemSpec(ImmutableBaseModel):
     type: t.Literal['constant']
