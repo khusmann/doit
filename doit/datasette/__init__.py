@@ -78,6 +78,23 @@ def extra_js_urls():
         "/-/static-plugins/doit/jquery.floatingscroll.min.js",
     ]
 
+@hookimpl
+def get_metadata(datasette, key, database, table):
+    return {
+        "databases": {
+            database: {
+                "tables": {
+                    "__codemaps__": { "hidden": True },
+                    "__column_info__": { "hidden": True },
+                    "__instrument_nodes__": { "hidden": True },
+                    "__instruments__": { "hidden": True },
+                    "__measures__": { "hidden": True },
+                    "__table_column_association__": { "hidden": True },
+                    "__table_info__": { "hidden": True },
+                }
+            }
+        }
+    }
 
 @hookimpl
 def startup(datasette):
