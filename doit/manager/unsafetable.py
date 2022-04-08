@@ -1,7 +1,7 @@
 import typing as t
 from urllib.parse import urlparse, ParseResult
 from time import time
-from .settings import ProjectSettings
+from ..settings import ProjectSettings
 
 from ..domain.value import (
     ImmutableBaseModel,
@@ -73,4 +73,4 @@ class UnsafeTableManager(ImmutableBaseModel):
         oldfile.rename(newfile)
 
     def tables(self) -> t.List[InstrumentName]:
-        return [ InstrumentName(i.name) for i in self.settings.unsafe_source_repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
+        return [InstrumentName(i) for i in self.settings.get_unsafe_source_table_names()]

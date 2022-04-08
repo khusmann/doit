@@ -4,14 +4,12 @@ import yaml
 from pydantic import BaseSettings
 from pathlib import Path
 
-from ..domain.value import (
-    InstrumentName,
-    MeasureName,
-)
-
 def yaml_config_settings_source(settings: ProjectSettings) -> t.Dict[str, t.Any]:
     encoding = settings.__config__.env_file_encoding
-    return yaml.safe_load(Path('config.yaml').read_text(encoding))
+    try:
+        return yaml.safe_load(Path('config.yaml').read_text(encoding))
+    except:
+        return {}
 
 class ProjectSettings(BaseSettings):
     # General
@@ -29,6 +27,9 @@ class ProjectSettings(BaseSettings):
     def unsafe_source_fetchinfo_file(self, instrument_id: str) -> Path:
         return (self.unsafe_source_workdir(instrument_id) / instrument_id).with_suffix(".fetch.json")
 
+    def get_unsafe_source_table_names(self) -> t.List[str]:
+        return [ i.name for i in self.unsafe_source_repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
+
     # SourceTableManager
     safe_source_repo_dir = Path("./build/safe/sanitized")
 
@@ -44,11 +45,17 @@ class ProjectSettings(BaseSettings):
     measure_dir = Path("./measures")
     config_file = Path("./study.yaml")
 
-    def instrument_file(self, instrument_id: InstrumentName) -> Path:
+    def instrument_file(self, instrument_id: str) -> Path:
         return (self.instrument_dir / instrument_id).with_suffix(".yaml")
 
-    def measure_file(self, measure_id: MeasureName) -> Path:
+    def measure_file(self, measure_id: str) -> Path:
         return (self.measure_dir / measure_id).with_suffix(".yaml")
+
+    def get_instrument_spec_names(self) -> t.List[str]:
+        return [ i.stem for i in self.instrument_dir.glob("*.yaml")]
+
+    def get_measure_spec_names(self) -> t.List[str]:
+        return [ i.stem for i in self.measure_dir.glob("*.yaml")]
 
     # StudyRepoManager
     study_repo_dir = Path("./build/safe/linked")

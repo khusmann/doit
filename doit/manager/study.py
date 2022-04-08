@@ -1,6 +1,6 @@
 from __future__ import annotations
 from time import time
-from .settings import ProjectSettings
+from ..settings import ProjectSettings
 from ..repo.study import StudyRepoReader, StudyRepo
 from ..domain.value.base import ImmutableBaseModel
 

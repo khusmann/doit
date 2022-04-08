@@ -6,7 +6,7 @@ from .qualtrics import QualtricsRemote
 from ..domain.value import RemoteTableListing, RemoteServiceName, TableFileInfo, TableFetchInfo
 
 _impl_map: t.Mapping[RemoteServiceName, RemoteIoApi] = {
-    "qualtrics": QualtricsRemote(),
+    RemoteServiceName("qualtrics"): QualtricsRemote(),
 }
 
 def fetch_remote_table(

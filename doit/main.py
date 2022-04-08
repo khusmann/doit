@@ -1,15 +1,10 @@
-from .manager.studyspec import StudySpecManager
+import typing as t
+
 from dotenv import load_dotenv
 load_dotenv('.env')
 
 import click
 from tqdm import tqdm
-from .manager.unsafetable import UnsafeTableManager
-from .manager.sourcetable import SourceTableRepoManager
-from .manager.study import StudyRepoManager
-from .remote import fetch_table_listing
-
-from .domain.service import *
 
 def progress_callback(**args: t.Any):
     pbar: tqdm[int] = tqdm(total=100, unit="pct", **args)
@@ -29,6 +24,9 @@ def cli():
 @cli.command()
 def sanitize():
     """Sanitize sources"""
+    from .manager import UnsafeTableManager, SourceTableRepoManager
+    from .domain.service import sanitize_table
+
     unsafe_manager = UnsafeTableManager()
     safe_repo = SourceTableRepoManager().load_repo()
 
@@ -40,8 +38,14 @@ def sanitize():
 @cli.command(name="add")
 @click.argument('instrument_id')
 @click.argument('uri')
-def source_add(instrument_id: InstrumentName, uri: str):
+def source_add(instrument_id: str, uri: str):
     """Add an instrument source"""
+    from .manager import UnsafeTableManager, StudySpecManager
+    from .domain.service import stub_instrument_spec
+    from .domain.value import InstrumentName
+
+    instrument_id = InstrumentName(instrument_id)
+
     unsafe_manager = UnsafeTableManager()
     study_spec = StudySpecManager()
     unsafe_manager.add(instrument_id, uri)
@@ -65,16 +69,27 @@ def source_add(instrument_id: InstrumentName, uri: str):
 
 @cli.command(name="rm")
 @click.argument('instrument_id')
-def source_rm(instrument_id: InstrumentName):
+def source_rm(instrument_id: str):
     """Remove an instrument source"""
+    from .manager import UnsafeTableManager
+    from .domain.value import InstrumentName
+
     unsafe_repo = UnsafeTableManager()
-    unsafe_repo.rm(instrument_id)
+    unsafe_repo.rm(InstrumentName(instrument_id))
+
+
+def complete_instrument_name(ctx: click.Context, param: click.Parameter, incomplete: str):
+    from .settings import ProjectSettings
+    return [i for i in ProjectSettings().get_unsafe_source_table_names() if i.startswith(incomplete)]
 
 @cli.command()
-@click.argument('instrument_id', required=False)
-def fetch(instrument_id: InstrumentName | None):
+@click.argument('instrument_id', required=False, shell_complete=complete_instrument_name)
+def fetch(instrument_id: str | None):
+    from .manager import UnsafeTableManager
+    from .domain.value import InstrumentName
+
     unsafe_repo = UnsafeTableManager()
-    id_list = unsafe_repo.tables() if instrument_id is None else [instrument_id]
+    id_list = unsafe_repo.tables() if instrument_id is None else [InstrumentName(instrument_id)]
     click.secho()
     for i in tqdm(id_list):
         update_fcn = progress_callback(leave=False, desc=i)
@@ -83,21 +98,30 @@ def fetch(instrument_id: InstrumentName | None):
 
 @cli.command(name="list")
 @click.argument('remote_service', required=False)
-def source_list(remote_service: RemoteServiceName | None):
+def source_list(remote_service: str | None):
     """List available instruments"""
+    from .manager import UnsafeTableManager
+    from .remote import fetch_table_listing
+    from .domain.value import RemoteServiceName
+
+
     unsafe_repo = UnsafeTableManager()
+
     click.secho()
     if (remote_service is None):
         for (instrument_id, file_info) in map(lambda i: (i, unsafe_repo.load_file_info(i)), unsafe_repo.tables()):
             click.secho(" {} : {}".format(click.style(instrument_id, fg='bright_cyan'), file_info.remote.uri))
     else:
-        for desc in fetch_table_listing(remote_service):
+        for desc in fetch_table_listing(RemoteServiceName(remote_service)):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))
     click.secho()
 
 @cli.command()
 def link():
     """Link study"""
+    from .manager import StudyRepoManager, StudySpecManager, SourceTableRepoManager
+    from .domain.service import mutations_from_study_spec, link_source_table
+
     study_repo = StudyRepoManager().load_repo()
     study_spec = StudySpecManager().load_study_spec()
 

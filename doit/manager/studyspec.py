@@ -1,6 +1,6 @@
 import typing as t
 from time import time
-from .settings import ProjectSettings
+from ..settings import ProjectSettings
 import yaml
 from ..domain.value import (
     InstrumentSpec,
@@ -56,8 +56,8 @@ class StudySpecManager(ImmutableBaseModel):
 
     @property
     def instruments(self) -> t.Sequence[InstrumentName]:
-        return [ InstrumentName(i.stem) for i in self.settings.instrument_dir.glob("*.yaml")]
+        return [ InstrumentName(i) for i in self.settings.get_instrument_spec_names() ]
 
     @property
     def measures(self) -> t.Sequence[MeasureName]:
-        return [ MeasureName(i.stem) for i in self.settings.measure_dir.glob("*.yaml")]
+        return [ MeasureName(i) for i in self.settings.get_measure_spec_names() ]

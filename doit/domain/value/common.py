@@ -15,7 +15,7 @@ SourceColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
 SourceColumnDataType = t.Union[StrictBool, StrictStr, StrictFloat, StrictInt]
 SourceColumnName = t.NewType('SourceColumnName', str)
 
-RemoteServiceName = t.Literal['qualtrics']
+RemoteServiceName = t.NewType('RemoveServiceName', str)
 SourceFormatType = t.Literal['qualtrics']
 
 ### StudyTable Types
