@@ -66,6 +66,20 @@ def render_cell(value, column, table, database, datasette):
     pass
 
 @hookimpl
+def extra_css_urls():
+    return [
+        "/-/static-plugins/doit/jquery.floatingscroll.css"
+    ]
+
+@hookimpl
+def extra_js_urls():
+    return [
+        "https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js",
+        "/-/static-plugins/doit/jquery.floatingscroll.min.js",
+    ]
+
+
+@hookimpl
 def startup(datasette):
     async def inner():
         datasette._doit = StudyRepoManager().load_repo_readonly()
