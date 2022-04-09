@@ -23,8 +23,6 @@ class CodeMapSpec(ImmutableBaseModel):
 
     ## TODO: Validate uniqueness of pair.*
 
-CodeMapSpec.update_forward_refs()
-
 ### Measure
 
 #class AggregateMeasureItem(ImmutableBaseModel):
@@ -57,8 +55,6 @@ MeasureNodeSpec = t.Annotated[
         SimpleMeasureItemSpec,
     ], Field(discriminator='type')
 ]
-
-MeasureItemGroupSpec.update_forward_refs()
 
 class MeasureSpec(ImmutableBaseModel):
     title: str
@@ -93,6 +89,7 @@ InstrumentItemSpec = t.Annotated[
         HiddenInstrumentItemSpec,
     ], Field(discriminator='type')
 ]
+
 class InstrumentItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[InstrumentNodeSpec, ...]
@@ -105,8 +102,6 @@ InstrumentNodeSpec = t.Annotated[
         InstrumentItemGroupSpec,
     ], Field(discriminator='type')
 ]
-
-InstrumentItemGroupSpec.update_forward_refs()
 
 class InstrumentSpec(ImmutableBaseModel):
     title: str
@@ -145,3 +140,7 @@ class StudySpec(ImmutableBaseModel):
     config: StudyConfigSpec
     measures: t.Mapping[MeasureName, MeasureSpec]
     instruments: t.Mapping[InstrumentName, InstrumentSpec]
+
+MeasureItemGroupSpec.update_forward_refs()
+CodeMapSpec.update_forward_refs()
+InstrumentItemGroupSpec.update_forward_refs()
