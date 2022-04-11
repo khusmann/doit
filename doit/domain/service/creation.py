@@ -24,28 +24,32 @@ def link_from_source_column(instrument_item: QuestionInstrumentItem, column: Sou
     else:
         return (instrument_item.map.get(str(v), v) for v in column.values)
 
-def link_to_column_values(source: t.Iterable[t.Any], dest: ColumnInfo) -> t.Iterable[t.Any]:
-    if isinstance(dest, SimpleMeasureItem):
-        return source
-    else:
+def link_to_column_values(source: t.Iterable[t.Any], dest: ColumnInfoNodeContent) -> t.Iterable[t.Any]:
+    if isinstance(dest, IndexColumn) or isinstance(dest, OrdinalMeasureItem):
         assert(dest.codemap is not None)
         cm = dest.codemap.tag_to_value_map()
         # TODO: What to do when a value is not in codemap
         return (cm.get(i) for i in source)
+    else:
+        match dest:
+            case SimpleMeasureItem():
+                return source
+            case MeasureItemGroup():
+                raise Exception("Instrument items cannot link to measure item groups")
 
 def link_source_table(instrument: Instrument, source_table: SourceTable) -> AddSourceDataMutation:
     def link_values(instrument_item: InstrumentItem):
-        assert(instrument_item.column_info is not None)
+        assert(instrument_item.column_info_node is not None)
         if instrument_item.type == 'constant':
             source = repeat(instrument_item.value)
         else:
             # TODO: Handle situation when source_column_name is not in source_table.columns...
             source = link_from_source_column(instrument_item, source_table.data[instrument_item.source_column_name])
-        return link_to_column_values(source, instrument_item.column_info)
+        return link_to_column_values(source, instrument_item.column_info_node.content)
 
     return AddSourceDataMutation(
         studytable_id=instrument.studytable_id,
-        columns={ i.column_info.name: link_values(i) for i in instrument.flat_items() if i.column_info is not None },
+        columns={ i.column_info_node.name: link_values(i) for i in instrument.flat_items() if i.column_info_node is not None },
     )
 
 #### Creators from Spec

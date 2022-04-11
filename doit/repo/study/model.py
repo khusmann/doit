@@ -99,42 +99,43 @@ class ColumnInfoNodeSql(Base, DumpableNode):
     name = Column(String, nullable=False, unique=True)
     parent_node_id = Column(Integer, ForeignKey(id))
     root_measure_id = Column(Integer, ForeignKey(MeasureSql.id))
-    codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
-    prompt = Column(String)
-    title = Column(String)
-    description = Column(String)
-    type = Column(String, nullable=False)
+    content__codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
+    content__prompt = Column(String)
+    content__title = Column(String)
+    content__description = Column(String)
+    content__type = Column(String, nullable=False)
     entity_type = 'column_info_node'
-    items = relationship(
+    content__items = relationship(
         "ColumnInfoNodeSql",
         backref=backref("parent_node", remote_side=id),
         order_by="ColumnInfoNodeSql.id",
     )
-    instrument_items = relationship(
+    content__instrument_items = relationship(
         "InstrumentNodeSql",
         backref="column_info",
         order_by="InstrumentNodeSql.id"
     )
 
-    def __init__(self, o: MeasureNode | IndexColumn):
+    def __init__(self, o: ColumnInfoNode):
         self.id=o.id
+        self.parent_node_id=o.parent_node_id
+        self.root_measure_id=o.root_measure_id
         self.name=o.name
-        self.type=o.type
-        if (o.type == 'index'):
-            self.title=o.title
-            self.description=o.description
-            self.codemap_id=o.codemap_id
-        else:
-            self.parent_node_id=o.parent_node_id
-            self.root_measure_id=o.root_measure_id
-            self.prompt=o.prompt
-            match o:
-                case MeasureItemGroup():
-                    pass
-                case OrdinalMeasureItem():
-                    self.codemap_id=o.codemap_id
-                case SimpleMeasureItem():
-                    pass
+
+        self.content__type=o.content.type
+        match o.content:
+            case MeasureItemGroup():
+                self.content__prompt=o.content.prompt
+            case OrdinalMeasureItem():
+                self.content__prompt=o.content.prompt
+                self.content__codemap_id=o.content.codemap_id
+            case SimpleMeasureItem():
+                self.content__prompt=o.content.prompt
+            case IndexColumn():
+                self.content__title=o.content.title
+                self.content__description=o.content.description
+                self.content__codemap_id=o.content.codemap_id
+
 
 TableColumnAssociationSql = Table(
     "__table_column_association__",
@@ -181,15 +182,15 @@ class InstrumentNodeSql(Base, DumpableNode):
     id = Column(Integer, primary_key=True)
     parent_node_id = Column(Integer, ForeignKey(id))
     root_instrument_id = Column(Integer, ForeignKey(InstrumentSql.id))
-    column_info_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
-    source_column_name = Column(String)
-    type = Column(String, nullable=False)
     entity_type = 'instrument_node'
-    map = Column(JSON)
-    title = Column(String)
-    prompt = Column(String)
-    value = Column(String)
-    items = relationship(
+    content__column_info_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
+    content__source_column_name = Column(String)
+    content__type = Column(String, nullable=False)
+    content__map = Column(JSON)
+    content__title = Column(String)
+    content__prompt = Column(String)
+    content__value = Column(String)
+    content__items = relationship(
         "InstrumentNodeSql",
         backref=backref("parent_node", remote_side=id),
         order_by="InstrumentNodeSql.id",
@@ -199,19 +200,19 @@ class InstrumentNodeSql(Base, DumpableNode):
         self.id=o.id
         self.parent_node_id=o.parent_node_id
         self.root_instrument_id=o.root_instrument_id
-        self.type=o.type
-        match o:
+        self.content__type=o.content.type
+        match o.content:
             case QuestionInstrumentItem():
-                self.source_column_name=o.source_column_name
-                self.column_info_id=o.column_info_id
-                self.prompt=o.prompt
-                self.map=o.map
+                self.content__source_column_name=o.content.source_column_name
+                self.content__column_info_id=o.content.column_info_node_id
+                self.content__prompt=o.content.prompt
+                self.content__map=o.content.map
             case ConstantInstrumentItem():
-                self.column_info_id=o.column_info_id
-                self.value=o.value
+                self.content__column_info_id=o.content.column_info_id
+                self.content__value=o.content.value
             case InstrumentItemGroup():
-                self.prompt=o.prompt
-                self.title=o.title
+                self.content__prompt=o.content.prompt
+                self.content__title=o.content.title
 
 SqlEntity = t.Union[
     CodeMapSql,
@@ -225,16 +226,10 @@ SqlEntity = t.Union[
 sql_lookup: t.Mapping[t.Type[StudyEntity], SqlEntity] = {
     CodeMap: CodeMapSql,
     Measure: MeasureSql,
-    OrdinalMeasureItem: ColumnInfoNodeSql,
-    SimpleMeasureItem: ColumnInfoNodeSql,
-    MeasureItemGroup: ColumnInfoNodeSql,
-    IndexColumn: ColumnInfoNodeSql,
+    ColumnInfoNode: ColumnInfoNodeSql,
     Instrument: InstrumentSql,
-    QuestionInstrumentItem: InstrumentNodeSql,
-    ConstantInstrumentItem: InstrumentNodeSql,
-    InstrumentItemGroup: InstrumentNodeSql,
+    InstrumentNode: InstrumentNodeSql,
     StudyTable: StudyTableSql,
-    ColumnInfo: ColumnInfoNodeSql,
 }
 
 sql_column_lookup: t.Mapping[StudyColumnTypeStr, t.Type[t.Any]] = {

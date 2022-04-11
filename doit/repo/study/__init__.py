@@ -121,8 +121,8 @@ class StudyRepoReader:
     def query_instrument(self, name: InstrumentName) -> Instrument:
         return self._query_root(name, (InstrumentSql, InstrumentNodeSql), Instrument)
 
-    def query_column_info(self, name: ColumnName) -> ColumnInfo:
-        return self._query_entity_by_name(name, ColumnInfo, "ColumnInfo")
+    def query_column_info(self, name: ColumnName) -> ColumnInfoNode:
+        return self._query_entity_by_name(name, ColumnInfoNode)
 
     def query_studytable(self, name: StudyTableName) -> StudyTable:
         return self._query_entity_by_name(name, StudyTable)
@@ -146,11 +146,10 @@ class StudyRepoReader:
             i.id: Table(
                 i.name,
                 Base.metadata,
-                *[Column(c.name, sql_column_lookup[c.type], primary_key=True) for c in i.columns if c.type == 'index'],
-                *[Column(c.name, sql_column_lookup[c.type]) for c in i.columns if c.type != 'index'],
+                *[Column(c.name, sql_column_lookup[c.content.type], primary_key=True) for c in i.columns if c.content.type == 'index'],
+                *[Column(c.name, sql_column_lookup[c.content.type]) for c in i.columns if c.content.type != 'index' and c.content.type != 'group'],
             ) for i in study_table_infos if i.columns is not None
         }
-
 
 class StudyRepo(StudyRepoReader):
     def __init__(self, path: Path):
