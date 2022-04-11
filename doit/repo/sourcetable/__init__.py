@@ -30,7 +30,7 @@ class SourceTableRepoReader:
         self.engine = create_engine("sqlite:///{}".format(path), echo=False)
 
         self.datatables: t.Dict[InstrumentName, Table] = {
-            table_info.name: _create_datatable_def(table_info) for table_info in self.query_info_all()
+            name: _create_datatable_def(table_info) for name, table_info in self.query_info_all().items()
         }
 
     def query(self, instrument_name: InstrumentName) -> SourceTable:
@@ -71,13 +71,13 @@ class SourceTableRepoReader:
 
         return SourceTableInfo.from_orm(info_sql)
 
-    def query_info_all(self) -> t.List[SourceTableInfo]:
+    def query_info_all(self) -> t.Mapping[InstrumentName, SourceTableInfo]:
         session = Session(self.engine)
         all_info_sql: t.List[SourceTableInfo] = session.query(SourceTableInfoSql).all()
-        return parse_obj_as(t.List[SourceTableInfo], all_info_sql)
+        return { i.name: i for i in parse_obj_as(t.List[SourceTableInfo], all_info_sql) }
 
     def tables(self) -> t.List[InstrumentName]:
-        return [table_info.name for table_info in self.query_info_all()]
+        return list(self.query_info_all().keys())
 
 
 def rowwise(m: t.Mapping[SourceColumnName, SourceColumnData]):

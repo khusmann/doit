@@ -2,6 +2,7 @@ from __future__ import annotations
 import typing as t
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
+from pydantic import root_validator
 
 class ImmutableBaseModel(BaseModel):
     class Config:
@@ -14,6 +15,20 @@ class ImmutableGenericModel(GenericModel):
         smart_union = True
 
 class ImmutableBaseModelOrm(ImmutableBaseModel):
+    @root_validator(pre=True)
+    def unnest(cls, values: t.Mapping[str, t.Any]):
+        result: t.Dict[str, t.Any] = {}
+        for path, v in values.items():
+            split_path = path.split('__')
+            cursor = result
+            for p in split_path[:-1]:
+                if p in cursor:
+                    cursor = cursor[p]
+                else:
+                    cursor[p] = {}
+                    cursor = cursor[p]
+            cursor[split_path[-1]] = v
+        return result
     class Config(ImmutableBaseModel.Config):
         orm_mode = True
 

@@ -127,8 +127,6 @@ def link():
     study_repo = StudyRepoManager().load_repo()
     study_spec = StudySpecManager().load_study_spec()
 
-    study_repo = study_repo.mutate(mutations_from_study_spec(study_spec))
-    study_repo = study_repo.create_tables()
 
     click.secho()
 
@@ -136,8 +134,14 @@ def link():
         source_table_repo = SourceTableRepoManager().load_repo_readonly()
     except:
         click.secho("Warning: Database created, but no source data to link...", fg='bright_red')
-        print()
+        click.secho()
         source_table_repo = None
+
+    source_table_info = source_table_repo.query_info_all() if source_table_repo else None
+
+    study_repo = study_repo.mutate(mutations_from_study_spec(study_spec, source_table_info))
+    study_repo = study_repo.create_tables()
+
     
     if source_table_repo:
         instruments = study_repo.query_instruments()

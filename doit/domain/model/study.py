@@ -3,6 +3,7 @@ import typing as t
 from pydantic import Field
 
 from ..value import *
+from .sourcetable import SourceTableInfo
 
 ### CodeMap TODO: Elevate this somehow so DRY with CodeMapSpec
 
@@ -443,6 +444,7 @@ AddEntityMutation = t.Union[
 # Therefore here we inherit from BaseModel instead of ImmuntableBaseModel.
 
 class CreationContext(BaseModel):
+    source_table_info: t.Mapping[InstrumentName, SourceTableInfo]
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}
     measure_name_by_id: t.Mapping[MeasureId, MeasureName] = {}
     codemap_name_by_id: t.Mapping[CodeMapId, CodeMapName] = {}

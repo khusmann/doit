@@ -54,11 +54,7 @@ def sanitize_table(table: UnsafeTable) -> SourceTable: # sanitizers: t.Mapping[S
     table_info = SourceTableInfo(
         id=table_info_id,
         name=table.instrument_name,
-        remote_service=table.fetch_info.remote_service,
-        remote_title=table.fetch_info.remote_title,
-        last_fetched_utc=table.fetch_info.last_fetched_utc,
-        data_checksum=table.fetch_info.data_checksum,
-        schema_checksum=table.fetch_info.schema_checksum,
+        fetch_info=table.fetch_info,
         columns=column_info,
     )
 

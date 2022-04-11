@@ -1,4 +1,5 @@
 import typing as t
+
 from ..value import *
 
 class SourceColumnInfo(ImmutableBaseModelOrm):
@@ -12,11 +13,7 @@ class SourceColumnInfo(ImmutableBaseModelOrm):
 class SourceTableInfo(ImmutableBaseModelOrm):
     id: SourceTableInfoId
     name: InstrumentName
-    remote_service: RemoteServiceName
-    remote_title: str
-    last_fetched_utc: datetime
-    data_checksum: str
-    schema_checksum: str
+    fetch_info: TableFetchInfo
     columns: t.Dict[SourceColumnName, SourceColumnInfo]
 
 class SourceColumnData(ImmutableBaseModel):
