@@ -10,6 +10,7 @@ from sqlalchemy import (
     JSON,
     ForeignKey,
     Table,
+    DateTime,
 )
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -151,6 +152,12 @@ class InstrumentSql(Base):
     description = Column(String)
     instructions = Column(String)
     entity_type = 'instrument'
+    fetch_info__remote_service = Column(String)
+    fetch_info__remote_title = Column(String)
+    fetch_info__last_fetched_utc = Column(DateTime)
+    fetch_info__data_checksum = Column(String)
+    fetch_info__schema_checksum = Column(String)
+
     items = relationship(
         "InstrumentNodeSql",
         backref="parent_instrument",
@@ -163,6 +170,11 @@ class InstrumentSql(Base):
         self.studytable_id=o.studytable_id
         self.title=o.title
         self.description=o.description
+        self.fetch_info__remote_service=o.fetch_info.remote_service
+        self.fetch_info__remote_title=o.fetch_info.remote_title
+        self.fetch_info__last_fetched_utc=o.fetch_info.last_fetched_utc
+        self.fetch_info__data_checksum=o.fetch_info.data_checksum
+        self.fetch_info__schema_checksum=o.fetch_info.schema_checksum        
 
 class InstrumentNodeSql(Base, DumpableNode):
     __tablename__ = "__instrument_nodes__"

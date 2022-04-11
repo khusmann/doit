@@ -327,6 +327,7 @@ class Instrument(ImmutableBaseModelOrm):
     description: t.Optional[str]
     items: t.Optional[t.Tuple[InstrumentNode, ...]] # <- TODO: should these be empty instead of optional? Reducing None checks?
     entity_type: t.Literal['instrument']
+    fetch_info: t.Optional[TableFetchInfo]
 
     def flat_items(self):
         def impl(nodes: t.Tuple[InstrumentNode, ...]) -> t.Generator[InstrumentItem, None, None]:
@@ -345,7 +346,8 @@ class InstrumentCreator(ImmutableBaseModel):
     spec: InstrumentSpec
     studytable_id: StudyTableId
 
-    def create(self, _: CreationContext) -> AddEntityMutation:
+    def create(self, ctx: CreationContext) -> AddEntityMutation:
+        source_table_info = ctx.source_table_info.get(self.name)
         return AddSimpleEntityMutation(
             entity=Instrument(
                 id=self.id,
@@ -354,6 +356,7 @@ class InstrumentCreator(ImmutableBaseModel):
                 title=self.spec.title,
                 description=self.spec.description,
                 entity_type='instrument',
+                fetch_info=source_table_info.fetch_info if source_table_info else None
             )
         )
 
