@@ -12,7 +12,11 @@ class SourceColumnInfo(ImmutableBaseModelOrm):
 class SourceTableInfo(ImmutableBaseModelOrm):
     id: SourceTableInfoId
     name: InstrumentName
-    source_info: t.Optional[str] # TODO
+    remote_service: RemoteServiceName
+    remote_title: str
+    last_fetched_utc: datetime
+    data_checksum: str
+    schema_checksum: str
     columns: t.Dict[SourceColumnName, SourceColumnInfo]
 
 class SourceColumnData(ImmutableBaseModel):

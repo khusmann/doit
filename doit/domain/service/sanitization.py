@@ -54,7 +54,11 @@ def sanitize_table(table: UnsafeTable) -> SourceTable: # sanitizers: t.Mapping[S
     table_info = SourceTableInfo(
         id=table_info_id,
         name=table.instrument_name,
-        source_info="TODO",
+        remote_service=table.fetch_info.remote_service,
+        remote_title=table.fetch_info.remote_title,
+        last_fetched_utc=table.fetch_info.last_fetched_utc,
+        data_checksum=table.fetch_info.data_checksum,
+        schema_checksum=table.fetch_info.schema_checksum,
         columns=column_info,
     )
 
@@ -74,7 +78,7 @@ def stub_instrument_item(column: ColumnImport) -> InstrumentNodeSpec:
 
 def stub_instrument_spec(table: UnsafeTable) -> InstrumentSpec:
     return InstrumentSpec(
-        title=table.fetch_info.title,
+        title=table.fetch_info.remote_title,
         description="description",
         instructions="instructions",
         items=(stub_instrument_item(column) for column in table.columns)

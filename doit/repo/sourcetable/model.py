@@ -4,12 +4,11 @@ import typing as t
 
 from sqlalchemy import (
     Column,
+    DateTime,
     Integer,
     String,
     Float,
-    JSON,
     ForeignKey,
-    Table,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.collections import attribute_mapped_collection
@@ -25,6 +24,11 @@ class SourceTableInfoSql(Base):
     __tablename__ = "__table_info__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
+    remote_service = Column(String, nullable=False)
+    remote_title = Column(String, nullable=False)
+    last_fetched_utc = Column(DateTime, nullable=False)
+    data_checksum = Column(String, nullable=False)
+    schema_checksum = Column(String, nullable=False)
 
     columns = relationship(
         "SourceColumnInfoSql",
@@ -39,6 +43,11 @@ class SourceTableInfoSql(Base):
     def __init__(self, o: SourceTableInfo):
         self.id=o.id
         self.name=o.name
+        self.remote_service=o.remote_service
+        self.remote_title=o.remote_title
+        self.last_fetched_utc=o.last_fetched_utc
+        self.data_checksum=o.data_checksum
+        self.schema_checksum=o.schema_checksum
 
 class SourceColumnInfoSql(Base):
     __tablename__ = "__column_info__"

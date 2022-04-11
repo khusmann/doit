@@ -2,9 +2,10 @@ from __future__ import annotations
 import typing as t
 
 from pathlib import Path
+from hashlib import sha256
 
 from ..domain.value.unsafetable import TableFetchInfo, RemoteServiceName
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 import json
@@ -109,12 +110,18 @@ class QualtricsRemote(RemoteIoApi):
 
         schema = QualtricsSchema.parse_file(schema_path)
 
+        with open(data_path, 'rb') as f:
+            data_checksum = sha256(f.read()).hexdigest()
+
+        with open(schema_path, 'rb') as f:
+            schema_checksum = sha256(f.read()).hexdigest()
+
         return TableFetchInfo(
-            service = RemoteServiceName('qualtrics'),
-            last_update_check = datetime.now(),
-            last_updated = datetime.now(),
-            title = schema.title,
-            # TODO: SHA?
+            remote_service=RemoteServiceName('qualtrics'),
+            remote_title=schema.title,
+            last_fetched_utc=datetime.now(timezone.utc),
+            data_checksum=data_checksum,
+            schema_checksum=schema_checksum,
         )
 
     def fetch_remote_table_data(

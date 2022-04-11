@@ -20,11 +20,11 @@ class RemoteTable(ImmutableBaseModel):
 ### UnsafeTable
 
 class TableFetchInfo(ImmutableBaseModel):
-    service: RemoteServiceName
-    title: str
-    last_update_check: datetime
-    last_updated: datetime
-    # SHA1?
+    remote_service: RemoteServiceName
+    remote_title: str
+    last_fetched_utc: datetime
+    schema_checksum: str
+    data_checksum: str
 
 class TableFileInfo(ImmutableBaseModel):
     format: SourceFormatType
