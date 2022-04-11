@@ -1,6 +1,9 @@
 import typing as t
+from itertools import count
 from ..value import *
 from ..model import *
+
+default_source_id_gen = count(0)
 
 def is_integer_text_column(values: t.Sequence[str | None]):
     return all([i.lstrip('-+').isdigit() for i in values if i is not None])
@@ -27,7 +30,7 @@ def sanitize_column_data(column: ColumnImport) -> SourceColumnData:
             values=[None if i is None else float(i) for i in column.values],
             
     return SourceColumnData(
-        source_column_name=column.source_column_name,
+        name=column.source_column_name,
         type=column_type,
         values=values,
     )
@@ -35,23 +38,30 @@ def sanitize_column_data(column: ColumnImport) -> SourceColumnData:
 def sanitize_table(table: UnsafeTable) -> SourceTable: # sanitizers: t.Mapping[SourceColumnName, ColumnSanitizer]
     data_columns = tuple(sanitize_column_data(column) for column in table.columns)
 
+    table_info_id = next(default_source_id_gen)
+
     column_info = {
         column.source_column_name: SourceColumnInfo(
-            source_column_name=column.source_column_name,
+            id=next(default_source_id_gen),
+            parent_table_id=table_info_id,
+            name=column.source_column_name,
             type=data_column.type,
             prompt=column.prompt,
             sanitizer_meta="TODO",
         ) for column, data_column in zip(table.columns, data_columns) 
     }
 
+    table_info = SourceTableInfo(
+        id=table_info_id,
+        name=table.instrument_name,
+        source_info="TODO",
+        columns=column_info,
+    )
+
     return SourceTable(
-        instrument_name=table.instrument_name,
-        info=SourceTableInfo(
-            instrument_name=table.instrument_name,
-            source_info="TODO",
-            columns=column_info,
-        ),
-        data={ data_column.source_column_name: data_column for data_column in data_columns},
+        name=table.instrument_name,
+        info=table_info,
+        data={ data_column.name: data_column for data_column in data_columns},
     )
 
 def stub_instrument_item(column: ColumnImport) -> InstrumentNodeSpec:

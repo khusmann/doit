@@ -115,7 +115,7 @@ def sanitize():
     for instrument_id in tqdm(unsafe_manager.tables()):
         unsafe_table = unsafe_manager.load_unsafe_table(instrument_id)
         safe_table = sanitize_table(unsafe_table)
-        safe_repo.insert(safe_table)
+        safe_repo.add_source_table(safe_table)
     click.secho()
 
 @cli.command()
@@ -146,8 +146,9 @@ def link():
             try:
                 source_table = source_table_repo.query(i.name)
                 study_repo.add_source_data(link_source_table(i, source_table))
-            except:
+            except Exception as e:
                 warnings += ["Warning: instrument '{}' does not exist in source data".format(i.name)]
+                print(e)
         click.secho()
         for w in warnings:
             click.secho(w, fg='bright_red')
