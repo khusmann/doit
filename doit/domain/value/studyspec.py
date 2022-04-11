@@ -76,17 +76,10 @@ class ConstantInstrumentItemSpec(ImmutableBaseModel):
     value: str
     id: ColumnName
 
-class HiddenInstrumentItemSpec(ImmutableBaseModel):
-    type: t.Literal['hidden']
-    remote_id: SourceColumnName
-    id: ColumnName
-    map: t.Optional[RecodeTransform]
-
 InstrumentItemSpec = t.Annotated[
     t.Union[
         QuestionInstrumentItemSpec,
         ConstantInstrumentItemSpec,
-        HiddenInstrumentItemSpec,
     ], Field(discriminator='type')
 ]
 

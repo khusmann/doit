@@ -18,7 +18,7 @@ def mutations_from_study_spec(study_spec: StudySpec, table_info: t.Optional[t.Ma
 
     return [ creator.create(context) for creator in creators ]
 
-def link_from_source_column(instrument_item: QuestionInstrumentItem | HiddenInstrumentItem, column: SourceColumnData) -> t.Iterable[t.Any]:
+def link_from_source_column(instrument_item: QuestionInstrumentItem, column: SourceColumnData) -> t.Iterable[t.Any]:
     if instrument_item.map is None:
         return column.values
     else:

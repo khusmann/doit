@@ -206,10 +206,6 @@ class InstrumentNodeSql(Base, DumpableNode):
                 self.column_info_id=o.column_info_id
                 self.prompt=o.prompt
                 self.map=o.map
-            case HiddenInstrumentItem():
-                self.source_column_name=o.source_column_name
-                self.column_info_id=o.column_info_id
-                self.map=o.map
             case ConstantInstrumentItem():
                 self.column_info_id=o.column_info_id
                 self.value=o.value
@@ -236,7 +232,6 @@ sql_lookup: t.Mapping[t.Type[StudyEntity], SqlEntity] = {
     Instrument: InstrumentSql,
     QuestionInstrumentItem: InstrumentNodeSql,
     ConstantInstrumentItem: InstrumentNodeSql,
-    HiddenInstrumentItem: InstrumentNodeSql,
     InstrumentItemGroup: InstrumentNodeSql,
     StudyTable: StudyTableSql,
     ColumnInfo: ColumnInfoNodeSql,
