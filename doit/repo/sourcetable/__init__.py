@@ -102,13 +102,13 @@ class SourceTableRepo(SourceTableRepoReader):
         for i in sql_column_info:
             session.add(i) # type: ignore
 
-        self.datatables[table.name] = _create_datatable_def(table.entry)
-        self.datatables[table.name].create(self.engine)
+        self.datatables[table.entry.name] = _create_datatable_def(table.entry)
+        self.datatables[table.entry.name].create(self.engine)
 
         rowwise_data = list(rowwise(table.columns))
 
         session.execute( # type: ignore
-            insert(self.datatables[table.name])
+            insert(self.datatables[table.entry.name])
                 .values(rowwise_data)
         )
 

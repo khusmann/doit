@@ -7,14 +7,14 @@ from ..model import *
 
 default_id_gen = count(0)
 
-def mutations_from_study_spec(study_spec: StudySpec, table_info: t.Optional[t.Mapping[InstrumentName, SourceTableEntry]], id_gen: t.Iterator[int] = default_id_gen): # table_info: SourceTableInfo
+def mutations_from_study_spec(study_spec: StudySpec, source_table_entries: t.Optional[t.Mapping[InstrumentName, SourceTableEntry]], id_gen: t.Iterator[int] = default_id_gen): # table_info: SourceTableInfo
     creators = [
         *index_column_creators_from_spec(study_spec.config.indices, id_gen),
         *measure_creators_from_spec(study_spec.measures, id_gen),
         *instrument_creators_from_spec(study_spec.instruments, id_gen),
     ]
 
-    context = reduce(creation_context_reducer, creators, CreationContext(source_table_entry=table_info or {}))
+    context = reduce(creation_context_reducer, creators, CreationContext(source_table_entries=source_table_entries or {}))
 
     return [ creator.create(context) for creator in creators ]
 

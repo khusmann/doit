@@ -25,6 +25,5 @@ class SourceColumn(ImmutableBaseModel):
     values: t.Tuple[t.Any | None, ...]
 
 class SourceTable(ImmutableBaseModel):
-    name: InstrumentName
     entry: SourceTableEntry
     columns: t.Mapping[SourceColumnName, SourceColumn]

@@ -312,7 +312,7 @@ class InstrumentCreator(ImmutableBaseModel):
     studytable_id: StudyTableId
 
     def create(self, ctx: CreationContext) -> AddEntityMutation:
-        source_table_entry = ctx.source_table_entry.get(self.name)
+        source_table_entry = ctx.source_table_entries.get(self.name)
         return AddSimpleEntityMutation(
             entity=Instrument(
                 id=self.id,
@@ -409,7 +409,7 @@ AddEntityMutation = t.Union[
 # Therefore here we inherit from BaseModel instead of ImmuntableBaseModel.
 
 class CreationContext(BaseModel):
-    source_table_entry: t.Mapping[InstrumentName, SourceTableEntry]
+    source_table_entries: t.Mapping[InstrumentName, SourceTableEntry]
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}
     measure_name_by_id: t.Mapping[MeasureId, MeasureName] = {}
     codemap_name_by_id: t.Mapping[CodeMapId, CodeMapName] = {}
