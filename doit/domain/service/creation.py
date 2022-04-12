@@ -33,6 +33,7 @@ def link_to_column_values(source: t.Iterable[t.Any], dest: ColumnInfoNodeContent
     else:
         match dest:
             case SimpleMeasureItem():
+                # TODO: cast to bool, int, or float
                 return source
             case MeasureItemGroup():
                 raise Exception("Instrument items cannot link to measure item groups")
