@@ -127,12 +127,22 @@ def measure_node_creators_from_spec(root_measure_id: MeasureId, id_gen: t.Iterat
             ) for spec in measure_node_specs
         ]
 
-        child_measure_nodes = sum([
+        group_child_measure_nodes = sum([
             impl(spec.items, measure_node.id) 
                 for spec, measure_node in zip(measure_node_specs, measure_nodes) if spec.type == 'group'
         ], [])
 
-        return [*measure_nodes, *child_measure_nodes]
+        multiselect_children = [
+            MeasureNodeCreator(
+                id=next(id_gen),
+                parent_node_id=measure_node.id,
+                root_measure_id=root_measure_id,
+                spec=spec_item,
+            ) for spec, measure_node in zip(measure_node_specs, measure_nodes) if spec.type == 'multiselect'
+                for spec_item in spec.items
+        ]
+
+        return [*measure_nodes, *group_child_measure_nodes, *multiselect_children]
     return impl
 
 def instrument_creators_from_spec(
@@ -237,6 +247,7 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
 
         case InstrumentCreator():
             ctx.studytable_id_by_instrument_id |= { m.id: m.studytable_id }
+            ctx.source_table_entry_by_instrument_id |= { m.id: ctx.source_table_entries[m.name] }
 
         case InstrumentNodeCreator():
             spec = m.spec # Help the type checker resolve this...
@@ -245,5 +256,9 @@ def creation_context_reducer(ctx: CreationContext, m: EntityCreator) -> Creation
                 studytable_id = ctx.studytable_id_by_instrument_id[m.root_instrument_id]
                 existing_set = ctx.column_info_node_ids_by_studytable_id.get(studytable_id, frozenset())
                 ctx.column_info_node_ids_by_studytable_id |= { studytable_id: existing_set | { column_info_node_id } }
+
+            if spec.type != "group" and spec.type != "constant" and spec.remote_id is not None:
+                table_entry = ctx.source_table_entry_by_instrument_id[m.root_instrument_id]
+                ctx.source_column_info_by_instrument_node_id |= { m.id: table_entry.columns[spec.remote_id].content}
 
     return ctx

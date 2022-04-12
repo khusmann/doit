@@ -21,9 +21,10 @@
 <h1>Instructions:</h1>
 <p>{{instrument.instructions}}</p>
 <br>
-{% for item in instrument.items recursive %}
+{% for entry in instrument.items recursive %}
+    {% set item = entry.content %}
     {% if item.type == 'question' %}
-        {% if item.column_info.name %}
+        {% if item.column_info_node.name %}
             <div style="border-style: dashed; border-width: 3px; padding: 1em">
         {% else %}
             <div style="border-style: dashed; border-width: 3px; padding: 1em; background-color: lightgray">
@@ -31,8 +32,8 @@
         <h2>
             {{item.prompt}}
         </h2>
-        <p>Linked Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
-        <p>Linked Measure type: {{item.column_info.type}}</p>
+        <p>Linked Measure: <a href="/-/measures/{{ item.column_info_node.name|base_id }}#{{item.column_info_node.name}}">{{item.column_info_node.name}}</a></p>
+        <p>Linked Measure type: {{item.column_info_node.type}}</p>
         {% if item.map %}
         <table>
             <tr>
@@ -45,8 +46,8 @@
             <tr>
                 <td>{{key}}</td>
                 <td>{{value}}</td>
-                <td>{% if item.column_info.codemap %}{{item.column_info.codemap.tag_to_value_map()[value] }}{% endif %}</td>
-                <td>{% if item.column_info.codemap %}{{item.column_info.codemap.tag_to_text_map()[value] }}{% endif %}</td>
+                <td>{% if item.column_info_node.codemap %}{{item.column_info_node.codemap.tag_to_value_map()[value] }}{% endif %}</td>
+                <td>{% if item.column_info_node.codemap %}{{item.column_info_node.codemap.tag_to_text_map()[value] }}{% endif %}</td>
             </tr>
             {% endfor %}
         </table>

@@ -74,7 +74,7 @@ class SimpleMeasureItem(ImmutableBaseModelOrm):
 
 class MeasureItemGroup(ImmutableBaseModelOrm):
     prompt: t.Optional[str]
-    type: t.Literal['group']
+    type: t.Literal['group', 'multiselect']
     items: t.Optional[t.Tuple[ColumnInfoNode, ...]]
 
 class IndexColumn(ImmutableBaseModelOrm):
@@ -111,7 +111,7 @@ class MeasureNodeCreator(ImmutableBaseModel):
     id: ColumnInfoNodeId
     parent_node_id: t.Optional[ColumnInfoNodeId]
     root_measure_id: MeasureId
-    spec: MeasureNodeSpec
+    spec: MeasureNodeSpec | MultiselectItemSpec.Child
 
     def create(self, ctx: CreationContext) -> AddSimpleEntityMutation:
         return AddSimpleEntityMutation(
@@ -133,6 +133,16 @@ class MeasureNodeCreator(ImmutableBaseModel):
                 )
             case MeasureItemGroupSpec():
                 content = MeasureItemGroup(
+                    prompt=self.spec.prompt,
+                    type=self.spec.type,
+                )
+            case MultiselectItemSpec():
+                content = MeasureItemGroup(
+                    prompt=self.spec.prompt,
+                    type=self.spec.type,
+                )
+            case MultiselectItemSpec.Child():
+                content = SimpleMeasureItem(
                     prompt=self.spec.prompt,
                     type=self.spec.type,
                 )
@@ -208,7 +218,7 @@ class QuestionInstrumentItem(ImmutableBaseModelOrm):
 
 class ConstantInstrumentItem(ImmutableBaseModelOrm):
     type: t.Literal['constant']
-    column_info_id: t.Optional[ColumnInfoNodeId]
+    column_info_node_id: t.Optional[ColumnInfoNodeId]
     column_info_node: t.Optional[ColumnInfoNode]
     value: str
 
@@ -254,15 +264,15 @@ class InstrumentNodeCreator(ImmutableBaseModel):
         match self.spec:
             case QuestionInstrumentItemSpec():
                 content = QuestionInstrumentItem(
-                    column_info_id=ctx.column_info_node_id_by_name.get(self.spec.id) if self.spec.id else None,
-                    source_column_name=self.spec.remote_id,
+                    column_info_node_id=ctx.column_info_node_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    source_column_info=ctx.source_column_info_by_instrument_node_id.get(self.id),
                     prompt=self.spec.prompt,
                     type=self.spec.type,
                     map=self.spec.map,
                 )
             case ConstantInstrumentItemSpec():
                 content = ConstantInstrumentItem(
-                    column_info_id=ctx.column_info_node_id_by_name.get(self.spec.id) if self.spec.id else None,
+                    column_info_node_id=ctx.column_info_node_id_by_name.get(self.spec.id) if self.spec.id else None,
                     value=self.spec.value,
                     type=self.spec.type,
                 )
@@ -411,6 +421,8 @@ AddEntityMutation = t.Union[
 class CreationContext(BaseModel):
     source_table_entries: t.Mapping[InstrumentName, SourceTableEntry]
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}
+    source_table_entry_by_instrument_id: t.Mapping[InstrumentId, SourceTableEntry] = {}
+    source_column_info_by_instrument_node_id: t.Mapping[InstrumentNodeId, SourceColumnInfo] = {}
     measure_name_by_id: t.Mapping[MeasureId, MeasureName] = {}
     codemap_name_by_id: t.Mapping[CodeMapId, CodeMapName] = {}
     column_info_node_name_by_id: t.Mapping[ColumnInfoNodeId, ColumnName] = {}

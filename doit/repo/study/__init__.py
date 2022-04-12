@@ -147,7 +147,7 @@ class StudyRepoReader:
                 i.name,
                 Base.metadata,
                 *[Column(c.name, sql_column_lookup[c.content.type], primary_key=True) for c in i.columns if c.content.type == 'index'],
-                *[Column(c.name, sql_column_lookup[c.content.type]) for c in i.columns if c.content.type != 'index' and c.content.type != 'group'],
+                *[Column(c.name, sql_column_lookup[c.content.type]) for c in i.columns if c.content.type != 'index' and not isinstance(c.content, MeasureItemGroup)],
             ) for i in study_table_infos if i.columns is not None
         }
 

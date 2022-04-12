@@ -19,18 +19,19 @@
 <h1>Description:</h1>
 <p>{{measure.description}}</p>
 <br>
-{% for item in measure.items recursive %}
-    {% if item.type == 'group' %}
-    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.name}}">
-        <h2>{{item.name}} {% if item.prompt %}: {{item.prompt}} {% endif %}</h2>
+{% for entry in measure.items recursive %}
+    {% set item = entry.content %}
+    {% if item.type == 'group' or item.type == 'multiselect' %}
+    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{entry.name}}">
+        <h2>{{entry.name}} {% if item.prompt %}: {{item.prompt}} {% endif %}</h2>
         {{ loop(item.items) }}
     </div>
     {% else %}
-    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{item.name}}">
+    <div style="border-style: dashed; border-width: 3px; padding: 1em" id="{{entry.name}}">
         <h2>
             {{item.prompt}} {% if item.is_idx %}(Index){% endif %}
         </h2>
-        <p>Measure: {{item.name}}</p>
+        <p>Measure: {{entry.name}}</p>
         <p>Measure type: {{item.type}}</p>
         {% if item.codemap %}
         <table>

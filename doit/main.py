@@ -150,9 +150,8 @@ def link():
             try:
                 source_table = source_table_repo.query(i.name)
                 study_repo.add_source_data(link_source_table(i, source_table))
-            except Exception as e:
+            except:
                 warnings += ["Warning: instrument '{}' does not exist in source data".format(i.name)]
-                print(e)
         click.secho()
         for w in warnings:
             click.secho(w, fg='bright_red')

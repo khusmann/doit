@@ -67,7 +67,7 @@ async def render_measure_listing(scope, receive, datasette, request):
 @cache
 def get_codemap(column, table, database, datasette):
     try:
-        info = datasette._doit.query_column_info(column)
+        info = datasette._doit.query_column_info(column).content
         if isinstance(info, OrdinalMeasureItem) or isinstance(info, IndexColumn):
             return info.codemap.value_to_text_map()
         elif isinstance(info, SimpleMeasureItem) and info.type == 'bool':

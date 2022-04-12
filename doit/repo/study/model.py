@@ -68,7 +68,7 @@ class CodeMapSql(Base):
 
     column_info = relationship(
         "ColumnInfoNodeSql",
-        backref="codemap",
+        backref="content__codemap",
         order_by="ColumnInfoNodeSql.id"
     )
 
@@ -112,7 +112,7 @@ class ColumnInfoNodeSql(Base, DumpableNode):
     )
     content__instrument_items = relationship(
         "InstrumentNodeSql",
-        backref="column_info",
+        backref="content__column_info_node",
         order_by="InstrumentNodeSql.id"
     )
 
@@ -184,8 +184,10 @@ class InstrumentNodeSql(Base, DumpableNode):
     parent_node_id = Column(Integer, ForeignKey(id))
     root_instrument_id = Column(Integer, ForeignKey(InstrumentSql.id))
     entity_type = 'instrument_node'
-    content__column_info_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
-    content__source_column_name = Column(String)
+    content__column_info_node_id = Column(Integer, ForeignKey(ColumnInfoNodeSql.id))
+    content__source_column_info__name = Column(String)
+    content__source_column_info__type = Column(String)
+    content__source_column_info__prompt = Column(String)
     content__type = Column(String, nullable=False)
     content__map = Column(JSON)
     content__title = Column(String)
@@ -204,12 +206,15 @@ class InstrumentNodeSql(Base, DumpableNode):
         self.content__type=o.content.type
         match o.content:
             case QuestionInstrumentItem():
-                self.content__source_column_name=o.content.source_column_info
-                self.content__column_info_id=o.content.column_info_node_id
+                if o.content.source_column_info is not None:
+                    self.content__source_column_info__name = o.content.source_column_info.name
+                    self.content__source_column_info__type=o.content.source_column_info.type
+                    self.content__source_column_info__prompt=o.content.source_column_info.prompt
+                self.content__column_info_node_id=o.content.column_info_node_id
                 self.content__prompt=o.content.prompt
                 self.content__map=o.content.map
             case ConstantInstrumentItem():
-                self.content__column_info_id=o.content.column_info_id
+                self.content__column_info_node_id=o.content.column_info_node_id
                 self.content__value=o.content.value
             case InstrumentItemGroup():
                 self.content__prompt=o.content.prompt

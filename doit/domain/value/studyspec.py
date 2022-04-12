@@ -40,7 +40,7 @@ class OrdinalMeasureItemSpec(ImmutableBaseModel):
 class SimpleMeasureItemSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: str
-    type: t.Literal['text', 'real', 'integer', 'bool']
+    type: t.Literal['text', 'real', 'integer']
 
 class MeasureItemGroupSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
@@ -48,11 +48,23 @@ class MeasureItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[MeasureNodeSpec, ...]
 
+class MultiselectItemSpec(ImmutableBaseModel):
+    id: RelativeMeasureNodeName
+    prompt: t.Optional[str]
+    type: t.Literal['multiselect']
+    items: t.Tuple[MultiselectItemSpec.Child, ...]
+
+    class Child(ImmutableBaseModel):
+        id: RelativeMeasureNodeName
+        prompt: str
+        type: t.Literal['bool'] = 'bool'
+
 MeasureNodeSpec = t.Annotated[
     t.Union[
         MeasureItemGroupSpec,
         OrdinalMeasureItemSpec,
         SimpleMeasureItemSpec,
+        MultiselectItemSpec,
     ], Field(discriminator='type')
 ]
 
@@ -135,5 +147,6 @@ class StudySpec(ImmutableBaseModel):
     instruments: t.Mapping[InstrumentName, InstrumentSpec]
 
 MeasureItemGroupSpec.update_forward_refs()
+MultiselectItemSpec.update_forward_refs()
 CodeMapSpec.update_forward_refs()
 InstrumentItemGroupSpec.update_forward_refs()
