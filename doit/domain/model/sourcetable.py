@@ -2,26 +2,29 @@ import typing as t
 
 from ..value import *
 
-class SourceColumnInfo(ImmutableBaseModelOrm):
-    id: SourceColumnInfoId
-    parent_table_id: SourceTableInfoId
+class SourceColumnInfo(ImmutableBaseModel):
     name: SourceColumnName
     type: SourceColumnTypeStr
     prompt: str
-    sanitizer_meta: t.Optional[str] # TODO
+    sanitizer_info: t.Optional[str] # TODO
+    # Codemap?
 
-class SourceTableInfo(ImmutableBaseModelOrm):
-    id: SourceTableInfoId
+class SourceColumnEntry(ImmutableBaseModelOrm):
+    id: SourceColumnEntryId
+    parent_table_id: SourceTableEntryId
+    content: SourceColumnInfo
+
+class SourceTableEntry(ImmutableBaseModelOrm):
+    id: SourceTableEntryId
     name: InstrumentName
-    fetch_info: TableFetchInfo
-    columns: t.Dict[SourceColumnName, SourceColumnInfo]
+    content: SourceTableInfo
+    columns: t.Dict[SourceColumnName, SourceColumnEntry]
 
-class SourceColumnData(ImmutableBaseModel):
-    name: SourceColumnName
-    type: SourceColumnTypeStr
+class SourceColumn(ImmutableBaseModel):
+    entry: SourceColumnEntry
     values: t.Tuple[t.Any | None, ...]
 
 class SourceTable(ImmutableBaseModel):
     name: InstrumentName
-    info: SourceTableInfo
-    data: t.Mapping[SourceColumnName, SourceColumnData]
+    entry: SourceTableEntry
+    columns: t.Mapping[SourceColumnName, SourceColumn]

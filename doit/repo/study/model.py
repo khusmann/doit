@@ -153,11 +153,11 @@ class InstrumentSql(Base):
     description = Column(String)
     instructions = Column(String)
     entity_type = 'instrument'
-    fetch_info__remote_service = Column(String)
-    fetch_info__remote_title = Column(String)
-    fetch_info__last_fetched_utc = Column(DateTime)
-    fetch_info__data_checksum = Column(String)
-    fetch_info__schema_checksum = Column(String)
+    source_table_info__remote_service = Column(String)
+    source_table_info__remote_title = Column(String)
+    source_table_info__last_fetched_utc = Column(DateTime)
+    source_table_info__data_checksum = Column(String)
+    source_table_info__schema_checksum = Column(String)
 
     items = relationship(
         "InstrumentNodeSql",
@@ -171,11 +171,12 @@ class InstrumentSql(Base):
         self.studytable_id=o.studytable_id
         self.title=o.title
         self.description=o.description
-        self.fetch_info__remote_service=o.fetch_info.remote_service
-        self.fetch_info__remote_title=o.fetch_info.remote_title
-        self.fetch_info__last_fetched_utc=o.fetch_info.last_fetched_utc
-        self.fetch_info__data_checksum=o.fetch_info.data_checksum
-        self.fetch_info__schema_checksum=o.fetch_info.schema_checksum        
+        if o.source_table_info is not None:
+            self.source_table_info__remote_service=o.source_table_info.remote_service
+            self.source_table_info__remote_title=o.source_table_info.remote_title
+            self.source_table_info__last_fetched_utc=o.source_table_info.last_fetched_utc
+            self.source_table_info__data_checksum=o.source_table_info.data_checksum
+            self.source_table_info__schema_checksum=o.source_table_info.schema_checksum        
 
 class InstrumentNodeSql(Base, DumpableNode):
     __tablename__ = "__instrument_nodes__"
@@ -203,7 +204,7 @@ class InstrumentNodeSql(Base, DumpableNode):
         self.content__type=o.content.type
         match o.content:
             case QuestionInstrumentItem():
-                self.content__source_column_name=o.content.source_column_name
+                self.content__source_column_name=o.content.source_column_info
                 self.content__column_info_id=o.content.column_info_node_id
                 self.content__prompt=o.content.prompt
                 self.content__map=o.content.map

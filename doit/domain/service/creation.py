@@ -7,18 +7,18 @@ from ..model import *
 
 default_id_gen = count(0)
 
-def mutations_from_study_spec(study_spec: StudySpec, table_info: t.Optional[t.Mapping[InstrumentName, SourceTableInfo]], id_gen: t.Iterator[int] = default_id_gen): # table_info: SourceTableInfo
+def mutations_from_study_spec(study_spec: StudySpec, table_info: t.Optional[t.Mapping[InstrumentName, SourceTableEntry]], id_gen: t.Iterator[int] = default_id_gen): # table_info: SourceTableInfo
     creators = [
         *index_column_creators_from_spec(study_spec.config.indices, id_gen),
         *measure_creators_from_spec(study_spec.measures, id_gen),
         *instrument_creators_from_spec(study_spec.instruments, id_gen),
     ]
 
-    context = reduce(creation_context_reducer, creators, CreationContext(source_table_info=table_info or {}))
+    context = reduce(creation_context_reducer, creators, CreationContext(source_table_entry=table_info or {}))
 
     return [ creator.create(context) for creator in creators ]
 
-def link_from_source_column(instrument_item: QuestionInstrumentItem, column: SourceColumnData) -> t.Iterable[t.Any]:
+def link_from_source_column(instrument_item: QuestionInstrumentItem, column: SourceColumn) -> t.Iterable[t.Any]:
     if instrument_item.map is None:
         return column.values
     else:
@@ -44,7 +44,8 @@ def link_source_table(instrument: Instrument, source_table: SourceTable) -> AddS
             source = repeat(instrument_item.value)
         else:
             # TODO: Handle situation when source_column_name is not in source_table.columns...
-            source = link_from_source_column(instrument_item, source_table.data[instrument_item.source_column_name])
+            assert(instrument_item.source_column_info is not None)
+            source = link_from_source_column(instrument_item, source_table.columns[instrument_item.source_column_info.name])
         return link_to_column_values(source, instrument_item.column_info_node.content)
 
     return AddSourceDataMutation(

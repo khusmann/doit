@@ -68,8 +68,8 @@ RemoteServiceName = t.NewType('RemoveServiceName', str)
 SourceFormatType = t.Literal['qualtrics']
 
 ### Source Table Entity Ids
-SourceTableInfoId = t.NewType("SourceTableId", int)
-SourceColumnInfoId = t.NewType("SourceColumnInfoId", int)
+SourceTableEntryId = t.NewType("SourceTableId", int)
+SourceColumnEntryId = t.NewType("SourceColumnInfoId", int)
 
 ### StudyTable Types
 

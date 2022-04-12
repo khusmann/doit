@@ -4,7 +4,7 @@ import typing as t
 from pathlib import Path
 from hashlib import sha256
 
-from ..domain.value.unsafetable import TableFetchInfo, RemoteServiceName
+from ..domain.value.unsafetable import SourceTableInfo, RemoteServiceName
 from datetime import datetime, timezone
 
 import requests
@@ -103,7 +103,7 @@ class QualtricsRemote(RemoteIoApi):
         data_path: Path,
         schema_path: Path,
         progress_callback: t.Callable[[int], None] = lambda _: None,
-    ) -> TableFetchInfo:
+    ) -> SourceTableInfo:
         self.fetch_remote_table_data(remote_id, data_path, progress_callback)
         self.fetch_remote_table_schema(remote_id, schema_path)
         progress_callback(100)
@@ -116,7 +116,7 @@ class QualtricsRemote(RemoteIoApi):
         with open(schema_path, 'rb') as f:
             schema_checksum = sha256(f.read()).hexdigest()
 
-        return TableFetchInfo(
+        return SourceTableInfo(
             remote_service=RemoteServiceName('qualtrics'),
             remote_title=schema.title,
             last_fetched_utc=datetime.now(timezone.utc),

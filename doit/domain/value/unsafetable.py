@@ -19,7 +19,7 @@ class RemoteTable(ImmutableBaseModel):
 
 ### UnsafeTable
 
-class TableFetchInfo(ImmutableBaseModel):
+class SourceTableInfo(ImmutableBaseModel):
     remote_service: RemoteServiceName
     remote_title: str
     last_fetched_utc: datetime
@@ -40,6 +40,6 @@ class ColumnImport(ImmutableBaseModel):
 
 class UnsafeTable(ImmutableBaseModel):
     instrument_name: InstrumentName
-    fetch_info: TableFetchInfo
+    source_table_info: SourceTableInfo
     file_info: TableFileInfo
     columns: t.Tuple[ColumnImport, ...]

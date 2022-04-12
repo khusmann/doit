@@ -12,7 +12,7 @@ class RemoteIoApi(ImmutableBaseModel, ABC):
         data_path: Path,
         schema_path: Path,
         progress_callback: t.Callable[[int], None] = lambda _: None,
-    ) -> TableFetchInfo:
+    ) -> SourceTableInfo:
         pass
 
     @abstractmethod

@@ -3,7 +3,7 @@ import typing as t
 from pydantic import Field
 
 from ..value import *
-from .sourcetable import SourceTableInfo
+from .sourcetable import SourceTableEntry, SourceColumnInfo
 
 ### CodeMap TODO: Elevate this somehow so DRY with CodeMapSpec
 
@@ -202,7 +202,7 @@ class QuestionInstrumentItem(ImmutableBaseModelOrm):
     type: t.Literal['question']
     column_info_node_id: t.Optional[ColumnInfoNodeId]
     column_info_node: t.Optional[ColumnInfoNode]
-    source_column_name: SourceColumnName
+    source_column_info: t.Optional[SourceColumnInfo]
     prompt: t.Optional[str]
     map: t.Optional[RecodeTransform]
 
@@ -291,7 +291,7 @@ class Instrument(ImmutableBaseModelOrm):
     description: t.Optional[str]
     items: t.Optional[t.Tuple[InstrumentNode, ...]] # <- TODO: should these be empty instead of optional? Reducing None checks?
     entity_type: t.Literal['instrument']
-    fetch_info: t.Optional[TableFetchInfo]
+    source_table_info: t.Optional[SourceTableInfo]
 
     def flat_items(self):
         def impl(nodes: t.Tuple[InstrumentNode, ...]) -> t.Generator[InstrumentItem, None, None]:
@@ -312,7 +312,7 @@ class InstrumentCreator(ImmutableBaseModel):
     studytable_id: StudyTableId
 
     def create(self, ctx: CreationContext) -> AddEntityMutation:
-        source_table_info = ctx.source_table_info.get(self.name)
+        source_table_entry = ctx.source_table_entry.get(self.name)
         return AddSimpleEntityMutation(
             entity=Instrument(
                 id=self.id,
@@ -321,7 +321,7 @@ class InstrumentCreator(ImmutableBaseModel):
                 title=self.spec.title,
                 description=self.spec.description,
                 entity_type='instrument',
-                fetch_info=source_table_info.fetch_info if source_table_info else None
+                source_table_info=source_table_entry.content if source_table_entry else None
             )
         )
 
@@ -409,7 +409,7 @@ AddEntityMutation = t.Union[
 # Therefore here we inherit from BaseModel instead of ImmuntableBaseModel.
 
 class CreationContext(BaseModel):
-    source_table_info: t.Mapping[InstrumentName, SourceTableInfo]
+    source_table_entry: t.Mapping[InstrumentName, SourceTableEntry]
     codemap_id_by_measure_relname: t.Mapping[t.Tuple[MeasureId, RelativeCodeMapName], CodeMapId] = {}
     measure_name_by_id: t.Mapping[MeasureId, MeasureName] = {}
     codemap_name_by_id: t.Mapping[CodeMapId, CodeMapName] = {}

@@ -12,20 +12,20 @@ class UnsafeTableManager(ImmutableBaseModel):
 
     def load_unsafe_table(self, instrument_name: InstrumentName) -> UnsafeTable:
         file_info = self.load_file_info(instrument_name)
-        fetch_info = self.load_fetch_info(instrument_name)
+        source_table_info = self.load_fetch_info(instrument_name)
         columns = read_unsafe_table_data(file_info)
         return UnsafeTable(
             instrument_name=instrument_name,
             file_info=file_info,
-            fetch_info=fetch_info,
+            source_table_info=source_table_info,
             columns=columns,
         )
 
     def load_file_info(self, instrument_name: InstrumentName) -> TableFileInfo:
         return TableFileInfo.parse_file(self.settings.unsafe_table_fileinfo_file(instrument_name))
 
-    def load_fetch_info(self, instrument_id: InstrumentName) -> TableFetchInfo:
-        return TableFetchInfo.parse_file(self.settings.unsafe_table_fetchinfo_file(instrument_id))
+    def load_fetch_info(self, instrument_id: InstrumentName) -> SourceTableInfo:
+        return SourceTableInfo.parse_file(self.settings.unsafe_table_fetchinfo_file(instrument_id))
 
     def fetch(
         self,
