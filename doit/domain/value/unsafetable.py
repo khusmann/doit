@@ -42,4 +42,4 @@ class UnsafeTable(ImmutableBaseModel):
     instrument_name: InstrumentName
     source_table_info: SourceTableInfo
     file_info: TableFileInfo
-    columns: t.Tuple[ColumnImport, ...]
+    columns: t.Mapping[SourceColumnName, ColumnImport]

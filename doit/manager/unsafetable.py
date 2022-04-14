@@ -18,7 +18,7 @@ class UnsafeTableManager(ImmutableBaseModel):
             instrument_name=instrument_name,
             file_info=file_info,
             source_table_info=source_table_info,
-            columns=columns,
+            columns={ column.source_column_name: column for column in columns },
         )
 
     def load_file_info(self, instrument_name: InstrumentName) -> TableFileInfo:

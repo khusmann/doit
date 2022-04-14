@@ -5,6 +5,62 @@ from ..model import *
 
 default_source_id_gen = count(0)
 
+def update_sanitizers(table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]) -> t.List[SanitizerUpdate]:
+
+    missing_sanitizers = create_missing_sanitizers(table, sanitizers)
+
+    updated_sanitizers = update_existing_sanitizers(table, sanitizers)
+
+    return [*missing_sanitizers, *updated_sanitizers]
+
+def rowwise(m: t.Mapping[SourceColumnName, t.Iterable[t.Any | None]]):
+    return (dict(zip(m.keys(), v)) for v in zip(*m.values()))
+
+def create_missing_sanitizers(table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]) -> t.List[SanitizerUpdate]:
+    sanitized_columns = {
+        column
+            for sanitizer in sanitizers
+                for column in sanitizer.columns.keys()
+    }
+
+    unsafe_column_names = { name for name, column in table.columns.items() if column.type.startswith("unsafe") }
+
+    missing_columns = unsafe_column_names - sanitized_columns
+
+    return [
+        SanitizerUpdate(
+            name=SanitizerName(column),
+            instrument_name=table.instrument_name,
+            columns = { column: set(table.columns[column].values) - set((None,)), (column+"__safe"): () }
+        ) for column in missing_columns
+    ]
+
+def update_existing_sanitizers(table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]) -> t.List[SanitizerUpdate]:
+    source_column_values = { name: column.values for name, column in table.columns.items() }
+
+    def update_one(sanitizer: Sanitizer):
+        key_column_names = { name for name in sanitizer.columns if name in table.columns }
+
+        hashed_sanitizer_rows = {
+            frozenset((v for k, v in row.items() if k in key_column_names)) for row in rowwise(sanitizer.columns)
+        }
+
+        hashed_source_rows = {
+            frozenset((v for k, v in row.items() if k in key_column_names)): row for row in rowwise(source_column_values)
+        }
+
+        missing_rows = [row for hash, row in hashed_source_rows.items() if hash not in hashed_sanitizer_rows]
+
+        new_rows = [r for r in [[mrow.get(k) for k in sanitizer.columns] for mrow in missing_rows] if any(r)]
+
+        return [SanitizerUpdate(
+            name=sanitizer.name,
+            instrument_name=sanitizer.instrument_name,
+            columns={ name: col for name, col in zip(sanitizer.columns, zip(*new_rows))}
+        )] if new_rows else []
+
+    return sum([update_one(sanitizer) for sanitizer in sanitizers], [])
+
 def is_integer_text_column(values: t.Sequence[str | None]):
     return all([i.lstrip('-+').isdigit() for i in values if i is not None])
 
@@ -47,7 +103,7 @@ def sanitize_table(table: UnsafeTable) -> SourceTable: # sanitizers: t.Mapping[S
 
     table_entry_id = SourceTableEntryId(next(default_source_id_gen))
 
-    columns = { column.source_column_name: sanitize_column_data(table_entry_id, column) for column in table.columns }
+    columns = { column.source_column_name: sanitize_column_data(table_entry_id, column) for column in table.columns.values() }
 
     table_entry = SourceTableEntry(
         id=table_entry_id,
@@ -75,6 +131,6 @@ def stub_instrument_spec(table: UnsafeTable) -> InstrumentSpec:
         title=table.source_table_info.remote_title,
         description="description",
         instructions="instructions",
-        items=(stub_instrument_item(column) for column in table.columns)
+        items=(stub_instrument_item(column) for column in table.columns.values())
     )
 

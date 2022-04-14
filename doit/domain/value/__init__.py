@@ -3,6 +3,7 @@ from __future__ import annotations
 from .common import *
 from .unsafetable import *
 from .studyspec import *
+from .sanitizer import *
 
 import yaml
 

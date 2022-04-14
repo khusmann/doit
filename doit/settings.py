@@ -30,6 +30,19 @@ class ProjectSettings(BaseSettings):
     def get_unsafe_table_names(self) -> t.List[str]:
         return [ i.name for i in self.unsafe_source_repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
 
+    # SanitizerManager
+
+    sanitizer_repo_dir = Path("./build/unsafe/sanitizers")
+
+    def sanitizer_workdir(self, instrument_id: str) -> Path:
+        return self.sanitizer_repo_dir / instrument_id
+
+    def sanitizer_file(self, instrument_id: str, sanitizer_id: str) -> Path:
+        return ((self.sanitizer_workdir(instrument_id) / sanitizer_id).with_suffix(".csv"))
+
+    def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
+        return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]
+
     # SourceTableManager
     safe_source_repo_dir = Path("./build/safe/sanitized")
 

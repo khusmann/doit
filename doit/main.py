@@ -21,7 +21,12 @@ def cli():
     """root doit-src description -- talk about what this thing does"""
     pass
 
-@cli.command(name="add")
+@cli.group(name="source")
+def source_cli():
+    """Manage sources"""
+    pass
+
+@source_cli.command(name="add")
 @click.argument('instrument_id')
 @click.argument('uri')
 def source_add(instrument_id: str, uri: str):
@@ -53,7 +58,7 @@ def source_add(instrument_id: str, uri: str):
     click.secho("Done.")
     click.secho()
 
-@cli.command(name="rm")
+@source_cli.command(name="rm")
 @click.argument('instrument_id')
 def source_rm(instrument_id: str):
     """Remove an instrument source"""
@@ -68,21 +73,7 @@ def complete_instrument_name(ctx: click.Context, param: click.Parameter, incompl
     from .settings import ProjectSettings
     return [i for i in ProjectSettings().get_unsafe_table_names() if i.startswith(incomplete)]
 
-@cli.command()
-@click.argument('instrument_id', required=False, shell_complete=complete_instrument_name)
-def fetch(instrument_id: str | None):
-    from .manager import UnsafeTableManager
-    from .domain.value import InstrumentName
-
-    unsafe_repo = UnsafeTableManager()
-    id_list = unsafe_repo.tables() if instrument_id is None else [InstrumentName(instrument_id)]
-    click.secho()
-    for i in tqdm(id_list):
-        update_fcn = progress_callback(leave=False, desc=i)
-        unsafe_repo.fetch(i, update_fcn)
-    click.secho()
-
-@cli.command(name="list")
+@source_cli.command(name="list")
 @click.argument('remote_service', required=False)
 def source_list(remote_service: str | None):
     """List available instruments"""
@@ -102,7 +93,111 @@ def source_list(remote_service: str | None):
             click.secho(" {} : {}".format(click.style(desc.uri, fg='bright_cyan'), desc.title))
     click.secho()
 
-@cli.command()
+@cli.group(name="sanitizer")
+def sanitizer_cli():
+    """Manage sanitizers"""
+    pass
+
+@sanitizer_cli.command(name="list")
+@click.argument('instrument_str', required=False, shell_complete=complete_instrument_name)
+def sanitizer_list(instrument_str: str | None):
+    """List active sanitizers"""
+    from .manager import UnsafeTableManager, SanitizerManager
+    from .domain.value import InstrumentName
+    from .domain.service import update_sanitizers
+
+
+    unsafe_manager = UnsafeTableManager()
+    sanitizer_manager = SanitizerManager()
+
+    click.secho()
+
+    if instrument_str:
+        instrument_name = InstrumentName(instrument_str)
+
+        unsafe_table = unsafe_manager.load_unsafe_table(instrument_name)
+        sanitizers = sanitizer_manager.load_sanitizers(instrument_name)
+        click.secho("Sanitizers for {}:".format(instrument_name))
+        for sanitizer in sanitizers:
+            click.secho("   {}: {} values empty".format(sanitizer.name, sanitizer.num_empty()))
+    else:
+        for table_name in unsafe_manager.tables():
+            sanitizers = sanitizer_manager.load_sanitizers(table_name)
+            unsafe_table = unsafe_manager.load_unsafe_table(table_name)
+            n_sanitizers = len(sanitizers)
+            n_updates = len(update_sanitizers(unsafe_table, sanitizers))
+            n_empty = sum([s.num_empty() for s in sanitizers])
+            click.secho("{}: {} sanitizers | {} updates needed | {} empty values".format(
+                table_name,
+                n_sanitizers,
+                click.style(n_updates, fg="bright_red") if n_updates else 0,
+                click.style(n_empty, fg="bright_red") if n_empty else 0,
+            ))
+
+    click.secho()
+
+
+@sanitizer_cli.command(name="add")
+def sanitizer_add():
+    """Create a new sanitizer"""
+    pass
+
+@sanitizer_cli.command(name="update")
+@click.argument('instrument_str', required=False, shell_complete=complete_instrument_name)
+def sanitizer_update(instrument_str: str | None):
+    """Update sanitizers with new data"""
+    from .manager import UnsafeTableManager, SanitizerManager
+    from .domain.value import InstrumentName
+    from .domain.service import update_sanitizers
+
+
+    unsafe_manager = UnsafeTableManager()
+    sanitizer_manager = SanitizerManager()
+
+    click.secho()
+
+    if instrument_str:
+        instrument_name = InstrumentName(instrument_str)
+        unsafe_table = unsafe_manager.load_unsafe_table(instrument_name)
+        sanitizers = sanitizer_manager.load_sanitizers(instrument_name)
+        new_sanitizers = update_sanitizers(unsafe_table, sanitizers)
+        for i in new_sanitizers:
+            click.secho("Updating: {} {}".format(instrument_name, i.name))
+            sanitizer_manager.write_sanitizer(i)
+    else:
+        for i in unsafe_manager.tables():
+            unsafe_table = unsafe_manager.load_unsafe_table(i)
+            sanitizers = sanitizer_manager.load_sanitizers(i)
+
+            new_sanitizers = update_sanitizers(unsafe_table, sanitizers)
+
+            for s in new_sanitizers:
+                click.secho("Updating: {} {}".format(s.instrument_name, s.name))
+                sanitizer_manager.write_sanitizer(s)
+    
+    click.secho()
+
+@cli.group(name="run")
+def run_cli():
+    """Run a processing command"""
+    pass
+
+@run_cli.command()
+@click.argument('instrument_id', required=False, shell_complete=complete_instrument_name)
+def fetch(instrument_id: str | None):
+    """Fetch data from sources"""
+    from .manager import UnsafeTableManager
+    from .domain.value import InstrumentName
+
+    unsafe_repo = UnsafeTableManager()
+    id_list = unsafe_repo.tables() if instrument_id is None else [InstrumentName(instrument_id)]
+    click.secho()
+    for i in tqdm(id_list):
+        update_fcn = progress_callback(leave=False, desc=i)
+        unsafe_repo.fetch(i, update_fcn)
+    click.secho()
+
+@run_cli.command()
 def sanitize():
     """Sanitize sources"""
     from .manager import UnsafeTableManager, SourceTableRepoManager
@@ -118,7 +213,7 @@ def sanitize():
         safe_repo.add_source_table(safe_table)
     click.secho()
 
-@cli.command()
+@run_cli.command()
 def link():
     """Link study"""
     from .manager import StudyRepoManager, StudySpecManager, SourceTableRepoManager
@@ -166,4 +261,21 @@ def link():
 def debug():
     """Debug"""
     print("Do debug stuff")
-    
+
+    from .manager import UnsafeTableManager, SanitizerManager
+    from .domain.service import update_sanitizers
+
+    unsafe_manager = UnsafeTableManager()
+    sanitizer_manager = SanitizerManager()
+
+    for i in unsafe_manager.tables():
+        unsafe_table = unsafe_manager.load_unsafe_table(i)
+        sanitizers = sanitizer_manager.load_sanitizers(i)
+
+        new_sanitizers = update_sanitizers(unsafe_table, sanitizers)
+
+        changes = sanitizer_manager.write_sanitizers(new_sanitizers)
+
+        for c in changes:
+            click.secho("Sanitizer in need of update. Wrote: {}".format(c))
+
