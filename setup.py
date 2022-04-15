@@ -4,6 +4,7 @@ setup(
     name='doit',
     version='0.1.0',
     py_modules=['doit'],
+    package_dir = { '' : 'src' },
     install_requires=[
         'Click',
     ],
@@ -16,6 +17,6 @@ setup(
         ],
     },
     package_data={"doit": [
-        "datasette/templates/*"
+        "src/datasette/templates/*"
     ]},
 )

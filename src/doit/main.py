@@ -262,7 +262,7 @@ def link():
 @cli.command()
 def debug():
     """Debug"""
-    print("Do debug stuff")
+    print("Do debug stuffasdf")
 
     from .manager import UnsafeTableManager, SanitizerManager
     from .domain.service import update_sanitizers
