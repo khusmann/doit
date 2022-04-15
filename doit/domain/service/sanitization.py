@@ -1,5 +1,5 @@
 import typing as t
-from itertools import count
+from itertools import count, zip_longest
 from ..value import *
 from ..model import *
 
@@ -14,7 +14,7 @@ def update_sanitizers(table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]) -> 
     return [*missing_sanitizers, *updated_sanitizers]
 
 def rowwise(m: t.Mapping[SourceColumnName, t.Iterable[t.Any | None]]):
-    return (dict(zip(m.keys(), v)) for v in zip(*m.values()))
+    return (dict(zip_longest(m.keys(), v)) for v in zip_longest(*m.values()))
 
 def create_missing_sanitizers(table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]) -> t.List[SanitizerUpdate]:
     sanitized_columns = {
@@ -99,11 +99,47 @@ def sanitize_column_data(parent_table_id: SourceTableEntryId, column: ColumnImpo
         values=values,
     )
 
-def sanitize_table(table: UnsafeTable) -> SourceTable: # sanitizers: t.Mapping[SourceColumnName, ColumnSanitizer]
+def run_sanitizers(parent_table_id: SourceTableEntryId, table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]):
+    source_column_values = { name: column.values for name, column in table.columns.items() }
+    def run_one(sanitizer: Sanitizer) -> t.List[SourceColumn]:
+        key_column_names = { name for name in sanitizer.columns if name in table.columns }
+
+        new_column_names = set(sanitizer.columns) - key_column_names
+
+        hashed_sanitizer_rows = {
+            frozenset((v for k, v in row.items() if k in key_column_names)): row for row in rowwise(sanitizer.columns)
+        }
+
+        new_row_vals = [
+            [hashed_sanitizer_rows.get(frozenset((v for k, v in row.items() if k in key_column_names)), {}).get(newcol) or "__REDACTED__" for newcol in new_column_names] for row in rowwise(source_column_values)
+        ]
+
+        new_cols = { name: col for name, col in zip(new_column_names, zip(*new_row_vals))}
+
+        return [
+            SourceColumn(
+                entry=SourceColumnEntry(
+                    id=next(default_source_id_gen),
+                    parent_table_id=parent_table_id,
+                    name=name,
+                    content=SourceColumnInfo(
+                        name=name,
+                        prompt="; ".join([table.columns[k].prompt for k in key_column_names]),
+                        type="text",
+                    ),
+                ),
+                values=vals,
+            ) for name, vals in new_cols.items()
+        ]
+    return { c.entry.content.name: c for c in sum([run_one(s) for s in sanitizers], []) }
+
+def sanitize_table(table: UnsafeTable, sanitizers: t.Sequence[Sanitizer]) -> SourceTable: # sanitizers: t.Mapping[SourceColumnName, ColumnSanitizer]
 
     table_entry_id = SourceTableEntryId(next(default_source_id_gen))
 
     columns = { column.source_column_name: sanitize_column_data(table_entry_id, column) for column in table.columns.values() }
+
+    columns |= run_sanitizers(table_entry_id, table, sanitizers)
 
     table_entry = SourceTableEntry(
         id=table_entry_id,

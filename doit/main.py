@@ -200,16 +200,18 @@ def fetch(instrument_id: str | None):
 @run_cli.command()
 def sanitize():
     """Sanitize sources"""
-    from .manager import UnsafeTableManager, SourceTableRepoManager
+    from .manager import UnsafeTableManager, SourceTableRepoManager, SanitizerManager
     from .domain.service import sanitize_table
 
     unsafe_manager = UnsafeTableManager()
+    sanitizer_manager = SanitizerManager()
     safe_repo = SourceTableRepoManager().load_repo()
 
     click.secho()
     for instrument_id in tqdm(unsafe_manager.tables()):
         unsafe_table = unsafe_manager.load_unsafe_table(instrument_id)
-        safe_table = sanitize_table(unsafe_table)
+        sanitizers = sanitizer_manager.load_sanitizers(instrument_id)
+        safe_table = sanitize_table(unsafe_table, sanitizers)
         safe_repo.add_source_table(safe_table)
     click.secho()
 
