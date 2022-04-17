@@ -61,6 +61,8 @@ class Uri(str):
 
 ### Source Table Types (TODO: Clean these up)
 
+SanitizerName = t.NewType('SanitizerName', str)
+
 SourceColumnTypeStr = t.Literal['bool', 'ordinal', 'real', 'text', 'integer']
 SourceColumnName = t.NewType('SourceColumnName', str)
 

@@ -2,8 +2,6 @@ import typing as t
 from datetime import datetime
 from .common import *
 
-SanitizerName = t.NewType('SanitizerName', str)
-
 class Sanitizer(ImmutableBaseModel):
     name: SanitizerName
     instrument_name: InstrumentName
