@@ -243,5 +243,3 @@ def test_table2(table: TableData):
     print(result2)
 
     assert "hash" in [c.name for c in result.columns]
-
-    assert 5==7
