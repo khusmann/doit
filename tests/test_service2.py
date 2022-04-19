@@ -71,7 +71,7 @@ class SanitizedColumn(t.NamedTuple):
     prompt: str
     sanitizer_checksum: str
 
-T = t.TypeVar('T', covariant=True)
+T = t.TypeVar('T')
 
 MissingReason = t.Literal['omitted', 'redacted']
 ErrorReason = t.Literal['error', 'type_error', 'mapping_error', 'length_mismatch', 'missing_column', 'missing_sanitizer']
@@ -79,9 +79,14 @@ ErrorReason = t.Literal['error', 'type_error', 'mapping_error', 'length_mismatch
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
     value: T
+    def is_type(self, some_type: t.Any) -> t.TypeGuard[Some[T]]:
+        return type(self.value) == some_type 
+
 
 class Missing(t.NamedTuple):
     reason: MissingReason
+    def is_type(self, _: t.Any) -> t.TypeGuard[Missing]:
+        return True
 
 class Error:
     reason: ErrorReason
@@ -93,6 +98,8 @@ class Error:
         return self.__str__()
     def __str__(self):
         return "Error(reason={})".format(self.reason)
+    def is_type(self, _: t.Any) -> t.TypeGuard[Error]:
+        return True
 
 Maybe = Some[T] | Missing | Error
 
@@ -102,6 +109,7 @@ class UnsanitizedColumnName(str): pass
 class SanitizedColumnName(str): pass
 
 ValueT = t.TypeVar("ValueT")
+ValueP = t.TypeVar("ValueP")
 ColumnNameT = t.TypeVar('ColumnNameT', UnsanitizedColumnName, SanitizedColumnName)
 
 @dataclass(frozen=True)
@@ -111,6 +119,8 @@ class TableRowView(t.Generic[ColumnNameT, ValueT]):
         return self.values.get(column_name, Error('missing_column'))
     def subset(self, keys: t.Collection[ColumnNameT]) -> TableRowView[ColumnNameT, ValueT]:
         return TableRowView({ k: self.get(k) for k in keys })
+    def subset_type(self, value_type: t.Type[ValueP]) -> TableRowView[ColumnNameT, ValueP]:
+        return TableRowView({ k: v for k, v in self.values.items() if v.is_type(value_type)})
     def hash(self) -> HashValue:
         return HashValue(hash(frozenset((k, v) for k, v in self.values.items())))
 
@@ -137,7 +147,7 @@ class SanitizedTable:
 
 @dataclass(frozen=True)
 class UnsanitizedTable:
-    values: t.Tuple[t.Tuple[Maybe[str | bool], ...], ...] # rows x columns
+    values: t.Tuple[t.Tuple[Maybe[str], ...], ...] # rows x columns
     columns: t.Tuple[UnsanitizedColumn, ...]
 
     def iter_rows(self):
@@ -145,6 +155,11 @@ class UnsanitizedTable:
             TableRowView({
                 c.name: v for c, v in zip(self.columns, row_values)
             }) for row_values in self.values
+        )
+
+    def iter_str_rows(self):
+        return (
+            row.subset_type(str) for row in self.iter_rows()
         )
 
     def __repr__(self):
@@ -201,6 +216,13 @@ def sanitizer_from_raw(table: SanitizerSpec) -> Sanitizer:
         map=hash_map,
     )
 
+def sanitize_row(row: UnsanitizedTableRowView, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTableRowView:
+    return SanitizedTableRowView(dict(
+        keypair
+            for sanitizer in sanitizers
+                for keypair in sanitizer.get(row.subset(sanitizer.key_col_names).hash()).values.items()
+    ))
+
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
     sanitized_columns = tuple(
         SanitizedColumn(
@@ -211,20 +233,12 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
                 for name in sanitizer.new_col_names
     )
 
-    sanitized_rows_grouped = (
-        (
-            sanitizer.get(
-                row.subset(sanitizer.key_col_names).hash()
-            ) for sanitizer in sanitizers
-        ) for row in table.iter_rows()
+    sanitized_row_view = (
+        sanitize_row(row, sanitizers) for row in table.iter_str_rows()
     )
 
     sanitized_values = tuple(
-        tuple(
-            v
-                for row in row_grouped
-                    for v in row.values.values()
-        ) for row_grouped in sanitized_rows_grouped
+        tuple(row.get(c.name) for c in sanitized_columns) for row in sanitized_row_view
     )
 
     return SanitizedTable(
