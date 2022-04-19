@@ -71,7 +71,7 @@ class SanitizedColumn(t.NamedTuple):
     prompt: str
     sanitizer_checksum: str
 
-T = t.TypeVar('T')
+T = t.TypeVar('T', covariant=True)
 
 MissingReason = t.Literal['omitted', 'redacted']
 ErrorReason = t.Literal['error', 'type_error', 'mapping_error', 'length_mismatch', 'missing_column', 'missing_sanitizer']
@@ -137,7 +137,7 @@ class SanitizedTable:
 
 @dataclass(frozen=True)
 class UnsanitizedTable:
-    values: t.Tuple[t.Tuple[Maybe[str], ...], ...] # rows x columns
+    values: t.Tuple[t.Tuple[Maybe[str | bool], ...], ...] # rows x columns
     columns: t.Tuple[UnsanitizedColumn, ...]
 
     def iter_rows(self):
@@ -201,13 +201,8 @@ def sanitizer_from_raw(table: SanitizerSpec) -> Sanitizer:
         map=hash_map,
     )
 
-def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> SanitizedTableRowView:
-    return sanitizer.get(
-        row.subset(sanitizer.key_col_names).hash()
-    )
-
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
-    new_columns = tuple(
+    sanitized_columns = tuple(
         SanitizedColumn(
             name,
             prompt="; ".join(c.name for c in table.columns if c.name in sanitizer.key_col_names),
@@ -217,20 +212,23 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
     )
 
     sanitized_rows_grouped = (
-        (sanitize_row(row, sanitizer) for sanitizer in sanitizers)
-            for row in table.iter_rows()
+        (
+            sanitizer.get(
+                row.subset(sanitizer.key_col_names).hash()
+            ) for sanitizer in sanitizers
+        ) for row in table.iter_rows()
     )
 
     sanitized_values = tuple(
         tuple(
             v
-                for row in row_grouped if row is not None
+                for row in row_grouped
                     for v in row.values.values()
         ) for row_grouped in sanitized_rows_grouped
     )
 
     return SanitizedTable(
-        columns=new_columns,
+        columns=sanitized_columns,
         values=sanitized_values,
     )
 
