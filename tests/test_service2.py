@@ -204,26 +204,28 @@ class SanitizerSpec(t.NamedTuple):
     header: t.Tuple[str, ...]
     rows: t.Tuple[t.Tuple[str, ...], ...]
 
-def sanitizer_from_raw(table: SanitizerSpec) -> Sanitizer:
-    key_col_names = {c: UnsanitizedColumnId(c[1:-1]) for c in table.header if re.match(r'^\(.+\)$', c)}
-    new_col_names = {c: SanitizedColumnId(c) for c in table.header if c not in key_col_names}
+def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
+    key_col_names = {c: UnsanitizedColumnId(c[1:-1]) for c in sanitizer_spec.header if re.match(r'^\(.+\)$', c)}
+    new_col_names = {c: SanitizedColumnId(c) for c in sanitizer_spec.header if c not in key_col_names}
 
     key_col_rows = (
         UnsanitizedStrTableRowView({
             key_col_names[c]: Some(v) if v else Missing('omitted')
-                for c, v in zip_longest(table.header, row) if c in key_col_names
-        }) for row in table.rows
+                for c, v in zip_longest(sanitizer_spec.header, row) if c in key_col_names
+        }) for row in sanitizer_spec.rows
     )
 
     new_col_rows = (
         SanitizedStrTableRowView({
             new_col_names[c]: Some(v) if v else Missing('redacted')
-                for c, v in zip_longest(table.header, row) if c in new_col_names
-        }) for row in table.rows
+                for c, v in zip_longest(sanitizer_spec.header, row)if c in new_col_names
+        }) for row in sanitizer_spec.rows
     )
 
     hash_map = {
-        key.hash_or_die(): new for key, new in zip(key_col_rows, new_col_rows)
+        key.hash_or_die(): new
+            for key, new in zip(key_col_rows, new_col_rows)
+                if any(v for v in key.values.values()) # TODO: test sanitizers with blank key columns
     }
 
     return Sanitizer(
@@ -306,8 +308,8 @@ def test_rowwise(table: UnsanitizedTable):
     assert list(row.values) == ['col1', 'col2', 'col3']
 
 def test_hash(table: UnsanitizedTable, san_table: SanitizerSpec, san_table2: SanitizerSpec):
-    sanitizer = sanitizer_from_raw(san_table)
-    sanitizer2 = sanitizer_from_raw(san_table2)
+    sanitizer = sanitizer_from_spec(san_table)
+    sanitizer2 = sanitizer_from_spec(san_table2)
 
     sanitized_table = sanitize_table(table, [sanitizer, sanitizer2])
 
