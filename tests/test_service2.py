@@ -118,16 +118,16 @@ ColumnIdT = t.TypeVar('ColumnIdT', UnsanitizedColumnId, SanitizedColumnId)
 
 @dataclass(frozen=True)
 class TableRowView(t.Generic[ColumnIdT, T]):
-    values: t.Mapping[ColumnIdT, TableValue[T]]
+    map: t.Mapping[ColumnIdT, TableValue[T]]
     def get(self, column_name: ColumnIdT) -> TableValue[T]:
-        return self.values.get(column_name, Error('missing_column'))
+        return self.map.get(column_name, Error('missing_column'))
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
         return TableRowView({ k: self.get(k) for k in keys })
     def subset_type(self, value_type: t.Type[P]) -> TableRowView[ColumnIdT, P]:
-        return TableRowView({ k: v for k, v in self.values.items() if v.is_type(value_type)})
+        return TableRowView({ k: v for k, v in self.map.items() if v.is_type(value_type)})
     def hash(self) -> MaybeRowViewHash:
-        error = next((v for v in self.values.values() if isinstance(v, Error)), None)
-        return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self.values.items()))))
+        error = next((v for v in self.map.values() if isinstance(v, Error)), None)
+        return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self.map.items()))))
     def hash_or_die(self) -> RowViewHash:
         val = self.hash()
         match val:
@@ -138,8 +138,8 @@ class TableRowView(t.Generic[ColumnIdT, T]):
     
 @dataclass(frozen=True)
 class SanitizedTable:
-    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
     columns: t.Tuple[SanitizedColumn, ...]
+    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
 
     def iter_rows(self):
         return (
@@ -159,8 +159,8 @@ class SanitizedTable:
 
 @dataclass(frozen=True)
 class UnsanitizedTable:
-    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
     columns: t.Tuple[UnsanitizedColumn, ...]
+    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
 
     def iter_rows(self):
         return (
@@ -208,14 +208,14 @@ def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
     key_col_names = {c: UnsanitizedColumnId(c[1:-1]) for c in sanitizer_spec.header if re.match(r'^\(.+\)$', c)}
     new_col_names = {c: SanitizedColumnId(c) for c in sanitizer_spec.header if c not in key_col_names}
 
-    key_col_rows = (
+    keys = (
         UnsanitizedStrTableRowView({
             key_col_names[c]: Some(v) if v else Missing('omitted')
                 for c, v in zip_longest(sanitizer_spec.header, row) if c in key_col_names
         }) for row in sanitizer_spec.rows
     )
 
-    new_col_rows = (
+    values = (
         SanitizedStrTableRowView({
             new_col_names[c]: Some(v) if v else Missing('redacted')
                 for c, v in zip_longest(sanitizer_spec.header, row)if c in new_col_names
@@ -224,8 +224,8 @@ def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
 
     hash_map = {
         key.hash_or_die(): new
-            for key, new in zip(key_col_rows, new_col_rows)
-                if any(v for v in key.values.values()) # TODO: test sanitizers with blank key columns
+            for key, new in zip(keys, values)
+                if any(v for v in key.map.values()) # TODO: test sanitizers with blank key columns
     }
 
     return Sanitizer(
@@ -238,7 +238,7 @@ def sanitize_row(row: UnsanitizedStrTableRowView, sanitizers: t.Sequence[Sanitiz
     return SanitizedStrTableRowView(dict(
         keypair
             for sanitizer in sanitizers
-                for keypair in sanitizer.get(row.subset(sanitizer.key_col_ids).hash()).values.items()
+                for keypair in sanitizer.get(row.subset(sanitizer.key_col_ids).hash()).map.items()
     ))
 
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
@@ -305,7 +305,7 @@ def san_table2() -> SanitizerSpec:
 
 def test_rowwise(table: UnsanitizedTable):
     row = next(table.iter_rows())
-    assert list(row.values) == ['col1', 'col2', 'col3']
+    assert list(row.map) == ['col1', 'col2', 'col3']
 
 def test_hash(table: UnsanitizedTable, san_table: SanitizerSpec, san_table2: SanitizerSpec):
     sanitizer = sanitizer_from_spec(san_table)
