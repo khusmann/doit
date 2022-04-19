@@ -24,7 +24,7 @@ T = t.TypeVar('T')
 P = t.TypeVar("P")
 
 MissingReason = t.Literal['omitted', 'redacted']
-ErrorReason = t.Literal['unknown_error', 'unknown_column']
+ErrorReason = t.Literal['unknown_column']
 
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
