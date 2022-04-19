@@ -10,7 +10,7 @@ from pydantic import BaseModel
 ### Common types
 
 class UnsanitizedColumnId(t.NamedTuple):
-    name: str
+    unsafe_name: str
 
 class SanitizedColumnId(t.NamedTuple):
     name: str
@@ -24,7 +24,7 @@ T = t.TypeVar('T')
 P = t.TypeVar("P")
 
 MissingReason = t.Literal['omitted', 'redacted']
-ErrorReason = t.Literal['unknown_error', 'missing_column']
+ErrorReason = t.Literal['unknown_error', 'unknown_column']
 
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
@@ -56,6 +56,7 @@ RowViewHash = t.NewType('RowViewHash', int)
 MaybeRowViewHash = Some[RowViewHash] | Error
 
 ColumnIdT = t.TypeVar('ColumnIdT', UnsanitizedColumnId, SanitizedColumnId)
+ColumnIdP = t.TypeVar('ColumnIdP', UnsanitizedColumnId, SanitizedColumnId)
 TableValue = Some[T] | Missing | Error
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ class TableRowView(t.Generic[ColumnIdT, T]):
     map: t.Mapping[ColumnIdT, TableValue[T]]
 
     def get(self, column_name: ColumnIdT) -> TableValue[T]:
-        return self.map.get(column_name, Error('missing_column', column_name))
+        return self.map.get(column_name, Error('unknown_column', column_name))
 
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
         return TableRowView({ k: self.get(k) for k in keys })
@@ -82,6 +83,19 @@ class TableRowView(t.Generic[ColumnIdT, T]):
                 return val.value
             case Error():
                 raise Exception("Unexpected error value: {}".format(val))
+
+    def bless_ids(self, fn: t.Callable[[ColumnIdT], ColumnIdP]) -> TableRowView[ColumnIdP, T]:
+        return TableRowView({ fn(k): v for k, v in self.map.items()})
+
+    @classmethod
+    def combine_views(cls, *views: TableRowView[ColumnIdT, T]) -> TableRowView[ColumnIdT, T]:
+        return TableRowView(
+            dict(
+                v
+                    for view in views
+                        for v in view.map.items() 
+            )
+        )
 
 #### UnsanitizedTable
 
@@ -169,6 +183,7 @@ class Sanitizer(t.NamedTuple):
     key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
     map: t.Mapping[RowViewHash, SanitizedStrTableRowView]
+    checksum: str
     def get(self, h: MaybeRowViewHash) -> SanitizedStrTableRowView:
         match h:
             case Some():
@@ -181,6 +196,7 @@ class Sanitizer(t.NamedTuple):
 class SanitizerSpec(t.NamedTuple):
     header: t.Tuple[str, ...]
     rows: t.Tuple[t.Tuple[str, ...], ...]
+    checksum: str
 
 ### Service
 
@@ -216,41 +232,67 @@ def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
         key_col_ids=tuple(key_col_names.values()),
         new_col_ids=tuple(new_col_names.values()),
         map=hash_map,
+        checksum=sanitizer_spec.checksum,
     )
 
-def sanitize_row(row: UnsanitizedStrTableRowView, sanitizers: t.Sequence[Sanitizer]) -> SanitizedStrTableRowView:
-    return SanitizedStrTableRowView(dict(
-        keypair
-            for sanitizer in sanitizers
-                for keypair in sanitizer.get(row.subset(sanitizer.key_col_ids).hash()).map.items()
-    ))
-
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
+    
+    # Step 1: Create columns for the sanitized table
+    
     sanitized_columns = tuple(
         SanitizedColumn(
             id=id,
             prompt="; ".join(c.prompt for c in table.columns if c.id in sanitizer.key_col_ids),
-            sanitizer_checksum="boop"
-        )   for sanitizer in sanitizers
-                for id in sanitizer.new_col_ids
+            sanitizer_checksum=sanitizer.checksum,
+        ) for sanitizer in sanitizers
+            for id in sanitizer.new_col_ids
+    )
+    
+    safe_col_ids = frozenset(c.id for c in table.columns if c.is_safe)
+
+    safe_columns = tuple(
+        SanitizedColumn(
+            id=SanitizedColumnId(c.id.unsafe_name),
+            prompt=c.prompt,
+            sanitizer_checksum=None,
+        ) for c in table.columns if c.id in safe_col_ids
     )
 
-    sanitized_spec = SanitizedTableSpec(
-        data_checksum=table.spec.data_checksum,
-        schema_checksum=table.spec.schema_checksum,
-        columns=sanitized_columns
+    all_columns = sanitized_columns + safe_columns
+
+    # Step 2: Create rowviews that map column names to sanitized/safe values
+
+    sanitized_rows = (
+        (sanitizer.get(row.subset(sanitizer.key_col_ids).hash()) for sanitizer in sanitizers)
+            for row in table.iter_str_rows()
     )
 
-    sanitized_row_view = (
-        sanitize_row(row, sanitizers) for row in table.iter_str_rows()
+    safe_rows = (
+        row.subset(safe_col_ids).bless_ids(lambda id: SanitizedColumnId(id.unsafe_name))
+            for row in table.iter_rows()
     )
+
+    all_rows = (
+        TableRowView.combine_views(*sanitized, safe)
+            for sanitized, safe in zip(sanitized_rows, safe_rows)
+    )
+
+    # Step 3: Render the values
 
     sanitized_values = tuple(
-        tuple(row.get(c.id) for c in sanitized_columns) for row in sanitized_row_view
+        tuple(
+            row.get(c.id) for c in all_columns
+        ) for row in all_rows
     )
 
+    # Step 4: And then you're done!
+
     return SanitizedTable(
-        spec=sanitized_spec,
+        spec=SanitizedTableSpec(
+            data_checksum=table.spec.data_checksum,
+            schema_checksum=table.spec.schema_checksum,
+            columns=all_columns,
+        ),
         values=sanitized_values,
         # Table Info goes here...
     )
@@ -292,6 +334,7 @@ def san_table() -> SanitizerSpec:
     return SanitizerSpec(
         header=(colinfo1, colinfo2),
         rows=tuple(tuple(v) for v in zip(col1, col2)),
+        checksum="sanitizer1 checksum",
     ) 
 
 @pytest.fixture
@@ -305,6 +348,7 @@ def san_table2() -> SanitizerSpec:
     return SanitizerSpec(
         header=(colinfo1, colinfo2),
         rows=tuple(tuple(v) for v in zip(col1, col2)),
+        checksum="sanitizer2 checksum",
     ) 
 
 def test_rowwise(table: UnsanitizedTable):
