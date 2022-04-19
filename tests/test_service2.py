@@ -15,6 +15,11 @@ class UnsanitizedColumnId(t.NamedTuple):
 class SanitizedColumnId(t.NamedTuple):
     name: str
 
+class ImmutableBaseModel(BaseModel):
+    class Config:
+        frozen=True
+        smart_union = True
+
 T = t.TypeVar('T')
 P = t.TypeVar("P")
 
@@ -80,13 +85,13 @@ class TableRowView(t.Generic[ColumnIdT, T]):
 
 #### UnsanitizedTable
 
-class UnsanitizedColumn(BaseModel):
+class UnsanitizedColumn(ImmutableBaseModel):
     id: UnsanitizedColumnId
     prompt: str
     type: t.Literal['text', 'bool', 'ordinal']
     is_safe: bool
 
-class UnsanitizedTableSpec(BaseModel):
+class UnsanitizedTableSpec(ImmutableBaseModel):
     data_checksum: str
     schema_checksum: str
     columns: t.Tuple[UnsanitizedColumn, ...]
@@ -123,12 +128,12 @@ class UnsanitizedTable:
 
 #### SanitizedTable
 
-class SanitizedColumn(BaseModel):
+class SanitizedColumn(ImmutableBaseModel):
     id: SanitizedColumnId
     prompt: str
-    sanitizer_checksum: str
+    sanitizer_checksum: t.Optional[str]
 
-class SanitizedTableSpec(BaseModel):
+class SanitizedTableSpec(ImmutableBaseModel):
     data_checksum: str
     schema_checksum: str
     columns: t.Tuple[SanitizedColumn, ...]
