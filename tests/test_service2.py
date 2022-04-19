@@ -7,82 +7,25 @@ import traceback
 from dataclasses import dataclass
 from pydantic import BaseModel
 
-class TableImportInfo(BaseModel):
-    data_checksum: str
-    schema_checksum: str
-    columns: t.Tuple[ColumnImportInfo, ...]
+### Common types
 
-class TextColumnImportInfo(BaseModel):
-    type: t.Literal['text']
-    prompt: str
-    needs_sanitization: bool
+class UnsanitizedColumnId(t.NamedTuple):
+    name: str
 
-class OrdinalColumnImportInfo(BaseModel):
-    type: t.Literal['ordinal']
-    prompt: str
-    codes: t.Tuple[str, ...]
-
-class BoolColumnImportInfo(BaseModel):
-    type: t.Literal['bool']
-    prompt: str
-
-@dataclass(frozen=True)
-class TableImport:
-    info: TableImportInfo
-    rows: t.Tuple[t.Tuple[t.Optional[str | bool], ...], ...]
-
-ColumnImportInfo = TextColumnImportInfo | OrdinalColumnImportInfo | BoolColumnImportInfo
-
-######################
-
-class SourceTableInfo(BaseModel):
-    data_checksum: str
-    schema_checksum: str
-    columns: t.Tuple[SourceColumnInfo, ...]
-
-class TextSourceColumnInfo(BaseModel):
-    type: t.Literal['text']
-    prompt: str
-    sanitizer_checksum: t.Optional[str]
-
-class OrdinalSourceColumnInfo(BaseModel):
-    type: t.Literal['ordinal']
-    prompt: str
-
-
-SourceColumnInfo = TextSourceColumnInfo
-
-#@dataclass(frozen=True)
-class SourceTable:
-    info: SourceTableInfo
-
-
-def sanitize_table_import(table_import: TableImport, sanitizer_specs: t.Sequence[SanitizerSpec]) -> SourceTable:
-    return SourceTable()
-
-######################
-
-class UnsanitizedColumn(t.NamedTuple):
-    id: UnsanitizedColumnId
-    prompt: str
-
-class SanitizedColumn(t.NamedTuple):
-    id: SanitizedColumnId
-    prompt: str
-    sanitizer_checksum: str
+class SanitizedColumnId(t.NamedTuple):
+    name: str
 
 T = t.TypeVar('T')
 P = t.TypeVar("P")
 
 MissingReason = t.Literal['omitted', 'redacted']
-ErrorReason = t.Literal['error', 'type_error', 'mapping_error', 'length_mismatch', 'missing_column', 'missing_sanitizer']
+ErrorReason = t.Literal['unknown_error', 'missing_column']
 
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
     value: T
     def is_type(self, some_type: t.Any) -> t.TypeGuard[Some[T]]:
         return type(self.value) == some_type 
-
 
 class Missing(t.NamedTuple):
     reason: MissingReason
@@ -91,43 +34,42 @@ class Missing(t.NamedTuple):
 
 class Error:
     reason: ErrorReason
+    info: t.Any
     stack: traceback.StackSummary
-    def __init__(self, reason: ErrorReason):
+    def __init__(self, reason: ErrorReason, info: t.Any = None):
         self.reason = reason
+        self.info = info
         self.stack = traceback.extract_stack()
     def __repr__(self):
         return self.__str__()
     def __str__(self):
-        return "Error(reason={})".format(self.reason)
+        return "Error(reason={},info={})".format(self.reason, self.info)
     def is_type(self, _: t.Any) -> t.TypeGuard[Error]:
         return True
 
-TableValue = Some[T] | Missing | Error
-
 RowViewHash = t.NewType('RowViewHash', int)
-
 MaybeRowViewHash = Some[RowViewHash] | Error
 
-class UnsanitizedColumnId(t.NamedTuple):
-    name: str
-
-class SanitizedColumnId(t.NamedTuple):
-    name: str
-
 ColumnIdT = t.TypeVar('ColumnIdT', UnsanitizedColumnId, SanitizedColumnId)
+TableValue = Some[T] | Missing | Error
 
 @dataclass(frozen=True)
 class TableRowView(t.Generic[ColumnIdT, T]):
     map: t.Mapping[ColumnIdT, TableValue[T]]
+
     def get(self, column_name: ColumnIdT) -> TableValue[T]:
-        return self.map.get(column_name, Error('missing_column'))
+        return self.map.get(column_name, Error('missing_column', column_name))
+
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
         return TableRowView({ k: self.get(k) for k in keys })
+
     def subset_type(self, value_type: t.Type[P]) -> TableRowView[ColumnIdT, P]:
         return TableRowView({ k: v for k, v in self.map.items() if v.is_type(value_type)})
+
     def hash(self) -> MaybeRowViewHash:
         error = next((v for v in self.map.values() if isinstance(v, Error)), None)
         return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self.map.items()))))
+
     def hash_or_die(self) -> RowViewHash:
         val = self.hash()
         match val:
@@ -135,32 +77,28 @@ class TableRowView(t.Generic[ColumnIdT, T]):
                 return val.value
             case Error():
                 raise Exception("Unexpected error value: {}".format(val))
-    
-@dataclass(frozen=True)
-class SanitizedTable:
-    columns: t.Tuple[SanitizedColumn, ...]
-    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
 
-    def iter_rows(self):
-        return (
-            TableRowView({
-                c.id: v for c, v in zip(self.columns, row_values)
-            }) for row_values in self.values
-        )
+#### UnsanitizedTable
 
-    def __repr__(self):
-        result = " | ".join(repr(c) for c in self.columns) + "\n"
-        for row in self.iter_rows():
-            result += " | ".join(str(row.get(c.id)) for c in self.columns) + "\n"
-        return result
+class UnsanitizedColumn(BaseModel):
+    id: UnsanitizedColumnId
+    prompt: str
+    type: t.Literal['text', 'bool', 'ordinal']
+    is_safe: bool
 
-    # Constraint: Column Meta == columns
-    # Constraint: All columns are same size
+class UnsanitizedTableSpec(BaseModel):
+    data_checksum: str
+    schema_checksum: str
+    columns: t.Tuple[UnsanitizedColumn, ...]
 
 @dataclass(frozen=True)
 class UnsanitizedTable:
-    columns: t.Tuple[UnsanitizedColumn, ...]
+    spec: UnsanitizedTableSpec
     values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
+
+    @property
+    def columns(self):
+        return self.spec.columns
 
     def iter_rows(self):
         return (
@@ -180,6 +118,45 @@ class UnsanitizedTable:
             result += " | ".join(str(row.get(c.id)) for c in self.columns) + "\n"
         return result
 
+    # Constraint: Column Meta == columns
+    # Constraint: All columns are same size
+
+#### SanitizedTable
+
+class SanitizedColumn(BaseModel):
+    id: SanitizedColumnId
+    prompt: str
+    sanitizer_checksum: str
+
+class SanitizedTableSpec(BaseModel):
+    data_checksum: str
+    schema_checksum: str
+    columns: t.Tuple[SanitizedColumn, ...]
+
+@dataclass(frozen=True)
+class SanitizedTable:
+    spec: SanitizedTableSpec
+    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
+
+    @property
+    def columns(self):
+        return self.spec.columns
+
+    def iter_rows(self):
+        return (
+            TableRowView({
+                c.id: v for c, v in zip(self.columns, row_values)
+            }) for row_values in self.values
+        )
+
+    def __repr__(self):
+        result = " | ".join(repr(c) for c in self.columns) + "\n"
+        for row in self.iter_rows():
+            result += " | ".join(str(row.get(c.id)) for c in self.columns) + "\n"
+        return result
+
+#### Sanitizer
+
 UnsanitizedStrTableRowView = TableRowView[UnsanitizedColumnId, str]
 SanitizedStrTableRowView = TableRowView[SanitizedColumnId, str]
 
@@ -196,13 +173,15 @@ class Sanitizer(t.NamedTuple):
             case Error():
                 return TableRowView({ k: h for k in self.new_col_ids })
 
-def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
-    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
-    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
-
 class SanitizerSpec(t.NamedTuple):
     header: t.Tuple[str, ...]
     rows: t.Tuple[t.Tuple[str, ...], ...]
+
+### Service
+
+def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
+    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
+    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
 
 def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
     key_col_names = {c: UnsanitizedColumnId(c[1:-1]) for c in sanitizer_spec.header if re.match(r'^\(.+\)$', c)}
@@ -244,11 +223,17 @@ def sanitize_row(row: UnsanitizedStrTableRowView, sanitizers: t.Sequence[Sanitiz
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
     sanitized_columns = tuple(
         SanitizedColumn(
-            name,
+            id=id,
             prompt="; ".join(c.prompt for c in table.columns if c.id in sanitizer.key_col_ids),
             sanitizer_checksum="boop"
         )   for sanitizer in sanitizers
-                for name in sanitizer.new_col_ids
+                for id in sanitizer.new_col_ids
+    )
+
+    sanitized_spec = SanitizedTableSpec(
+        data_checksum=table.spec.data_checksum,
+        schema_checksum=table.spec.schema_checksum,
+        columns=sanitized_columns
     )
 
     sanitized_row_view = (
@@ -260,11 +245,12 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
     )
 
     return SanitizedTable(
-        columns=sanitized_columns,
+        spec=sanitized_spec,
         values=sanitized_values,
         # Table Info goes here...
     )
 
+### Tests
 
 @pytest.fixture
 def table() -> UnsanitizedTable:
@@ -272,9 +258,22 @@ def table() -> UnsanitizedTable:
     col2 = tuple(Some("<{}, 2>".format(v)) for v in range(5))
     col3 = tuple(Some("<{}, 3>".format(v)) for v in range(5))
 
+    spec = UnsanitizedTableSpec(
+        data_checksum="data_checksum",
+        schema_checksum="schema_checksum",
+        columns=tuple(
+            UnsanitizedColumn(
+                id=UnsanitizedColumnId("col{}".format(c)),
+                prompt="prompt {}".format(c),
+                type="text",
+                is_safe=True,
+            ) for c in range(1, 4)
+        )
+    )
+
     return UnsanitizedTable(
+        spec=spec,
         values=tuple(tuple(v) for v in zip(col1, col2, col3)),
-        columns=tuple((UnsanitizedColumn(UnsanitizedColumnId("col{}".format(c)), prompt="asdf")) for c in range(1, 4))
     ) 
 
 @pytest.fixture
