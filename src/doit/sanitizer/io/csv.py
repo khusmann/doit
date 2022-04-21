@@ -69,13 +69,13 @@ def load_sanitizer_csv(csv_text: str) -> Sanitizer:
             raise EmptySanitizerKeyError(tuple(v for v in value.values()))
 
     hash_map = {
-        key.hash_or_die(): new
+        key.hash(): new
             for key, new in zip(keys, values)
     }
 
     return Sanitizer(
+        map=hash_map,
         key_col_ids=tuple(key_col_names.values()),
         new_col_ids=tuple(new_col_names.values()),
-        map=hash_map,
         checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
     )

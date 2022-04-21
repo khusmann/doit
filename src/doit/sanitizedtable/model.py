@@ -1,8 +1,6 @@
 import typing as t
-from dataclasses import dataclass
 
 from ..common import (
-    ImmutableBaseModel,
     TableData,
     TableRowView,
 )
@@ -10,12 +8,12 @@ from ..common import (
 class SanitizedColumnId(t.NamedTuple):
     name: str
 
-class SanitizedColumnInfo(ImmutableBaseModel):
+class SanitizedColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
     sanitizer_checksum: t.Optional[str]
 
-class SanitizedTableInfo(ImmutableBaseModel):
+class SanitizedTableInfo(t.NamedTuple):
     data_checksum: str
     schema_checksum: str
     columns: t.Tuple[SanitizedColumnInfo, ...]
@@ -24,8 +22,7 @@ SanitizedStrTableRowView = TableRowView[SanitizedColumnId, str]
 SanitizedTableRowView = TableRowView[SanitizedColumnId, str]
 SanitizedTableData = TableData[SanitizedColumnId, t.Any]
 
-@dataclass(frozen=True)
-class SanitizedTable:
+class SanitizedTable(t.NamedTuple):
     info: SanitizedTableInfo
     data: SanitizedTableData
 

@@ -3,7 +3,6 @@ import typing as t
 from ..common import (
     TableRowView,
     RowViewHash,
-    Some,
     Error,
     Missing,
 )
@@ -12,23 +11,23 @@ from ..unsanitizedtable.model import UnsanitizedColumnId, UnsanitizedStrTableRow
 from ..sanitizedtable.model import SanitizedColumnId, SanitizedStrTableRowView
 
 class Sanitizer(t.NamedTuple):
+    map: t.Mapping[RowViewHash[UnsanitizedColumnId, str], SanitizedStrTableRowView]
     key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
-    map: t.Mapping[RowViewHash[UnsanitizedColumnId, str], SanitizedStrTableRowView]
     checksum: str
+
     def get(self, row: UnsanitizedStrTableRowView) -> SanitizedStrTableRowView:
+        
+        # If all row keys are Missing, return Missing for all new vals
         if (all(isinstance(v, Missing) for v in row.values())):
             return TableRowView({ k: Missing('omitted') for k in self.new_col_ids })
-        match row.hash():
-            case Some(value):
-                return self.map.get(value, TableRowView(
-                    { k: Error('missing_sanitizer', row) for k in self.new_col_ids }
-                ))
-            case Error() as e:
-                return TableRowView({ k: e for k in self.new_col_ids })
 
-class SanitizerSpec(t.NamedTuple):
-    header: t.Tuple[str, ...]
-    rows: t.Tuple[t.Tuple[str, ...], ...]
-    checksum: str
+        # If any row keys are Error, return that Error for all new vals
+        error = next((v for v in row.values() if isinstance(v, Error)), None)
+        if error:
+            return TableRowView({ k: error for k in self.new_col_ids })
 
+        # Otherwise, look up the hash in the map
+        return self.map.get(row.hash(), TableRowView(
+            { k: Error('missing_sanitizer', row) for k in self.new_col_ids }
+        ))

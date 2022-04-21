@@ -2,12 +2,6 @@ from __future__ import annotations
 import typing as t
 import traceback
 from dataclasses import dataclass
-from pydantic import BaseModel
-
-class ImmutableBaseModel(BaseModel):
-    class Config:
-        frozen=True
-        smart_union = True
 
 ### Error types
 
@@ -64,8 +58,6 @@ TableValue = Some[T] | Missing | Error
 class RowViewHash(t.Generic[ColumnIdT, T]):
     value: int
 
-MaybeRowViewHash = Some[RowViewHash[ColumnIdT, T]] | Error
-
 @dataclass(frozen=True)
 class TableRowView(t.Generic[ColumnIdT, T]):
     _map: t.Mapping[ColumnIdT, TableValue[T]]
@@ -85,17 +77,11 @@ class TableRowView(t.Generic[ColumnIdT, T]):
     def subset_type(self, value_type: t.Type[P]) -> TableRowView[ColumnIdT, P]:
         return TableRowView({ k: v for k, v in self._map.items() if v.is_type(value_type)})
 
-    def hash(self) -> MaybeRowViewHash[ColumnIdT, T]:
+    def hash(self) -> RowViewHash[ColumnIdT, T]:
         error = next((v for v in self._map.values() if isinstance(v, Error)), None)
-        return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self._map.items()))))
-
-    def hash_or_die(self) -> RowViewHash[ColumnIdT, T]:
-        val = self.hash()
-        match val:
-            case Some():
-                return val.value
-            case Error():
-                raise Exception("Unexpected error value: {}".format(val))
+        if error:
+            raise Exception("Unexpected error value: {}".format(error)) # TODO: Make into proper exception (& test)
+        return RowViewHash(hash(frozenset((k, v) for k, v in self._map.items())))
 
     def bless_ids(self, fn: t.Callable[[ColumnIdT], ColumnIdP]) -> TableRowView[ColumnIdP, T]:
         return TableRowView({ fn(k): v for k, v in self._map.items()})
@@ -126,4 +112,3 @@ class TableData(t.Generic[ColumnIdT, T]):
         for row in self.rows:
             result += " | ".join(str(row.get(c)) for c in self.columns_ids) + "\n"
         return result
-
