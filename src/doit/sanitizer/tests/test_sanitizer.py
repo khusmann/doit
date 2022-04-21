@@ -42,8 +42,8 @@ def test_basic_load():
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitizer.get(testrow.hash()).values()) == [Some("4"), Some("6")]
-    assert list(sanitizer.get(testrow_reverse.hash()).values()) == [Some("4"), Some("6")]
+    assert list(sanitizer.get(testrow).values()) == [Some("4"), Some("6")]
+    assert list(sanitizer.get(testrow_reverse).values()) == [Some("4"), Some("6")]
 
 def test_missing_load():
     raw = dedent("""\
@@ -72,10 +72,9 @@ def test_missing_load():
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitizer.get(testrow.hash()).values()) == [Some("4"), Missing('redacted')]
-    assert list(sanitizer.get(testrow_missing.hash()).values()) == [Some("7"), Some("9")]
-    assert list(sanitizer.get(testrow_error.hash()).values()) == [Error('missing_sanitizer'), Error("missing_sanitizer")]
-
+    assert list(sanitizer.get(testrow).values()) == [Some("4"), Missing('redacted')]
+    assert list(sanitizer.get(testrow_missing).values()) == [Some("7"), Some("9")]
+    assert list(sanitizer.get(testrow_error).values()) == [Error('missing_sanitizer', testrow_error), Error("missing_sanitizer", testrow_error)]
 
 def test_missing_keys():
     raw = dedent("""\
@@ -97,8 +96,8 @@ def test_missing_keys():
 
     sanitizer = load_sanitizer_csv(raw)
 
-    assert list(sanitizer.get(testrow.hash()).values()) == [Some("7"), Some("9")]
-    assert list(sanitizer.get(testrow_allmissing.hash()).values()) == [Missing('omitted'), Missing('omitted')]
+    assert list(sanitizer.get(testrow).values()) == [Some("7"), Some("9")]
+    assert list(sanitizer.get(testrow_allmissing).values()) == [Missing('omitted'), Missing('omitted')]
 
 def test_missing_key_error():
     raw = dedent("""\

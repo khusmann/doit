@@ -68,21 +68,9 @@ def load_sanitizer_csv(csv_text: str) -> Sanitizer:
         if not any(isinstance(k, Some) for k in key.values()):
             raise EmptySanitizerKeyError(tuple(v for v in value.values()))
 
-    key_all_missing = (
-        UnsanitizedStrTableRowView({
-            key_col_names[c]: Missing('omitted') for c in key_col_names
-        })
-    )
-
-    value_all_missing = (
-        SanitizedStrTableRowView({
-            new_col_names[c]: Missing('omitted') for c in new_col_names
-        })
-    )
-
     hash_map = {
         key.hash_or_die(): new
-            for key, new in zip((*keys, key_all_missing), (*values, value_all_missing))
+            for key, new in zip(keys, values)
     }
 
     return Sanitizer(

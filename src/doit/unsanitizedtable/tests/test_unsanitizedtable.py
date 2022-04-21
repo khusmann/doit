@@ -9,7 +9,7 @@ from doit.common import (
 )
 
 from doit.unsanitizedtable.io.csv import (
-    load_unsanitized_table_csv,
+    load_unsanitizedtable_csv,
 )
 
 def test_basic_load():
@@ -20,7 +20,7 @@ def test_basic_load():
         7,8,9
     """)
 
-    table = load_unsanitized_table_csv(raw)
+    table = load_unsanitizedtable_csv(raw)
 
     assert [c.id.unsafe_name for c in table.info.columns] == ["a", "b", "c"]
     assert [c.is_safe for c in table.info.columns] == [True, False, True]
@@ -37,7 +37,7 @@ def test_missing_load():
         7,8,9
     """)
 
-    table = load_unsanitized_table_csv(raw)
+    table = load_unsanitizedtable_csv(raw)
 
     assert [c.unsafe_name for c in table.data.columns_ids] == ["a", "b", "c"]
     assert [c.unsafe_name for c in table.data.rows[1].keys()] == ["a", "b", "c"]
@@ -52,7 +52,7 @@ def test_missing_header_error():
     """)
 
     with pytest.raises(EmptyHeaderError):
-        load_unsanitized_table_csv(raw)
+        load_unsanitizedtable_csv(raw)
 
 def test_duplicate_header_error():
     raw = dedent("""\
@@ -63,4 +63,4 @@ def test_duplicate_header_error():
     """)
 
     with pytest.raises(DuplicateHeaderError):
-        load_unsanitized_table_csv(raw)
+        load_unsanitizedtable_csv(raw)

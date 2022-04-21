@@ -1,9 +1,5 @@
 import typing as t
 
-from ..common import (
-    TableRowView,
-)
-
 from ..sanitizer.model import (
     Sanitizer,
 )
@@ -18,6 +14,7 @@ from ..sanitizedtable.model import (
     SanitizedTableInfo,
     SanitizedColumnInfo,
     SanitizedTableData,
+    SanitizedTableRowView,
 )
 
 #def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
@@ -52,7 +49,7 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
     # Step 2: Create rowviews that map column names to sanitized/safe values
 
     sanitized_rows = (
-        (sanitizer.get(row.subset(sanitizer.key_col_ids).hash()) for sanitizer in sanitizers)
+        (sanitizer.get(row.subset(sanitizer.key_col_ids)) for sanitizer in sanitizers)
             for row in table.data.str_rows
     )
 
@@ -62,7 +59,7 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
     )
 
     all_rows = tuple(
-        TableRowView.combine_views(*sanitized, safe)
+        SanitizedTableRowView.combine_views(*sanitized, safe)
             for sanitized, safe in zip(sanitized_rows, safe_rows)
     )
 

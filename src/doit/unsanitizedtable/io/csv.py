@@ -24,7 +24,7 @@ def is_header_safe(header: str):
 def rename_unsafe_header(header: str):
     return header[1: -1]
 
-def load_unsanitized_table_csv(csv_text: str) -> UnsanitizedTable:
+def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
     reader = csv.reader(csv_text.splitlines())
 
     header = tuple(next(reader))
@@ -38,7 +38,7 @@ def load_unsanitized_table_csv(csv_text: str) -> UnsanitizedTable:
     columns = tuple(
         UnsanitizedColumnInfo(
             id=UnsanitizedColumnId(v if is_header_safe(v) else rename_unsafe_header(v)),
-            prompt=v,
+            prompt=rename_unsafe_header(v),
             type='text',
             is_safe=is_header_safe(v),
         ) for v in header

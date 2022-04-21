@@ -3,12 +3,12 @@ import typing as t
 from ..common import (
     TableRowView,
     RowViewHash,
-    MaybeRowViewHash,
     Some,
-    Error
+    Error,
+    Missing,
 )
 
-from ..unsanitizedtable.model import UnsanitizedColumnId
+from ..unsanitizedtable.model import UnsanitizedColumnId, UnsanitizedStrTableRowView
 from ..sanitizedtable.model import SanitizedColumnId, SanitizedStrTableRowView
 
 class Sanitizer(t.NamedTuple):
@@ -16,14 +16,16 @@ class Sanitizer(t.NamedTuple):
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
     map: t.Mapping[RowViewHash[UnsanitizedColumnId, str], SanitizedStrTableRowView]
     checksum: str
-    def get(self, h: MaybeRowViewHash[UnsanitizedColumnId, str]) -> SanitizedStrTableRowView:
-        match h:
-            case Some():
-                return self.map.get(h.value, TableRowView(
-                    { k: Error('missing_sanitizer') for k in self.new_col_ids }
+    def get(self, row: UnsanitizedStrTableRowView) -> SanitizedStrTableRowView:
+        if (all(isinstance(v, Missing) for v in row.values())):
+            return TableRowView({ k: Missing('omitted') for k in self.new_col_ids })
+        match row.hash():
+            case Some(value):
+                return self.map.get(value, TableRowView(
+                    { k: Error('missing_sanitizer', row) for k in self.new_col_ids }
                 ))
-            case Error():
-                return TableRowView({ k: h for k in self.new_col_ids })
+            case Error() as e:
+                return TableRowView({ k: e for k in self.new_col_ids })
 
 class SanitizerSpec(t.NamedTuple):
     header: t.Tuple[str, ...]
