@@ -10,7 +10,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'doit = doit.main:cli',
+            'doit = doit.cli:cli',
         ],
         'datasette': [
             'doit = doit.datasette'
