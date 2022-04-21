@@ -1,23 +1,15 @@
 import typing as t
-import re
-
-from itertools import zip_longest
 
 from ..common import (
-    Some,
-    Missing,
     TableRowView,
 )
 
 from ..sanitizer.model import (
     Sanitizer,
-    SanitizerSpec,
 )
 
 from ..unsanitizedtable.model import (
-    UnsanitizedColumnId,
     UnsanitizedTable,
-    UnsanitizedStrTableRowView,
 )
 
 from ..sanitizedtable.model import (
@@ -26,43 +18,11 @@ from ..sanitizedtable.model import (
     SanitizedTableInfo,
     SanitizedColumnInfo,
     SanitizedTableData,
-    SanitizedStrTableRowView,
 )
 
 #def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
 #    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
 #    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
-
-def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
-    key_col_names = {c: UnsanitizedColumnId(c[1:-1]) for c in sanitizer_spec.header if re.match(r'^\(.+\)$', c)}
-    new_col_names = {c: SanitizedColumnId(c) for c in sanitizer_spec.header if c not in key_col_names}
-
-    keys = (
-        UnsanitizedStrTableRowView({
-            key_col_names[c]: Some(v) if v else Missing('omitted')
-                for c, v in zip_longest(sanitizer_spec.header, row) if c in key_col_names
-        }) for row in sanitizer_spec.rows
-    )
-
-    values = (
-        SanitizedStrTableRowView({
-            new_col_names[c]: Some(v) if v else Missing('redacted')
-                for c, v in zip_longest(sanitizer_spec.header, row)if c in new_col_names
-        }) for row in sanitizer_spec.rows
-    )
-
-    hash_map = {
-        key.hash_or_die(): new
-            for key, new in zip(keys, values)
-                if any(v for v in key.values()) # TODO: test sanitizers with blank key columns
-    }
-
-    return Sanitizer(
-        key_col_ids=tuple(key_col_names.values()),
-        new_col_ids=tuple(new_col_names.values()),
-        map=hash_map,
-        checksum=sanitizer_spec.checksum,
-    )
 
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
     
@@ -119,4 +79,3 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
             rows=all_rows,
         ),
     )
-

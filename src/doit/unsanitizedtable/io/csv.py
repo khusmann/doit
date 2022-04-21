@@ -4,7 +4,9 @@ import hashlib
 
 from ...common import (
     Some,
-    Missing
+    Missing,
+    DuplicateHeaderError,
+    EmptyHeaderError,
 )
 
 from ..model import (
@@ -15,12 +17,6 @@ from ..model import (
     UnsanitizedTable,
     UnsanitizedTableInfo,
 )
-
-class EmptyHeaderError(ValueError):
-    pass
-
-class DuplicateHeaderError(ValueError):
-    pass
 
 def is_header_safe(header: str):
     return re.match(r'^\(.+\)$', header) is None

@@ -1,11 +1,15 @@
 import pytest
 from textwrap import dedent
 
-from ....common import Some, Missing
-from ..csv import (
-    load_unsanitized_table_csv,
+from doit.common import (
+    Some,
+    Missing,
     DuplicateHeaderError,
     EmptyHeaderError,
+)
+
+from doit.unsanitizedtable.io.csv import (
+    load_unsanitized_table_csv,
 )
 
 def test_basic_load():

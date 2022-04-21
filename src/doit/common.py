@@ -9,11 +9,24 @@ class ImmutableBaseModel(BaseModel):
         frozen=True
         smart_union = True
 
+### Error types
+
+class EmptyHeaderError(ValueError):
+    pass
+
+class DuplicateHeaderError(ValueError):
+    pass
+
+class EmptySanitizerKeyError(ValueError):
+    pass
+
+### Table types
+
 T = t.TypeVar('T')
 P = t.TypeVar("P")
 
 MissingReason = t.Literal['omitted', 'redacted']
-ErrorReason = t.Literal['unknown_column']
+ErrorReason = t.Literal['unknown_column', 'missing_sanitizer']
 
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
@@ -38,15 +51,20 @@ class Error:
         return self.__str__()
     def __str__(self):
         return "Error(reason={},info={})".format(self.reason, self.info)
+    def __eq__(self, o: t.Any):
+        return isinstance(o, Error) and self.reason == o.reason and self.info == o.info
     def is_type(self, _: t.Any) -> t.TypeGuard[Error]:
         return True
-
-RowViewHash = t.NewType('RowViewHash', int)
-MaybeRowViewHash = Some[RowViewHash] | Error
 
 ColumnIdT = t.TypeVar('ColumnIdT')
 ColumnIdP = t.TypeVar('ColumnIdP')
 TableValue = Some[T] | Missing | Error
+
+@dataclass(frozen=True)
+class RowViewHash(t.Generic[ColumnIdT, T]):
+    value: int
+
+MaybeRowViewHash = Some[RowViewHash[ColumnIdT, T]] | Error
 
 @dataclass(frozen=True)
 class TableRowView(t.Generic[ColumnIdT, T]):
@@ -67,11 +85,11 @@ class TableRowView(t.Generic[ColumnIdT, T]):
     def subset_type(self, value_type: t.Type[P]) -> TableRowView[ColumnIdT, P]:
         return TableRowView({ k: v for k, v in self._map.items() if v.is_type(value_type)})
 
-    def hash(self) -> MaybeRowViewHash:
+    def hash(self) -> MaybeRowViewHash[ColumnIdT, T]:
         error = next((v for v in self._map.values() if isinstance(v, Error)), None)
         return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self._map.items()))))
 
-    def hash_or_die(self) -> RowViewHash:
+    def hash_or_die(self) -> RowViewHash[ColumnIdT, T]:
         val = self.hash()
         match val:
             case Some():
