@@ -4,7 +4,7 @@ import hashlib
 
 from ...common import (
     Some,
-    Missing,
+    Omitted,
     DuplicateHeaderError,
     EmptyHeaderError,
 )
@@ -48,7 +48,7 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
 
     rows = tuple(
         UnsanitizedTableRowView(
-            { cid: Some(v) if v else Missing('omitted') for cid, v in zip(column_ids, row)}
+            { cid: Some(v) if v else Omitted() for cid, v in zip(column_ids, row)}
         ) for row in reader
     )
 

@@ -14,12 +14,11 @@ class DuplicateHeaderError(ValueError):
 class EmptySanitizerKeyError(ValueError):
     pass
 
-### Table types
+### Maybe[T]
 
 T = t.TypeVar('T')
 P = t.TypeVar("P")
 
-MissingReason = t.Literal['omitted', 'redacted']
 ErrorReason = t.Literal['unknown_column', 'missing_sanitizer']
 
 @dataclass(frozen=True)
@@ -28,9 +27,12 @@ class Some(t.Generic[T]):
     def is_type(self, some_type: t.Any) -> t.TypeGuard[Some[T]]:
         return type(self.value) == some_type
 
-class Missing(t.NamedTuple):
-    reason: MissingReason
-    def is_type(self, _: t.Any) -> t.TypeGuard[Missing]:
+class Omitted(t.NamedTuple):
+    def is_type(self, _: t.Any) -> t.TypeGuard[Omitted]:
+        return True
+
+class Redacted(t.NamedTuple):
+    def is_type(self, _: t.Any) -> t.TypeGuard[Omitted]:
         return True
 
 class Error:
@@ -50,9 +52,11 @@ class Error:
     def is_type(self, _: t.Any) -> t.TypeGuard[Error]:
         return True
 
+### TableRowView
+
 ColumnIdT = t.TypeVar('ColumnIdT')
 ColumnIdP = t.TypeVar('ColumnIdP')
-TableValue = Some[T] | Missing | Error
+TableValue = Some[T] | Omitted | Redacted | Error
 
 @dataclass(frozen=True)
 class RowViewHash(t.Generic[ColumnIdT, T]):
@@ -95,6 +99,8 @@ class TableRowView(t.Generic[ColumnIdT, T]):
                         for v in view._map.items() 
             )
         )
+
+### TableData
 
 @dataclass(frozen=True)
 class TableData(t.Generic[ColumnIdT, T]):

@@ -3,8 +3,9 @@ import re
 import hashlib
 
 from ...common import (
+    Omitted,
+    Redacted,
     Some,
-    Missing,
     DuplicateHeaderError,
     EmptyHeaderError,
     EmptySanitizerKeyError,
@@ -50,14 +51,14 @@ def load_sanitizer_csv(csv_text: str) -> Sanitizer:
 
     keys = tuple(
         UnsanitizedStrTableRowView({
-            key_col_names[c]: Some(v) if v else Missing('omitted')
+            key_col_names[c]: Some(v) if v else Omitted()
                 for c, v in zip(header, row) if c in key_col_names
         }) for row in lines
     )
 
     values = tuple(
         SanitizedStrTableRowView({
-            new_col_names[c]: Some(v) if v else Missing('redacted')
+            new_col_names[c]: Some(v) if v else Redacted()
                 for c, v in zip(header, row)if c in new_col_names
         }) for row in lines
     )
@@ -74,7 +75,7 @@ def load_sanitizer_csv(csv_text: str) -> Sanitizer:
     }
 
     return Sanitizer(
-        map=hash_map,
+        hash_map,
         key_col_ids=tuple(key_col_names.values()),
         new_col_ids=tuple(new_col_names.values()),
         checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
