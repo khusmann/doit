@@ -9,12 +9,6 @@ from pydantic import BaseModel
 
 ### Common types
 
-class UnsanitizedColumnId(t.NamedTuple):
-    unsafe_name: str
-
-class SanitizedColumnId(t.NamedTuple):
-    name: str
-
 class ImmutableBaseModel(BaseModel):
     class Config:
         frozen=True
@@ -55,8 +49,8 @@ class Error:
 RowViewHash = t.NewType('RowViewHash', int)
 MaybeRowViewHash = Some[RowViewHash] | Error
 
-ColumnIdT = t.TypeVar('ColumnIdT', UnsanitizedColumnId, SanitizedColumnId)
-ColumnIdP = t.TypeVar('ColumnIdP', UnsanitizedColumnId, SanitizedColumnId)
+ColumnIdT = t.TypeVar('ColumnIdT')
+ColumnIdP = t.TypeVar('ColumnIdP')
 TableValue = Some[T] | Missing | Error
 
 @dataclass(frozen=True)
@@ -97,82 +91,70 @@ class TableRowView(t.Generic[ColumnIdT, T]):
             )
         )
 
+@dataclass(frozen=True)
+class TableData(t.Generic[ColumnIdT, T]):
+    columns: t.Tuple[ColumnIdT, ...]
+    rows: t.Tuple[TableRowView[ColumnIdT, T], ...] # rows x columns
+
+    @property
+    def str_rows(self):
+        return (
+            row.subset_type(str) for row in self.rows
+        )
+
+    def __repr__(self):
+        result = " | ".join(repr(c) for c in self.columns) + "\n"
+        for row in self.rows:
+            result += " | ".join(str(row.get(c)) for c in self.columns) + "\n"
+        return result
+
 #### UnsanitizedTable
 
-class UnsanitizedColumn(ImmutableBaseModel):
+class UnsanitizedColumnId(t.NamedTuple):
+    unsafe_name: str
+
+class UnsanitizedColumnInfo(ImmutableBaseModel):
     id: UnsanitizedColumnId
     prompt: str
     type: t.Literal['text', 'bool', 'ordinal']
     is_safe: bool
 
-class UnsanitizedTableSpec(ImmutableBaseModel):
+class UnsanitizedTableInfo(ImmutableBaseModel):
     data_checksum: str
     schema_checksum: str
-    columns: t.Tuple[UnsanitizedColumn, ...]
+    columns: t.Tuple[UnsanitizedColumnInfo, ...]
+
+UnsanitizedTableData = TableData[UnsanitizedColumnId, t.Any]
 
 @dataclass(frozen=True)
 class UnsanitizedTable:
-    spec: UnsanitizedTableSpec
-    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
-
-    @property
-    def columns(self):
-        return self.spec.columns
-
-    def iter_rows(self):
-        return (
-            TableRowView({
-                c.id: v for c, v in zip(self.columns, row_values)
-            }) for row_values in self.values
-        )
-
-    def iter_str_rows(self):
-        return (
-            row.subset_type(str) for row in self.iter_rows()
-        )
-
-    def __repr__(self):
-        result = " | ".join(repr(c) for c in self.columns) + "\n"
-        for row in self.iter_rows():
-            result += " | ".join(str(row.get(c.id)) for c in self.columns) + "\n"
-        return result
+    info: UnsanitizedTableInfo
+    data: UnsanitizedTableData
 
     # Constraint: Column Meta == columns
     # Constraint: All columns are same size
 
 #### SanitizedTable
 
-class SanitizedColumn(ImmutableBaseModel):
+class SanitizedColumnId(t.NamedTuple):
+    name: str
+
+class SanitizedColumnInfo(ImmutableBaseModel):
     id: SanitizedColumnId
     prompt: str
     sanitizer_checksum: t.Optional[str]
 
-class SanitizedTableSpec(ImmutableBaseModel):
+class SanitizedTableInfo(ImmutableBaseModel):
     data_checksum: str
     schema_checksum: str
-    columns: t.Tuple[SanitizedColumn, ...]
+    columns: t.Tuple[SanitizedColumnInfo, ...]
+
+SanitizedTableData = TableData[SanitizedColumnId, t.Any]
 
 @dataclass(frozen=True)
 class SanitizedTable:
-    spec: SanitizedTableSpec
-    values: t.Tuple[t.Tuple[TableValue[t.Any], ...], ...] # rows x columns
-
-    @property
-    def columns(self):
-        return self.spec.columns
-
-    def iter_rows(self):
-        return (
-            TableRowView({
-                c.id: v for c, v in zip(self.columns, row_values)
-            }) for row_values in self.values
-        )
-
-    def __repr__(self):
-        result = " | ".join(repr(c) for c in self.columns) + "\n"
-        for row in self.iter_rows():
-            result += " | ".join(str(row.get(c.id)) for c in self.columns) + "\n"
-        return result
+    info: SanitizedTableInfo
+    data: SanitizedTableData
 
 #### Sanitizer
 
@@ -200,9 +182,9 @@ class SanitizerSpec(t.NamedTuple):
 
 ### Service
 
-def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
-    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
-    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
+#def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
+#    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
+#    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
 
 def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
     key_col_names = {c: UnsanitizedColumnId(c[1:-1]) for c in sanitizer_spec.header if re.match(r'^\(.+\)$', c)}
@@ -240,22 +222,22 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
     # Step 1: Create columns for the sanitized table
     
     sanitized_columns = tuple(
-        SanitizedColumn(
+        SanitizedColumnInfo(
             id=id,
-            prompt="; ".join(c.prompt for c in table.columns if c.id in sanitizer.key_col_ids),
+            prompt="; ".join(c.prompt for c in table.info.columns if c.id in sanitizer.key_col_ids),
             sanitizer_checksum=sanitizer.checksum,
         ) for sanitizer in sanitizers
             for id in sanitizer.new_col_ids
     )
     
-    safe_col_ids = frozenset(c.id for c in table.columns if c.is_safe)
+    safe_col_ids = frozenset(c.id for c in table.info.columns if c.is_safe)
 
     safe_columns = tuple(
-        SanitizedColumn(
+        SanitizedColumnInfo(
             id=SanitizedColumnId(c.id.unsafe_name),
             prompt=c.prompt,
             sanitizer_checksum=None,
-        ) for c in table.columns if c.id in safe_col_ids
+        ) for c in table.info.columns if c.id in safe_col_ids
     )
 
     all_columns = sanitized_columns + safe_columns
@@ -264,37 +246,31 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
 
     sanitized_rows = (
         (sanitizer.get(row.subset(sanitizer.key_col_ids).hash()) for sanitizer in sanitizers)
-            for row in table.iter_str_rows()
+            for row in table.data.str_rows
     )
 
     safe_rows = (
         row.subset(safe_col_ids).bless_ids(lambda id: SanitizedColumnId(id.unsafe_name))
-            for row in table.iter_rows()
+            for row in table.data.rows
     )
 
-    all_rows = (
+    all_rows = tuple(
         TableRowView.combine_views(*sanitized, safe)
             for sanitized, safe in zip(sanitized_rows, safe_rows)
     )
 
-    # Step 3: Render the values
-
-    sanitized_values = tuple(
-        tuple(
-            row.get(c.id) for c in all_columns
-        ) for row in all_rows
-    )
-
-    # Step 4: And then you're done!
+    # Step 3: And then you're done!
 
     return SanitizedTable(
-        spec=SanitizedTableSpec(
-            data_checksum=table.spec.data_checksum,
-            schema_checksum=table.spec.schema_checksum,
+        info=SanitizedTableInfo(
+            data_checksum=table.info.data_checksum,
+            schema_checksum=table.info.schema_checksum,
             columns=all_columns,
         ),
-        values=sanitized_values,
-        # Table Info goes here...
+        data=TableData(
+            columns=tuple(c.id for c in all_columns),
+            rows=all_rows,
+        ),
     )
 
 ### Tests
@@ -305,11 +281,11 @@ def table() -> UnsanitizedTable:
     col2 = tuple(Some("<{}, 2>".format(v)) for v in range(5))
     col3 = tuple(Some("<{}, 3>".format(v)) for v in range(5))
 
-    spec = UnsanitizedTableSpec(
+    info = UnsanitizedTableInfo(
         data_checksum="data_checksum",
         schema_checksum="schema_checksum",
         columns=tuple(
-            UnsanitizedColumn(
+            UnsanitizedColumnInfo(
                 id=UnsanitizedColumnId("col{}".format(c)),
                 prompt="prompt {}".format(c),
                 type="text",
@@ -319,8 +295,11 @@ def table() -> UnsanitizedTable:
     )
 
     return UnsanitizedTable(
-        spec=spec,
-        values=tuple(tuple(v) for v in zip(col1, col2, col3)),
+        info=info,
+        data=TableData(
+            columns=tuple(c.id for c in info.columns),
+            rows=tuple(TableRowView({ c.id: v for c, v in zip(info.columns, row)}) for row in zip(col1, col2, col3))
+        ),
     ) 
 
 @pytest.fixture
@@ -352,8 +331,8 @@ def san_table2() -> SanitizerSpec:
     ) 
 
 def test_rowwise(table: UnsanitizedTable):
-    row = next(table.iter_rows())
-    assert list(row.map) == ['col1', 'col2', 'col3']
+    row = next(iter(table.data.rows))
+    assert list(c.unsafe_name for c in row.map) == ['col1', 'col2', 'col3']
 
 def test_hash(table: UnsanitizedTable, san_table: SanitizerSpec, san_table2: SanitizerSpec):
     sanitizer = sanitizer_from_spec(san_table)
