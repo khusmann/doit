@@ -19,7 +19,7 @@ ErrorReason = t.Literal['unknown_column']
 class Some(t.Generic[T]):
     value: T
     def is_type(self, some_type: t.Any) -> t.TypeGuard[Some[T]]:
-        return type(self.value) == some_type 
+        return type(self.value) == some_type
 
 class Missing(t.NamedTuple):
     reason: MissingReason
@@ -50,20 +50,26 @@ TableValue = Some[T] | Missing | Error
 
 @dataclass(frozen=True)
 class TableRowView(t.Generic[ColumnIdT, T]):
-    map: t.Mapping[ColumnIdT, TableValue[T]]
+    _map: t.Mapping[ColumnIdT, TableValue[T]]
+
+    def keys(self):
+        return self._map.keys()
+
+    def values(self):
+        return self._map.values()
 
     def get(self, column_name: ColumnIdT) -> TableValue[T]:
-        return self.map.get(column_name, Error('unknown_column', column_name))
+        return self._map.get(column_name, Error('unknown_column', column_name))
 
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
         return TableRowView({ k: self.get(k) for k in keys })
 
     def subset_type(self, value_type: t.Type[P]) -> TableRowView[ColumnIdT, P]:
-        return TableRowView({ k: v for k, v in self.map.items() if v.is_type(value_type)})
+        return TableRowView({ k: v for k, v in self._map.items() if v.is_type(value_type)})
 
     def hash(self) -> MaybeRowViewHash:
-        error = next((v for v in self.map.values() if isinstance(v, Error)), None)
-        return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self.map.items()))))
+        error = next((v for v in self._map.values() if isinstance(v, Error)), None)
+        return error if error else Some(RowViewHash(hash(frozenset((k, v) for k, v in self._map.items()))))
 
     def hash_or_die(self) -> RowViewHash:
         val = self.hash()
@@ -74,7 +80,7 @@ class TableRowView(t.Generic[ColumnIdT, T]):
                 raise Exception("Unexpected error value: {}".format(val))
 
     def bless_ids(self, fn: t.Callable[[ColumnIdT], ColumnIdP]) -> TableRowView[ColumnIdP, T]:
-        return TableRowView({ fn(k): v for k, v in self.map.items()})
+        return TableRowView({ fn(k): v for k, v in self._map.items()})
 
     @classmethod
     def combine_views(cls, *views: TableRowView[ColumnIdT, T]) -> TableRowView[ColumnIdT, T]:
@@ -82,13 +88,13 @@ class TableRowView(t.Generic[ColumnIdT, T]):
             dict(
                 v
                     for view in views
-                        for v in view.map.items() 
+                        for v in view._map.items() 
             )
         )
 
 @dataclass(frozen=True)
 class TableData(t.Generic[ColumnIdT, T]):
-    columns: t.Tuple[ColumnIdT, ...]
+    columns_ids: t.Tuple[ColumnIdT, ...]
     rows: t.Tuple[TableRowView[ColumnIdT, T], ...] # rows x columns
 
     @property
@@ -98,8 +104,8 @@ class TableData(t.Generic[ColumnIdT, T]):
         )
 
     def __repr__(self):
-        result = " | ".join(repr(c) for c in self.columns) + "\n"
+        result = " | ".join(repr(c) for c in self.columns_ids) + "\n"
         for row in self.rows:
-            result += " | ".join(str(row.get(c)) for c in self.columns) + "\n"
+            result += " | ".join(str(row.get(c)) for c in self.columns_ids) + "\n"
         return result
 

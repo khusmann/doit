@@ -54,7 +54,7 @@ def sanitizer_from_spec(sanitizer_spec: SanitizerSpec) -> Sanitizer:
     hash_map = {
         key.hash_or_die(): new
             for key, new in zip(keys, values)
-                if any(v for v in key.map.values()) # TODO: test sanitizers with blank key columns
+                if any(v for v in key.values()) # TODO: test sanitizers with blank key columns
     }
 
     return Sanitizer(
@@ -115,7 +115,7 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
             columns=all_columns,
         ),
         data=SanitizedTableData(
-            columns=tuple(c.id for c in all_columns),
+            columns_ids=tuple(c.id for c in all_columns),
             rows=all_rows,
         ),
     )
