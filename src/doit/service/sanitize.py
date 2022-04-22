@@ -1,11 +1,20 @@
 import typing as t
 
+from ..common import (
+    TableRowView,
+    Omitted,
+    Error,
+)
+
 from ..sanitizer.model import (
     Sanitizer,
+    LookupSanitizer,
+    IdentitySanitizer,
 )
 
 from ..unsanitizedtable.model import (
     UnsanitizedTable,
+    UnsanitizedTableRowView,
 )
 
 from ..sanitizedtable.model import (
@@ -21,7 +30,41 @@ from ..sanitizedtable.model import (
 #    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
 #    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
 
-def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -> SanitizedTable:
+def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> SanitizedTableRowView:
+    row_subset = row.subset(sanitizer.key_col_ids)
+
+    # If all row keys are Missing, return Missing for all new vals
+    if (all(isinstance(v, Omitted) for v in row_subset.values())):
+        return TableRowView({ k: Omitted() for k in sanitizer.new_col_ids })
+
+    # If any row keys are Error, return that Error for all new vals
+    error = next((v for v in row_subset.values() if isinstance(v, Error)), None)
+    if error:
+        return TableRowView({ k: error for k in sanitizer.new_col_ids })
+
+    match sanitizer:
+        case LookupSanitizer():
+            if row_subset.has_value_type(str):
+                return sanitizer.map.get(row_subset) or TableRowView(
+                    { k: Error('missing_sanitizer', row_subset) for k in sanitizer.new_col_ids }
+                )
+        case IdentitySanitizer():
+            if row_subset.has_value_type(str):
+                return TableRowView(
+                    { new: row_subset.get(old) for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids) } 
+                )
+
+    return TableRowView(
+        { k: Error('sanitizer_type_mismatch', (row_subset, sanitizer)) for k in sanitizer.new_col_ids }
+    )
+
+def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitizer]) -> SanitizedTable:
+
+    # Step 0: Create special sanitizers
+
+    safe_column_sanitizer = IdentitySanitizer(
+        key_col_ids=tuple(c.id for c in table.schema if c.is_safe)
+    )
     
     # Step 1: Create columns for the sanitized table
     
@@ -34,34 +77,18 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
             for id in sanitizer.new_col_ids
     )
     
-    safe_col_ids = frozenset(c.id for c in table.schema if c.is_safe)
-
     safe_columns = tuple(
         SanitizedColumnInfo(
             id=SanitizedColumnId(c.id.unsafe_name),
             prompt=c.prompt,
             sanitizer_checksum=None,
-        ) for c in table.schema if c.id in safe_col_ids
+        ) for c in table.schema if c.id in safe_column_sanitizer.key_col_ids
     )
 
+    # Step 2: Combine sanitizers / columns, ensuring they're stacked in the same order
+
+    all_sanitizers = (*sanitizers, safe_column_sanitizer)
     all_columns = sanitized_columns + safe_columns
-
-    # Step 2: Create rowviews that map column names to sanitized/safe values
-
-    sanitized_rows = (
-        (sanitizer.get(row.subset(sanitizer.key_col_ids)) for sanitizer in sanitizers)
-            for row in table.data.str_rows
-    )
-
-    safe_rows = (
-        row.subset(safe_col_ids).bless_ids(lambda id: SanitizedColumnId(id.unsafe_name))
-            for row in table.data.rows
-    )
-
-    all_rows = tuple(
-        SanitizedTableRowView.combine_views(*sanitized, safe)
-            for sanitized, safe in zip(sanitized_rows, safe_rows)
-    )
 
     # Step 3: And then you're done!
 
@@ -73,6 +100,10 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
         ),
         data=SanitizedTableData(
             column_ids=tuple(c.id for c in all_columns),
-            rows=all_rows,
+            rows=tuple(
+                SanitizedTableRowView.combine_views(
+                    *(sanitize_row(row, sanitizer) for sanitizer in all_sanitizers)
+                ) for row in table.data.rows
+            ),
         ),
     )

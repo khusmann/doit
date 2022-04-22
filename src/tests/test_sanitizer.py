@@ -9,15 +9,19 @@ from doit.common import (
     Error,
     DuplicateHeaderError,
     EmptyHeaderError,
+    TableRowView,
 )
 
 from doit.unsanitizedtable.model import (
     UnsanitizedColumnId,
-    UnsanitizedStrTableRowView,
 )
 
 from doit.sanitizer.io.csv import (
     load_sanitizer_csv,
+)
+
+from doit.service.sanitize import (
+    sanitize_row,
 )
 
 def test_basic_load():
@@ -28,12 +32,12 @@ def test_basic_load():
         7,8,9,12
     """)
 
-    testrow = UnsanitizedStrTableRowView({
+    testrow = TableRowView({
         UnsanitizedColumnId("b"): Some("5"),
         UnsanitizedColumnId("d"): Some("11"),
     })
 
-    testrow_reverse = UnsanitizedStrTableRowView({
+    testrow_reverse = TableRowView({
         UnsanitizedColumnId("d"): Some("11"),
         UnsanitizedColumnId("b"): Some("5"),
     })
@@ -43,8 +47,8 @@ def test_basic_load():
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitizer.get(testrow).values()) == [Some("4"), Some("6")]
-    assert list(sanitizer.get(testrow_reverse).values()) == [Some("4"), Some("6")]
+    assert list(sanitize_row(testrow, sanitizer).values()) == [Some("4"), Some("6")]
+    assert list(sanitize_row(testrow_reverse, sanitizer).values()) == [Some("4"), Some("6")]
 
 def test_missing_load():
     raw = dedent("""\
@@ -54,17 +58,17 @@ def test_missing_load():
         7,,9,12
     """)
 
-    testrow = UnsanitizedStrTableRowView({
+    testrow = TableRowView({
         UnsanitizedColumnId("b"): Some("5"),
         UnsanitizedColumnId("d"): Some("11"),
     })
 
-    testrow_missing = UnsanitizedStrTableRowView({
+    testrow_missing = TableRowView({
         UnsanitizedColumnId("b"): Omitted(),
         UnsanitizedColumnId("d"): Some("12"),
     })
 
-    testrow_error = UnsanitizedStrTableRowView({
+    testrow_error = TableRowView({
         UnsanitizedColumnId("z"): Some("10")
     })
 
@@ -73,9 +77,9 @@ def test_missing_load():
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitizer.get(testrow).values()) == [Some("4"), Redacted()]
-    assert list(sanitizer.get(testrow_missing).values()) == [Some("7"), Some("9")]
-    assert list(sanitizer.get(testrow_error).values()) == [Error('missing_sanitizer', testrow_error), Error("missing_sanitizer", testrow_error)]
+    assert list(sanitize_row(testrow, sanitizer).values()) == [Some("4"), Redacted()]
+    assert list(sanitize_row(testrow_missing, sanitizer).values()) == [Some("7"), Some("9")]
+    assert list(sanitize_row(testrow_error, sanitizer).values()) == [Error('unknown_column', UnsanitizedColumnId('b')), Error("unknown_column", UnsanitizedColumnId('b'))]
 
 def test_missing_keys():
     raw = dedent("""\
@@ -85,20 +89,20 @@ def test_missing_keys():
         7,8,9,
     """)
 
-    testrow = UnsanitizedStrTableRowView({
+    testrow = TableRowView({
         UnsanitizedColumnId("b"): Some("8"),
         UnsanitizedColumnId("d"): Omitted(),
     })
 
-    testrow_allmissing = UnsanitizedStrTableRowView({
+    testrow_allmissing = TableRowView[UnsanitizedColumnId, str]({
         UnsanitizedColumnId("b"): Omitted(),
         UnsanitizedColumnId("d"): Omitted(),
     })
 
     sanitizer = load_sanitizer_csv(raw)
 
-    assert list(sanitizer.get(testrow).values()) == [Some("7"), Some("9")]
-    assert list(sanitizer.get(testrow_allmissing).values()) == [Omitted(), Omitted()]
+    assert list(sanitize_row(testrow, sanitizer).values()) == [Some("7"), Some("9")]
+    assert list(sanitize_row(testrow_allmissing, sanitizer).values()) == [Omitted(), Omitted()]
 
 def test_missing_key_error():
     raw = dedent("""\

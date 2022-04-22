@@ -7,10 +7,12 @@ from doit.common import (
     TableRowView,
     omitted_if_empty,
     Some,
+    OrdinalValue,
+    OrdinalLabel,
 )
 
 from ..model import (
-    UnsanitizedArrayColumnInfo,
+    UnsanitizedMultiselectColumnInfo,
     UnsanitizedColumnId,
     UnsanitizedColumnInfo,
     UnsanitizedOrdinalColumnInfo,
@@ -23,7 +25,7 @@ from ..model import (
 
 class QualtricsCategoryItem(BaseModel):
     label: str
-    const: str
+    const: int
 
 class QualtricsOrdinalQuestion(BaseModel):
     description: str
@@ -43,7 +45,6 @@ class QualtricsStringQuestion(BaseModel):
     exportTag: str
     type: t.Literal['string']
     dataType: t.Literal['question', 'metadata', 'embeddedData']
-
 
 class QualtricsArrayQuestion(BaseModel):
     description: str
@@ -127,16 +128,16 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 is_safe=False,
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):
-            return UnsanitizedArrayColumnInfo(
+            return UnsanitizedMultiselectColumnInfo(
                 id=id,
                 prompt=prompt,
-                codes={ i.const: i.label for i in items.oneOf }
+                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in items.oneOf }
             )
         case QualtricsOrdinalQuestion(description=prompt,oneOf=oneOf):
             return UnsanitizedOrdinalColumnInfo(
                 id=id,
                 prompt=prompt,
-                codes={ i.const: i.label for i in oneOf }
+                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in oneOf }
             )
         case QualtricsArrayQuestion(description=prompt):
             raise Exception("Not implemented: {}".format(value))

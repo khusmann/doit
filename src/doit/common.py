@@ -3,6 +3,11 @@ import typing as t
 import traceback
 from dataclasses import dataclass
 
+### Value types
+
+OrdinalValue = t.NewType('OrdinalValue', int)
+OrdinalLabel = t.NewType('OrdinalValue', str)
+
 ### Error types
 
 class EmptyHeaderError(ValueError):
@@ -19,7 +24,7 @@ class EmptySanitizerKeyError(ValueError):
 T = t.TypeVar('T')
 P = t.TypeVar("P")
 
-ErrorReason = t.Literal['unknown_column', 'missing_sanitizer']
+ErrorReason = t.Literal['unknown_column', 'missing_sanitizer', 'sanitizer_type_mismatch']
 
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
@@ -79,20 +84,23 @@ class TableRowView(t.Generic[ColumnIdT, T]):
     def values(self):
         return self._map.values()
 
+    def items(self):
+        return self._map.items()
+
     def get(self, column_name: ColumnIdT) -> TableValue[T]:
         return self._map.get(column_name, Error('unknown_column', column_name))
 
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
         return TableRowView({ k: self.get(k) for k in keys })
 
-    def subset_type(self, value_type: t.Type[P]) -> TableRowView[ColumnIdT, P]:
-        return TableRowView({ k: v for k, v in self._map.items() if v.is_type(value_type)})
+    def has_value_type(self, value_type: t.Type[P]) -> t.TypeGuard[TableRowView[ColumnIdT, P]]:
+        return all(v.is_type(value_type) for v in self._map.values())
 
-    def hash(self) -> RowViewHash[ColumnIdT, T]:
+    def __hash__(self) -> int:
         error = next((v for v in self._map.values() if isinstance(v, Error)), None)
         if error:
             raise Exception("Unexpected error value: {}".format(error)) # TODO: Make into proper exception (& test)
-        return RowViewHash(hash(frozenset((k, v) for k, v in self._map.items())))
+        return hash(frozenset((k, v) for k, v in self._map.items()))
 
     def bless_ids(self, fn: t.Callable[[ColumnIdT], ColumnIdP]) -> TableRowView[ColumnIdP, T]:
         return TableRowView({ fn(k): v for k, v in self._map.items()})
@@ -113,12 +121,6 @@ class TableRowView(t.Generic[ColumnIdT, T]):
 class TableData(t.Generic[ColumnIdT, T]):
     column_ids: t.Tuple[ColumnIdT, ...]
     rows: t.Tuple[TableRowView[ColumnIdT, T], ...] # rows x columns
-
-    @property
-    def str_rows(self):
-        return (
-            row.subset_type(str) for row in self.rows
-        )
 
     def __repr__(self):
         result = " | ".join(repr(c) for c in self.column_ids) + "\n"
