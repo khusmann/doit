@@ -15,7 +15,6 @@ from ..model import (
     UnsanitizedTableData,
     UnsanitizedTableRowView,
     UnsanitizedTable,
-    UnsanitizedTableSchema,
 )
 
 def is_header_safe(header: str):
@@ -35,7 +34,7 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
     if len(set(header)) != len(header):
         raise DuplicateHeaderError(header)
 
-    columns = tuple(
+    schema = tuple(
         UnsanitizedTextColumnInfo(
             id=UnsanitizedColumnId(v if is_header_safe(v) else rename_unsafe_header(v)),
             prompt=rename_unsafe_header(v),
@@ -43,7 +42,7 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
         ) for v in header
     )
 
-    column_ids = tuple(c.id for c in columns)
+    column_ids = tuple(c.id for c in schema)
 
     rows = tuple(
         UnsanitizedTableRowView(
@@ -52,9 +51,7 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
     )
 
     return UnsanitizedTable(
-        schema=UnsanitizedTableSchema(
-            columns=columns,
-        ),
+        schema=schema,
         data=UnsanitizedTableData(
             column_ids=column_ids,
             rows=rows,

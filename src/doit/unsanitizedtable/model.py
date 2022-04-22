@@ -27,16 +27,13 @@ class UnsanitizedOrdinalColumnInfo(t.NamedTuple):
 
 UnsanitizedColumnInfo = UnsanitizedTextColumnInfo | UnsanitizedArrayColumnInfo | UnsanitizedOrdinalColumnInfo
 
-class UnsanitizedTableSchema(t.NamedTuple):
-    columns: t.Tuple[UnsanitizedColumnInfo, ...]
-
 UnsanitizedStrTableRowView = TableRowView[UnsanitizedColumnId, str]
 UnsanitizedTableRowView = TableRowView[UnsanitizedColumnId, t.Any]
 
 UnsanitizedTableData = TableData[UnsanitizedColumnId, t.Any]
 
 class UnsanitizedTable(t.NamedTuple):
-    schema: UnsanitizedTableSchema
+    schema: t.Tuple[UnsanitizedColumnInfo, ...]
     schema_checksum: str
     data: UnsanitizedTableData
     data_checksum: str

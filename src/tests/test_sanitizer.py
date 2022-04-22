@@ -3,8 +3,9 @@ from textwrap import dedent
 
 from doit.common import (
     EmptySanitizerKeyError,
+    Omitted,
+    Redacted,
     Some,
-    Missing,
     Error,
     DuplicateHeaderError,
     EmptyHeaderError,
@@ -59,7 +60,7 @@ def test_missing_load():
     })
 
     testrow_missing = UnsanitizedStrTableRowView({
-        UnsanitizedColumnId("b"): Missing('omitted'),
+        UnsanitizedColumnId("b"): Omitted(),
         UnsanitizedColumnId("d"): Some("12"),
     })
 
@@ -72,7 +73,7 @@ def test_missing_load():
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitizer.get(testrow).values()) == [Some("4"), Missing('redacted')]
+    assert list(sanitizer.get(testrow).values()) == [Some("4"), Redacted()]
     assert list(sanitizer.get(testrow_missing).values()) == [Some("7"), Some("9")]
     assert list(sanitizer.get(testrow_error).values()) == [Error('missing_sanitizer', testrow_error), Error("missing_sanitizer", testrow_error)]
 
@@ -86,18 +87,18 @@ def test_missing_keys():
 
     testrow = UnsanitizedStrTableRowView({
         UnsanitizedColumnId("b"): Some("8"),
-        UnsanitizedColumnId("d"): Missing('omitted')
+        UnsanitizedColumnId("d"): Omitted(),
     })
 
     testrow_allmissing = UnsanitizedStrTableRowView({
-        UnsanitizedColumnId("b"): Missing('omitted'),
-        UnsanitizedColumnId("d"): Missing('omitted')
+        UnsanitizedColumnId("b"): Omitted(),
+        UnsanitizedColumnId("d"): Omitted(),
     })
 
     sanitizer = load_sanitizer_csv(raw)
 
     assert list(sanitizer.get(testrow).values()) == [Some("7"), Some("9")]
-    assert list(sanitizer.get(testrow_allmissing).values()) == [Missing('omitted'), Missing('omitted')]
+    assert list(sanitizer.get(testrow_allmissing).values()) == [Omitted(), Omitted()]
 
 def test_missing_key_error():
     raw = dedent("""\

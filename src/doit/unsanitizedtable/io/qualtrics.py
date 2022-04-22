@@ -6,6 +6,7 @@ from pydantic import Field, BaseModel
 from doit.common import (
     TableRowView,
     omitted_if_empty,
+    Some,
 )
 
 from ..model import (
@@ -15,7 +16,6 @@ from ..model import (
     UnsanitizedOrdinalColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableData,
-    UnsanitizedTableSchema,
     UnsanitizedTextColumnInfo,
 )
 
@@ -112,7 +112,7 @@ QUALTRICS_TYPE_MAP: t.Mapping[t.Type[QualtricsQuestionSchema], t.Literal['text',
 }
 
 def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchema) -> UnsanitizedColumnInfo:
-    id = UnsanitizedColumnId(value.exportTag if value.dataType == 'question' else "qualtrics_" + key)
+    id = UnsanitizedColumnId(value.exportTag if value.dataType == 'question' else key)
     match value:
         case QualtricsStringQuestion(description=prompt):
             return UnsanitizedTextColumnInfo(
@@ -141,35 +141,51 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
         case QualtricsArrayQuestion(description=prompt):
             raise Exception("Not implemented: {}".format(value))
 
-def load_unsanitizedtableschema_qualtrics(schema_json: str) -> UnsanitizedTableSchema:
+class QualtricsSchemaMapping(t.NamedTuple):
+    qualtrics_id: str
+    info: UnsanitizedColumnInfo
+
+def load_qualtrics_schema_map(schema_json: str) -> t.Tuple[QualtricsSchemaMapping, ...]:
     qs = QualtricsSchema.parse_raw(schema_json)
-    return UnsanitizedTableSchema(
-        columns=tuple(
-            unsanitizedcolumninfo_from_qualtrics(key, value)
-                for key, value in qs.properties.values.properties.items()
-                    if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
+    responseId = QualtricsSchemaMapping(
+        "responseId",
+        UnsanitizedTextColumnInfo(
+            id=UnsanitizedColumnId('responseId'),
+            prompt="Qualtrics response id",
+            is_safe=True,
         )
     )
+    responses = (
+        QualtricsSchemaMapping(key, unsanitizedcolumninfo_from_qualtrics(key, value))
+            for key, value in qs.properties.values.properties.items()
+                if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
+    )
+    return (responseId, *responses)
 
+def load_unsanitizedtabledata_qualtrics(
+    schema_mapping: t.Tuple[QualtricsSchemaMapping, ...],
+    data_json: str
+) -> UnsanitizedTableData:
 
-def load_unsanitizedtabledata_qualtrics(column_ids: t.Tuple[UnsanitizedColumnId], data_json: str) -> UnsanitizedTableData:
     qd = QualtricsData.parse_raw(data_json)
 
+    rows = tuple(
+        TableRowView({
+            column.id: (Some(row.responseId) if name == 'responseId' else omitted_if_empty(row.values.get(name)))
+                for name, column in schema_mapping
+        }) for row in qd.responses
+    )
+
     return UnsanitizedTableData(
-        column_ids=column_ids,
-        rows=tuple(
-            TableRowView({
-                cid: omitted_if_empty(row.values.get(cid.unsafe_name))
-                    for cid in column_ids
-            }) for row in qd.responses
-        ),
+        column_ids=tuple(column.id for _, column in schema_mapping),
+        rows=rows,
     )
 
 def load_unsanitizedtable_qualtrics(schema_json: str, data_json: str) -> UnsanitizedTable:
-    schema = load_unsanitizedtableschema_qualtrics(schema_json)
+    schema_map = load_qualtrics_schema_map(schema_json)
     return UnsanitizedTable(
-        schema=schema,
-        data=load_unsanitizedtabledata_qualtrics(tuple(c.id for c in schema.columns), data_json),
+        schema=tuple(column for _, column in schema_map),
+        data=load_unsanitizedtabledata_qualtrics(schema_map, data_json),
         schema_checksum=hashlib.sha256(schema_json.encode()).hexdigest(),
         data_checksum=hashlib.sha256(data_json.encode()).hexdigest(),
     )

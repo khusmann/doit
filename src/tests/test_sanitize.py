@@ -2,7 +2,7 @@ from textwrap import dedent
 from doit.sanitizedtable.model import SanitizedColumnId
 
 from doit.common import (
-    Missing,
+    Redacted,
 )
 
 from doit.sanitizer.io.csv import (
@@ -51,7 +51,7 @@ def test_sanitize():
     expected_table = sanitize_table(load_unsanitizedtable_csv(expected_raw), [])
 
     # Monkeypatch to put in the redacted value
-    expected_table.data.rows[1]._map[SanitizedColumnId('c')] = Missing('redacted') # type: ignore
+    expected_table.data.rows[1]._map[SanitizedColumnId('c')] = Redacted() # type: ignore
 
     assert sanitizedtable.data == expected_table.data
 
