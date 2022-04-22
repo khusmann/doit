@@ -13,6 +13,10 @@ from doit.unsanitizedtable.io.csv import (
     load_unsanitizedtable_csv,
 )
 
+from doit.sanitizedtable.io.csv import (
+    load_sanitizedtable_csv,
+)
+
 from doit.service.sanitize import (
     sanitize_table,
 )
@@ -42,13 +46,11 @@ def test_sanitize():
 
     sanitizer = load_sanitizer_csv(sanitizer_raw)
 
-    print(sanitizer)
-
     unsanitizedtable = load_unsanitizedtable_csv(unsanitizedtable_raw)
 
     sanitizedtable = sanitize_table(unsanitizedtable, [sanitizer])
 
-    expected_table = sanitize_table(load_unsanitizedtable_csv(expected_raw), [])
+    expected_table = load_sanitizedtable_csv(expected_raw)
 
     # Monkeypatch to put in the redacted value
     expected_table.data.rows[1]._map[SanitizedColumnId('c')] = Redacted() # type: ignore

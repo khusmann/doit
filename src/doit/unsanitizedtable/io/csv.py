@@ -24,7 +24,9 @@ def rename_unsafe_header(header: str):
     return header[1: -1]
 
 def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
-    reader = csv.reader(csv_text.splitlines())
+    csv_lines = csv_text.splitlines()
+
+    reader = csv.reader(csv_lines)
 
     header = tuple(next(reader))
 
@@ -57,5 +59,5 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
             rows=rows,
         ),
         data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
-        schema_checksum=hashlib.sha256(csv_text[0].encode()).hexdigest(),
+        schema_checksum=hashlib.sha256(csv_lines[0].encode()).hexdigest(),
     )
