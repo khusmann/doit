@@ -43,21 +43,6 @@ class Redacted(t.NamedTuple):
     def is_type(self, _: t.Any) -> t.TypeGuard[Omitted]:
         return True
 
-class ErrorValue:
-    stack: traceback.StackSummary
-    reason: ErrorReason
-    def __init__(self, reason: ErrorReason):
-        self.stack = traceback.extract_stack()
-        self.reason = reason
-    def __repr__(self):
-        return "{}".format(str(self.reason))
-    def is_type(self, _: t.Any) -> t.TypeGuard[ErrorValue]:
-        return True
-    def __eq__(self, o: t.Any):
-        return isinstance(o, ErrorValue) and self.reason == o.reason
-    def print_traceback(self):
-        print("".join(traceback.format_list(self.stack)))
-
 class ColumnNotFoundInRow(t.NamedTuple):
     missing_column: t.Any
     row: t.Any
@@ -67,6 +52,26 @@ class LookupSanitizerMiss(t.NamedTuple):
     sanitizer_map: t.Any
 
 ErrorReason = ColumnNotFoundInRow | LookupSanitizerMiss
+
+class ErrorValue:
+    stack: traceback.StackSummary
+    reason: ErrorReason
+
+    def __init__(self, reason: ErrorReason):
+        self.stack = traceback.extract_stack()
+        self.reason = reason
+
+    def __repr__(self):
+        return "{}".format(str(self.reason))
+
+    def is_type(self, _: t.Any) -> t.TypeGuard[ErrorValue]:
+        return True
+
+    def __eq__(self, o: t.Any):
+        return isinstance(o, ErrorValue) and self.reason == o.reason
+
+    def print_traceback(self):
+        print("".join(traceback.format_list(self.stack)))
 
 TableValue = Some[T] | Omitted | Redacted | ErrorValue
 
@@ -78,31 +83,11 @@ def redacted_if_empty(value: t.Optional[T]) -> TableValue[T]:
 
 ### TableRowView
 
-@dataclass(frozen=True)
-class RowViewHash(t.Generic[ColumnIdT, T]):
-    value: int
-
-@dataclass(frozen=True)
 class TableRowView(t.Generic[ColumnIdT, T]):
     _map: t.Mapping[ColumnIdT, TableValue[T]]
 
-    def keys(self):
-        return self._map.keys()
-
-    def values(self):
-        return self._map.values()
-
-    def items(self):
-        return self._map.items()
-
-    def get(self, column_name: ColumnIdT) -> TableValue[T]:
-        return self._map.get(column_name, ErrorValue(ColumnNotFoundInRow(column_name, self)))
-
-    def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
-        return TableRowView({ k: self.get(k) for k in keys })
-
-    def has_value_type(self, value_type: t.Type[P]) -> t.TypeGuard[TableRowView[ColumnIdT, P]]:
-        return all(v.is_type(value_type) for v in self._map.values())
+    def __init__(self, map: t.Mapping[ColumnIdT, TableValue[T]]):
+        self._map = map
 
     def __hash__(self) -> int:
         error = next((v for v in self._map.values() if isinstance(v, ErrorValue)), None)
@@ -110,8 +95,23 @@ class TableRowView(t.Generic[ColumnIdT, T]):
             raise Exception("Unexpected error value: {}".format(error)) # TODO: Make into proper exception (& test)
         return hash(frozenset((k, v) for k, v in self._map.items()))
 
-    def bless_ids(self, fn: t.Callable[[ColumnIdT], ColumnIdP]) -> TableRowView[ColumnIdP, T]:
-        return TableRowView({ fn(k): v for k, v in self._map.items()})
+    def __eq__(self, o: t.Any) -> bool:
+        return isinstance(o, TableRowView) and self._map == t.cast(TableRowView[ColumnIdT, T], o)._map
+
+    def __repr__(self) -> str:
+        return "TableRowView({})".format(self._map)
+
+    def column_ids(self):
+        return self._map.keys()
+
+    def values(self):
+        return self._map.values()
+
+    def get(self, column_name: ColumnIdT) -> TableValue[T]:
+        return self._map.get(column_name, ErrorValue(ColumnNotFoundInRow(column_name, self)))
+
+    def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
+        return TableRowView({ k: self.get(k) for k in keys })
 
     @classmethod
     def combine_views(cls, *views: TableRowView[ColumnIdT, T]) -> TableRowView[ColumnIdT, T]:

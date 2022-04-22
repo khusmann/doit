@@ -26,7 +26,7 @@ def test_basic_load():
     assert [c.is_safe for c in table.schema] == [True, False, True]
 
     assert [c.unsafe_name for c in table.data.column_ids] == ["a", "b", "c"]
-    assert [c.unsafe_name for c in table.data.rows[1].keys()] == ["a", "b", "c"]
+    assert [c.unsafe_name for c in table.data.rows[1].column_ids()] == ["a", "b", "c"]
     assert [c for c in table.data.rows[1].values()] == [Some("4"), Some("5"), Some("6")]
 
 def test_missing_load():
@@ -40,7 +40,7 @@ def test_missing_load():
     table = load_unsanitizedtable_csv(raw)
 
     assert [c.unsafe_name for c in table.data.column_ids] == ["a", "b", "c"]
-    assert [c.unsafe_name for c in table.data.rows[1].keys()] == ["a", "b", "c"]
+    assert [c.unsafe_name for c in table.data.rows[1].column_ids()] == ["a", "b", "c"]
     assert [c for c in table.data.rows[1].values()] == [Some("4"), Some("5"), Omitted()]
 
 def test_missing_header_error():
