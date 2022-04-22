@@ -1,15 +1,17 @@
 import pytest
 from textwrap import dedent
+from itertools import repeat
 
 from doit.common import (
     EmptySanitizerKeyError,
     Omitted,
     Redacted,
     Some,
-    Error,
+    ColumnNotFoundInRow,
     DuplicateHeaderError,
     EmptyHeaderError,
     TableRowView,
+    ErrorValue
 )
 
 from doit.unsanitizedtable.model import (
@@ -79,7 +81,7 @@ def test_missing_load():
 
     assert list(sanitize_row(testrow, sanitizer).values()) == [Some("4"), Redacted()]
     assert list(sanitize_row(testrow_missing, sanitizer).values()) == [Some("7"), Some("9")]
-    assert list(sanitize_row(testrow_error, sanitizer).values()) == [Error('unknown_column', UnsanitizedColumnId('b')), Error("unknown_column", UnsanitizedColumnId('b'))]
+    assert list(sanitize_row(testrow_error, sanitizer).values()) == list(repeat(ErrorValue(ColumnNotFoundInRow(UnsanitizedColumnId('b'), testrow_error)), 2))
 
 def test_missing_keys():
     raw = dedent("""\

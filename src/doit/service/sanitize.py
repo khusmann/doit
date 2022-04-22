@@ -1,9 +1,10 @@
 import typing as t
 
 from ..common import (
+    LookupSanitizerMiss,
     TableRowView,
     Omitted,
-    Error,
+    ErrorValue,
 )
 
 from ..sanitizer.model import (
@@ -38,25 +39,19 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> Sanitize
         return TableRowView({ k: Omitted() for k in sanitizer.new_col_ids })
 
     # If any row keys are Error, return that Error for all new vals
-    error = next((v for v in row_subset.values() if isinstance(v, Error)), None)
+    error = next((v for v in row_subset.values() if isinstance(v, ErrorValue)), None)
     if error:
         return TableRowView({ k: error for k in sanitizer.new_col_ids })
 
     match sanitizer:
         case LookupSanitizer():
-            if row_subset.has_value_type(str):
-                return sanitizer.map.get(row_subset) or TableRowView(
-                    { k: Error('missing_sanitizer', row_subset) for k in sanitizer.new_col_ids }
-                )
+            return sanitizer.map.get(row_subset) or TableRowView(
+                { k: ErrorValue(LookupSanitizerMiss(row_subset, sanitizer.map)) for k in sanitizer.new_col_ids }
+            )
         case IdentitySanitizer():
-            if row_subset.has_value_type(str):
-                return TableRowView(
-                    { new: row_subset.get(old) for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids) } 
-                )
-
-    return TableRowView(
-        { k: Error('sanitizer_type_mismatch', (row_subset, sanitizer)) for k in sanitizer.new_col_ids }
-    )
+            return TableRowView(
+                { new: row_subset.get(old) for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids) } 
+            )
 
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitizer]) -> SanitizedTable:
 
