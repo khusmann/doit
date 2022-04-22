@@ -18,8 +18,8 @@ class SanitizedTableInfo(t.NamedTuple):
     schema_checksum: str
     columns: t.Tuple[SanitizedColumnInfo, ...]
 
-SanitizedTableRowView = TableRowView[SanitizedColumnId, str]
-SanitizedTableData = TableData[SanitizedColumnId, t.Any]
+SanitizedTableRowView = TableRowView[SanitizedColumnId]
+SanitizedTableData = TableData[SanitizedColumnId]
 
 class SanitizedTable(t.NamedTuple):
     info: SanitizedTableInfo

@@ -27,11 +27,10 @@ P = t.TypeVar("P")
 ColumnIdT = t.TypeVar('ColumnIdT')
 ColumnIdP = t.TypeVar('ColumnIdP')
 
-### Maybe[T]
+### TableValue
 
-@dataclass(frozen=True)
-class Some(t.Generic[T]):
-    value: T
+class Some(t.NamedTuple):
+    value: t.Any
 
 class Omitted(t.NamedTuple):
     pass
@@ -66,20 +65,20 @@ class ErrorValue:
     def print_traceback(self):
         print("".join(traceback.format_list(self.stack)))
 
-TableValue = Some[T] | Omitted | Redacted | ErrorValue
+TableValue = Some | Omitted | Redacted | ErrorValue
 
-def omitted_if_empty(value: t.Optional[T]) -> TableValue[T]:
+def omitted_if_empty(value: t.Optional[t.Any]) -> TableValue:
     return Some(value) if value else Omitted()
 
-def redacted_if_empty(value: t.Optional[T]) -> TableValue[T]:
+def redacted_if_empty(value: t.Optional[t.Any]) -> TableValue:
     return Some(value) if value else Redacted()
 
 ### TableRowView
 
-class TableRowView(t.Generic[ColumnIdT, T]):
-    _map: t.Mapping[ColumnIdT, TableValue[T]]
+class TableRowView(t.Generic[ColumnIdT]):
+    _map: t.Mapping[ColumnIdT, TableValue]
 
-    def __init__(self, map: t.Mapping[ColumnIdT, TableValue[T]]):
+    def __init__(self, map: t.Mapping[ColumnIdT, TableValue]):
         self._map = map
 
     def __hash__(self) -> int:
@@ -89,7 +88,7 @@ class TableRowView(t.Generic[ColumnIdT, T]):
         return hash(frozenset((k, v) for k, v in self._map.items()))
 
     def __eq__(self, o: t.Any) -> bool:
-        return isinstance(o, TableRowView) and self._map == t.cast(TableRowView[ColumnIdT, T], o)._map
+        return isinstance(o, TableRowView) and self._map == t.cast(TableRowView[ColumnIdT], o)._map
 
     def __repr__(self) -> str:
         return "TableRowView({})".format(self._map)
@@ -100,14 +99,14 @@ class TableRowView(t.Generic[ColumnIdT, T]):
     def values(self):
         return self._map.values()
 
-    def get(self, column_name: ColumnIdT) -> TableValue[T]:
+    def get(self, column_name: ColumnIdT) -> TableValue:
         return self._map.get(column_name, ErrorValue(ColumnNotFoundInRow(column_name, self)))
 
-    def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT, T]:
+    def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT]:
         return TableRowView({ k: self.get(k) for k in keys })
 
     @classmethod
-    def combine_views(cls, *views: TableRowView[ColumnIdT, T]) -> TableRowView[ColumnIdT, T]:
+    def combine_views(cls, *views: TableRowView[ColumnIdT]) -> TableRowView[ColumnIdT]:
         return TableRowView(
             dict(
                 v
@@ -119,9 +118,9 @@ class TableRowView(t.Generic[ColumnIdT, T]):
 ### TableData
 
 @dataclass(frozen=True)
-class TableData(t.Generic[ColumnIdT, T]):
+class TableData(t.Generic[ColumnIdT]):
     column_ids: t.Tuple[ColumnIdT, ...]
-    rows: t.Tuple[TableRowView[ColumnIdT, T], ...] # rows x columns
+    rows: t.Tuple[TableRowView[ColumnIdT], ...] # rows x columns
 
     def __repr__(self):
         result = " | ".join(repr(c) for c in self.column_ids) + "\n"

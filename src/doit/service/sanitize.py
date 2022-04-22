@@ -55,7 +55,7 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> Sanitize
 
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitizer]) -> SanitizedTable:
 
-    # Step 0: Create special sanitizers
+    # Step 0: Create identity sanitizer for safe columns
 
     safe_column_sanitizer = IdentitySanitizer(
         key_col_ids=tuple(c.id for c in table.schema if c.is_safe)
@@ -82,8 +82,8 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitiz
 
     # Step 2: Combine sanitizers / columns, ensuring they're stacked in the same order
 
-    all_sanitizers = (*sanitizers, safe_column_sanitizer)
     all_columns = sanitized_columns + safe_columns
+    all_sanitizers = (*sanitizers, safe_column_sanitizer)
 
     # Step 3: And then you're done!
 

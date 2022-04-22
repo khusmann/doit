@@ -29,9 +29,8 @@ class UnsanitizedOrdinalColumnInfo(t.NamedTuple):
 
 UnsanitizedColumnInfo = UnsanitizedTextColumnInfo | UnsanitizedMultiselectColumnInfo | UnsanitizedOrdinalColumnInfo
 
-UnsanitizedTableRowView = TableRowView[UnsanitizedColumnId, t.Any]
-
-UnsanitizedTableData = TableData[UnsanitizedColumnId, t.Any]
+UnsanitizedTableRowView = TableRowView[UnsanitizedColumnId]
+UnsanitizedTableData = TableData[UnsanitizedColumnId]
 
 class UnsanitizedTable(t.NamedTuple):
     schema: t.Tuple[UnsanitizedColumnInfo, ...]

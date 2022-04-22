@@ -10,12 +10,12 @@ from doit.common import (
     ColumnNotFoundInRow,
     DuplicateHeaderError,
     EmptyHeaderError,
-    TableRowView,
     ErrorValue
 )
 
 from doit.unsanitizedtable.model import (
     UnsanitizedColumnId,
+    UnsanitizedTableRowView,
 )
 
 from doit.sanitizer.io.csv import (
@@ -34,12 +34,12 @@ def test_basic_load():
         7,8,9,12
     """)
 
-    testrow = TableRowView({
+    testrow = UnsanitizedTableRowView({
         UnsanitizedColumnId("b"): Some("5"),
         UnsanitizedColumnId("d"): Some("11"),
     })
 
-    testrow_reverse = TableRowView({
+    testrow_reverse = UnsanitizedTableRowView({
         UnsanitizedColumnId("d"): Some("11"),
         UnsanitizedColumnId("b"): Some("5"),
     })
@@ -60,17 +60,17 @@ def test_missing_load():
         7,,9,12
     """)
 
-    testrow = TableRowView({
+    testrow = UnsanitizedTableRowView({
         UnsanitizedColumnId("b"): Some("5"),
         UnsanitizedColumnId("d"): Some("11"),
     })
 
-    testrow_missing = TableRowView({
+    testrow_missing = UnsanitizedTableRowView({
         UnsanitizedColumnId("b"): Omitted(),
         UnsanitizedColumnId("d"): Some("12"),
     })
 
-    testrow_error = TableRowView({
+    testrow_error = UnsanitizedTableRowView({
         UnsanitizedColumnId("z"): Some("10")
     })
 
@@ -91,12 +91,12 @@ def test_missing_keys():
         7,8,9,
     """)
 
-    testrow = TableRowView({
+    testrow = UnsanitizedTableRowView({
         UnsanitizedColumnId("b"): Some("8"),
         UnsanitizedColumnId("d"): Omitted(),
     })
 
-    testrow_allmissing = TableRowView[UnsanitizedColumnId, str]({
+    testrow_allmissing = UnsanitizedTableRowView({
         UnsanitizedColumnId("b"): Omitted(),
         UnsanitizedColumnId("d"): Omitted(),
     })
