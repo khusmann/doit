@@ -3,12 +3,12 @@ import re
 import hashlib
 
 from ...common import (
-    Omitted,
-    Redacted,
     Some,
     DuplicateHeaderError,
     EmptyHeaderError,
     EmptySanitizerKeyError,
+    omitted_if_empty,
+    redacted_if_empty,
 )
 
 from ...unsanitizedtable.model import (
@@ -51,14 +51,14 @@ def load_sanitizer_csv(csv_text: str) -> Sanitizer:
 
     keys = tuple(
         UnsanitizedStrTableRowView({
-            key_col_names[c]: Some(v) if v else Omitted()
+            key_col_names[c]: omitted_if_empty(v)
                 for c, v in zip(header, row) if c in key_col_names
         }) for row in lines
     )
 
     values = tuple(
         SanitizedStrTableRowView({
-            new_col_names[c]: Some(v) if v else Redacted()
+            new_col_names[c]: redacted_if_empty(v)
                 for c, v in zip(header, row)if c in new_col_names
         }) for row in lines
     )

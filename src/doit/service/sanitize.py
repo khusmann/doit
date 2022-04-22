@@ -28,20 +28,20 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
     sanitized_columns = tuple(
         SanitizedColumnInfo(
             id=id,
-            prompt="; ".join(c.prompt for c in table.info.columns if c.id in sanitizer.key_col_ids),
+            prompt="; ".join(c.prompt for c in table.schema.columns if c.id in sanitizer.key_col_ids),
             sanitizer_checksum=sanitizer.checksum,
         ) for sanitizer in sanitizers
             for id in sanitizer.new_col_ids
     )
     
-    safe_col_ids = frozenset(c.id for c in table.info.columns if c.is_safe)
+    safe_col_ids = frozenset(c.id for c in table.schema.columns if c.is_safe)
 
     safe_columns = tuple(
         SanitizedColumnInfo(
             id=SanitizedColumnId(c.id.unsafe_name),
             prompt=c.prompt,
             sanitizer_checksum=None,
-        ) for c in table.info.columns if c.id in safe_col_ids
+        ) for c in table.schema.columns if c.id in safe_col_ids
     )
 
     all_columns = sanitized_columns + safe_columns
@@ -67,12 +67,12 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[Sanitizer]) -
 
     return SanitizedTable(
         info=SanitizedTableInfo(
-            data_checksum=table.info.data_checksum,
-            schema_checksum=table.info.schema_checksum,
+            data_checksum=table.data_checksum,
+            schema_checksum=table.schema_checksum,
             columns=all_columns,
         ),
         data=SanitizedTableData(
-            columns_ids=tuple(c.id for c in all_columns),
+            column_ids=tuple(c.id for c in all_columns),
             rows=all_rows,
         ),
     )

@@ -52,11 +52,18 @@ class Error:
     def is_type(self, _: t.Any) -> t.TypeGuard[Error]:
         return True
 
+TableValue = Some[T] | Omitted | Redacted | Error
+
+def omitted_if_empty(value: t.Optional[T]) -> TableValue[T]:
+    return Some(value) if value else Omitted()
+
+def redacted_if_empty(value: t.Optional[T]) -> TableValue[T]:
+    return Some(value) if value else Redacted()
+
 ### TableRowView
 
 ColumnIdT = t.TypeVar('ColumnIdT')
 ColumnIdP = t.TypeVar('ColumnIdP')
-TableValue = Some[T] | Omitted | Redacted | Error
 
 @dataclass(frozen=True)
 class RowViewHash(t.Generic[ColumnIdT, T]):
@@ -104,7 +111,7 @@ class TableRowView(t.Generic[ColumnIdT, T]):
 
 @dataclass(frozen=True)
 class TableData(t.Generic[ColumnIdT, T]):
-    columns_ids: t.Tuple[ColumnIdT, ...]
+    column_ids: t.Tuple[ColumnIdT, ...]
     rows: t.Tuple[TableRowView[ColumnIdT, T], ...] # rows x columns
 
     @property
@@ -114,7 +121,7 @@ class TableData(t.Generic[ColumnIdT, T]):
         )
 
     def __repr__(self):
-        result = " | ".join(repr(c) for c in self.columns_ids) + "\n"
+        result = " | ".join(repr(c) for c in self.column_ids) + "\n"
         for row in self.rows:
-            result += " | ".join(str(row.get(c)) for c in self.columns_ids) + "\n"
+            result += " | ".join(str(row.get(c)) for c in self.column_ids) + "\n"
         return result

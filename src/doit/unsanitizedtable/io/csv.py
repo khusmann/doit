@@ -11,11 +11,11 @@ from ...common import (
 
 from ..model import (
     UnsanitizedColumnId,
-    UnsanitizedColumnInfo,
+    UnsanitizedTextColumnInfo,
     UnsanitizedTableData,
     UnsanitizedTableRowView,
     UnsanitizedTable,
-    UnsanitizedTableInfo,
+    UnsanitizedTableSchema,
 )
 
 def is_header_safe(header: str):
@@ -36,10 +36,9 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
         raise DuplicateHeaderError(header)
 
     columns = tuple(
-        UnsanitizedColumnInfo(
+        UnsanitizedTextColumnInfo(
             id=UnsanitizedColumnId(v if is_header_safe(v) else rename_unsafe_header(v)),
             prompt=rename_unsafe_header(v),
-            type='text',
             is_safe=is_header_safe(v),
         ) for v in header
     )
@@ -53,13 +52,13 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
     )
 
     return UnsanitizedTable(
-        info=UnsanitizedTableInfo(
-            data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
-            schema_checksum=hashlib.sha256(csv_text[0].encode()).hexdigest(),
+        schema=UnsanitizedTableSchema(
             columns=columns,
         ),
         data=UnsanitizedTableData(
-            columns_ids=column_ids,
+            column_ids=column_ids,
             rows=rows,
         ),
+        data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
+        schema_checksum=hashlib.sha256(csv_text[0].encode()).hexdigest(),
     )

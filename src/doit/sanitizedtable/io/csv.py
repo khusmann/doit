@@ -1,8 +1,7 @@
 import csv
 
 from ...common import (
-    Some,
-    Missing
+    omitted_if_empty,
 )
 
 from ..model import (
@@ -11,18 +10,18 @@ from ..model import (
     SanitizedTableRowView,
 )
 
-def load_unsanitized_table_csv(csv_text: str) -> SanitizedTableData:
+def load_sanitized_table_csv(csv_text: str) -> SanitizedTableData:
     reader = csv.reader(csv_text.splitlines())
     
     header = tuple(SanitizedColumnId(v) for v in next(reader))
 
     rows = tuple(
         SanitizedTableRowView(
-            { h: Some(v) if v else Missing('omitted') for h, v in zip(header, row)}
+            { h: omitted_if_empty(v) for h, v in zip(header, row)}
         ) for row in reader
     )
 
     return SanitizedTableData(
-        columns_ids=header,
+        column_ids=header,
         rows=rows,
     )
