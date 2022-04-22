@@ -32,16 +32,12 @@ ColumnIdP = t.TypeVar('ColumnIdP')
 @dataclass(frozen=True)
 class Some(t.Generic[T]):
     value: T
-    def is_type(self, some_type: t.Any) -> t.TypeGuard[Some[T]]:
-        return type(self.value) == some_type
 
 class Omitted(t.NamedTuple):
-    def is_type(self, _: t.Any) -> t.TypeGuard[Omitted]:
-        return True
+    pass
 
 class Redacted(t.NamedTuple):
-    def is_type(self, _: t.Any) -> t.TypeGuard[Omitted]:
-        return True
+    pass
 
 class ColumnNotFoundInRow(t.NamedTuple):
     missing_column: t.Any
@@ -63,9 +59,6 @@ class ErrorValue:
 
     def __repr__(self):
         return "{}".format(str(self.reason))
-
-    def is_type(self, _: t.Any) -> t.TypeGuard[ErrorValue]:
-        return True
 
     def __eq__(self, o: t.Any):
         return isinstance(o, ErrorValue) and self.reason == o.reason
