@@ -20,7 +20,7 @@ def test_basic_load():
         7,8,9
     """)
 
-    table = load_unsanitizedtable_csv(raw)
+    table = load_unsanitizedtable_csv(raw, "CSV Import")
 
     assert [c.id.unsafe_name for c in table.schema] == ["a", "b", "c"]
     assert [c.is_safe for c in table.schema] == [True, False, True]
@@ -37,7 +37,7 @@ def test_missing_load():
         7,8,9
     """)
 
-    table = load_unsanitizedtable_csv(raw)
+    table = load_unsanitizedtable_csv(raw, "CSV Import")
 
     assert [c.unsafe_name for c in table.data.column_ids] == ["a", "b", "c"]
     assert [c.unsafe_name for c in table.data.rows[1].column_ids()] == ["a", "b", "c"]
@@ -52,7 +52,7 @@ def test_missing_header_error():
     """)
 
     with pytest.raises(EmptyHeaderError):
-        load_unsanitizedtable_csv(raw)
+        load_unsanitizedtable_csv(raw, "CSV Import")
 
 def test_duplicate_header_error():
     raw = dedent("""\
@@ -63,4 +63,4 @@ def test_duplicate_header_error():
     """)
 
     with pytest.raises(DuplicateHeaderError):
-        load_unsanitizedtable_csv(raw)
+        load_unsanitizedtable_csv(raw, "CSV Import")

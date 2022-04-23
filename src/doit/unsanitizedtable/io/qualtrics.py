@@ -146,8 +146,7 @@ class QualtricsSchemaMapping(t.NamedTuple):
     qualtrics_ids: t.Tuple[str, ...]
     columns: t.Tuple[UnsanitizedColumnInfo, ...]
 
-def load_qualtrics_schema_map(schema_json: str) -> QualtricsSchemaMapping:
-    qs = QualtricsSchema.parse_raw(schema_json)
+def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
     responseId = (
         "responseId",
         UnsanitizedTextColumnInfo(
@@ -167,12 +166,11 @@ def load_qualtrics_schema_map(schema_json: str) -> QualtricsSchemaMapping:
         tuple(c for _, c in qmapping)
     )
 
-def load_unsanitizedtabledata_qualtrics(
+def parse_qualtrics_data(
     schema_mapping: QualtricsSchemaMapping,
-    data_json: str
+    qd: QualtricsData
 ) -> UnsanitizedTableData:
 
-    qd = QualtricsData.parse_raw(data_json)
 
     rows = tuple(
         TableRowView({
@@ -187,11 +185,15 @@ def load_unsanitizedtabledata_qualtrics(
     )
 
 def load_unsanitizedtable_qualtrics(schema_json: str, data_json: str) -> UnsanitizedTable:
-    schema_map = load_qualtrics_schema_map(schema_json)
+    qs = QualtricsSchema.parse_raw(schema_json)
+    qd = QualtricsData.parse_raw(data_json)
+    schema_map = parse_qualtrics_schema(qs)
     return UnsanitizedTable(
         schema=schema_map.columns,
-        data=load_unsanitizedtabledata_qualtrics(schema_map, data_json),
+        data=parse_qualtrics_data(schema_map, qd),
         schema_checksum=hashlib.sha256(schema_json.encode()).hexdigest(),
         data_checksum=hashlib.sha256(data_json.encode()).hexdigest(),
+        source_name='qualtrics',
+        source_title=qs.title,
     )
 

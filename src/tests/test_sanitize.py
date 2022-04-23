@@ -46,7 +46,7 @@ def test_sanitize():
 
     sanitizer = load_sanitizer_csv(sanitizer_raw)
 
-    unsanitizedtable = load_unsanitizedtable_csv(unsanitizedtable_raw)
+    unsanitizedtable = load_unsanitizedtable_csv(unsanitizedtable_raw, "CSV Import")
 
     sanitizedtable = sanitize_table(unsanitizedtable, [sanitizer])
 

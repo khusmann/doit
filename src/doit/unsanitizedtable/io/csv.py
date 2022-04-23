@@ -23,7 +23,7 @@ def is_header_safe(header: str):
 def rename_unsafe_header(header: str):
     return header[1: -1]
 
-def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
+def load_unsanitizedtable_csv(csv_text: str, title: str) -> UnsanitizedTable:
     csv_lines = csv_text.splitlines()
 
     reader = csv.reader(csv_lines)
@@ -60,4 +60,6 @@ def load_unsanitizedtable_csv(csv_text: str) -> UnsanitizedTable:
         ),
         data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
         schema_checksum=hashlib.sha256(csv_lines[0].encode()).hexdigest(),
+        source_name="csv",
+        source_title=title,
     )

@@ -37,6 +37,8 @@ class UnsanitizedTable(t.NamedTuple):
     schema_checksum: str
     data: UnsanitizedTableData
     data_checksum: str
+    source_name: str
+    source_title: str
 
     # Constraint: Column Meta == columns
     # Constraint: All columns are same size
