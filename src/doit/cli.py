@@ -6,6 +6,8 @@ load_dotenv('.env')
 import click
 from tqdm import tqdm
 
+from . import app
+
 def progress_callback(**args: t.Any):
     pbar: tqdm[int] = tqdm(total=100, unit="pct", **args)
     def update_fcn(n: int):
@@ -27,11 +29,11 @@ def source_cli():
     pass
 
 @source_cli.command(name="add")
-@click.argument('instrument_id')
+@click.argument('instrument_name')
 @click.argument('uri')
-def source_add(instrument_id: str, uri: str):
+def source_add(instrument_name: str, uri: str):
     """Add an instrument source"""
-    pass
+    app.add_instrument(instrument_name, uri)
 
 @source_cli.command(name="rm")
 @click.argument('instrument_id')
@@ -47,7 +49,20 @@ def complete_instrument_name(ctx: click.Context, param: click.Parameter, incompl
 @click.argument('remote_service', required=False)
 def source_list(remote_service: str | None):
     """List available instruments"""
-    pass
+    click.secho()
+    if remote_service:
+        match remote_service:
+            case "qualtrics":
+                from .remote.qualtrics import fetch_qualtrics_listing
+                for uri, title in fetch_qualtrics_listing():
+                    click.secho(" {} : {}".format(click.style(uri, fg='bright_cyan'), title))
+            case _:
+                click.secho("Unrecognized service: {}".format(remote_service))
+    else:
+        click.secho("Source tables currently in workspace:")
+        click.secho("TODO: Implement")
+    click.secho()
+
 
 @cli.group(name="sanitizer")
 def sanitizer_cli():
