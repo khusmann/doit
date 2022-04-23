@@ -135,6 +135,10 @@ def sanitize():
         defaults.blob_from_instrument_name
     )
 
+    repo = app.get_sanitizedtable_repo(
+        defaults.sanitized_repo_path,
+    )
+
     click.secho()
     for entry in tqdm(listing):
         unsanitized = app.load_unsanitizedtable(
@@ -142,8 +146,8 @@ def sanitize():
             defaults.blob_from_instrument_name
         )
         # TODO: Load sanitizers
-        sanitize_table(unsanitized, [])
-        # TODO: Save sanitized
+        sanitized = sanitize_table(unsanitized, [])
+        repo.write_table(sanitized, entry.name)
     click.secho()
 
 @cli.command()

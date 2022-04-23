@@ -18,6 +18,10 @@ from .remote.model import (
     RemoteTableListing,
 )
 
+from .sanitizedtable.io import (
+    new_sanitizedtable_repo,
+)
+
 def add_source(
     instrument_name: str,
     uri: str,
@@ -93,6 +97,12 @@ def get_local_source_listing(
             title=load_source_info(source, blob_from_instrument_name).title,
         ) for source in sources
     )
+
+def get_sanitizedtable_repo(
+    sanitized_repo_name: Path,
+):
+    # Save old one...
+    return new_sanitizedtable_repo(sanitized_repo_name)
 
 
 #def source_listing(

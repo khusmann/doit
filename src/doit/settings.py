@@ -29,12 +29,23 @@ class AppSettings(BaseSettings):
         new_tail = ".{}.tar.gz".format(int(old_date.timestamp()))
         return old_filename.with_name(old_filename.name.replace(tail, new_tail))
 
+    sanitized_repo_dir = Path("./build/safe/sanitized")
+
+    @property
+    def sanitized_repo_filename(self):
+        return "{}-sanitized.db".format(self.output_prefix)
+
+    @property
+    def sanitized_repo_path(self):
+        return self.sanitized_repo_dir / self.sanitized_repo_filename
+
+    def sanitized_repo_bkup_path(self, old_date: datetime) -> Path:
+        return self.sanitized_repo_path.with_suffix(".{}.{}".format(int(old_date.timestamp()), self.sanitized_repo_path.suffix))
+        
     # General
     output_prefix = "study"
 
     # UnsafeTableManager
-
-
 
     def unsafe_table_fileinfo_file(self, instrument_id: str) -> Path:
         return (self.source_table_workdir(instrument_id) / instrument_id).with_suffix(".json")
@@ -57,16 +68,6 @@ class AppSettings(BaseSettings):
 
     def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
         return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]
-
-    # SourceTableManager
-    safe_source_repo_dir = Path("./build/safe/sanitized")
-
-    @property
-    def source_database_filename(self):
-        return "{}-sanitized.db".format(self.output_prefix)
-
-    def source_database_path(self):
-        return self.safe_source_repo_dir / self.source_database_filename
 
     # StudySpecManager
     instrument_dir = Path("./instruments")
