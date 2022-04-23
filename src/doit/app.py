@@ -59,7 +59,7 @@ def fetch_source(
     else:
         return new_blob.info
 
-def load_source(
+def load_unsanitizedtable(
     instrument_name: str,
     blob_from_instrument_name: t.Callable[[str], Path],
 ):

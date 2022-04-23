@@ -128,7 +128,23 @@ def fetch(instrument_name: str | None):
 @cli.command()
 def sanitize():
     """Sanitize sources"""
-    pass
+    from .service.sanitize import sanitize_table
+    
+    listing = app.get_local_source_listing(
+        defaults.source_dir,
+        defaults.blob_from_instrument_name
+    )
+
+    click.secho()
+    for entry in tqdm(listing):
+        unsanitized = app.load_unsanitizedtable(
+            entry.name,
+            defaults.blob_from_instrument_name
+        )
+        # TODO: Load sanitizers
+        sanitize_table(unsanitized, [])
+        # TODO: Save sanitized
+    click.secho()
 
 @cli.command()
 def link():
@@ -140,6 +156,6 @@ def debug():
     """Debug"""
     print("Do debug stuffasdf")
 
-    table = app.load_source('test-survey', defaults.blob_from_instrument_name)
+    table = app.load_unsanitizedtable('test-survey', defaults.blob_from_instrument_name)
 
     print(table)
