@@ -2,7 +2,7 @@ import typing as t
 from pathlib import Path
 from datetime import datetime
 
-from .remote.service import (
+from .remote.io import (
     fetch_blob,
     save_blob,
     open_blob,

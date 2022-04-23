@@ -1,3 +1,4 @@
+from __future__ import annotations
 import typing as t
 
 from ..common import (
@@ -25,3 +26,8 @@ class SanitizedTable(t.NamedTuple):
     info: SanitizedTableInfo
     data: SanitizedTableData
 
+class SanitizedTableRepoReader(t.NamedTuple):
+    read_table: t.Callable[[str], SanitizedTable]
+
+class SanitizedTableRepoWriter(t.NamedTuple):
+    write_table: t.Callable[[SanitizedTable, str], None]

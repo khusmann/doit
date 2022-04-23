@@ -156,6 +156,6 @@ def debug():
     """Debug"""
     print("Do debug stuffasdf")
 
-    table = app.load_unsanitizedtable('test-survey', defaults.blob_from_instrument_name)
+    table = app.load_unsanitizedtable('test_survey', defaults.blob_from_instrument_name)
 
     print(table)

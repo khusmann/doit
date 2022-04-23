@@ -13,7 +13,7 @@ from doit.unsanitizedtable.io.csv import (
     load_unsanitizedtable_csv,
 )
 
-from doit.sanitizedtable.io.csv import (
+from doit.sanitizedtable.impl.csv import (
     load_sanitizedtable_csv,
 )
 

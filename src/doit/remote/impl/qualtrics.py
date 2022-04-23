@@ -7,7 +7,7 @@ import io
 from pydantic import BaseModel, BaseSettings, Field, parse_obj_as
 from datetime import datetime, timezone
 
-from .model import (
+from ..model import (
     LazyBlobData,
     RemoteTableListing,
     BlobInfo,
@@ -16,7 +16,7 @@ from .model import (
     Blob,
 )
 
-from ..unsanitizedtable.io.qualtrics import (
+from ...unsanitizedtable.io.qualtrics import (
     load_unsanitizedtable_qualtrics
 )
 
