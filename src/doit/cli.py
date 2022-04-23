@@ -16,7 +16,7 @@ def progress_callback(**args: t.Any):
     def update_fcn(n: int):
         pbar.n = n
         pbar.update(0)
-        if n == 100:
+        if n >= 100:
             pbar.close()
     return update_fcn
 
@@ -38,7 +38,7 @@ def source_add(instrument_name: str, uri: str):
     """Add an instrument source"""
     click.secho()
     progress = progress_callback()
-    app.add_instrument(
+    app.add_source(
         instrument_name,
         uri,
         progress,
@@ -62,16 +62,11 @@ def source_list(remote_service: str | None):
     """List available instruments"""
     click.secho()
     if remote_service:
-        match remote_service:
-            case "qualtrics":
-                from .remote.qualtrics import fetch_qualtrics_listing
-                for uri, title in fetch_qualtrics_listing():
-                    click.secho(" {} : {}".format(click.style(uri, fg='bright_cyan'), title))
-            case _:
-                click.secho("Unrecognized service: {}".format(remote_service))
+        for uri, title in app.get_remote_source_listing(remote_service):
+            click.secho(" {} : {}".format(click.style(uri, fg='bright_cyan'), title))
     else:
-        click.secho("Source tables currently in workspace:")
-        click.secho("TODO: Implement")
+        for name, title in app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name):
+            click.secho(" {} : {}".format(click.style(name, fg='bright_cyan'), title))
     click.secho()
 
 
@@ -107,16 +102,27 @@ def run_cli():
 def fetch(instrument_name: str | None):
     """Fetch data from sources"""
     click.secho()
-    progress = progress_callback()
     if instrument_name:
-        app.fetch_instrument(
+        progress = progress_callback()
+        app.fetch_source(
             instrument_name,
             progress,
             defaults.blob_from_instrument_name,
             defaults.blob_bkup_filename,
         )
     else:
-        click.secho("TODO: fetch all instruments")
+        listing = app.get_local_source_listing(
+            defaults.source_dir,
+            defaults.blob_from_instrument_name
+        )
+        for name, title in tqdm(listing):
+            progress = progress_callback(leave=False, desc=title)
+            app.fetch_source(
+                name,
+                progress,
+                defaults.blob_from_instrument_name,
+                defaults.blob_bkup_filename,
+            )
     click.secho()
 
 @cli.command()
@@ -134,6 +140,6 @@ def debug():
     """Debug"""
     print("Do debug stuffasdf")
 
-    table = app.load_instrument('test-survey', defaults.blob_from_instrument_name)
+    table = app.load_source('test-survey', defaults.blob_from_instrument_name)
 
     print(table)

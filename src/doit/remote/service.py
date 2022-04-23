@@ -16,6 +16,14 @@ from ..unsanitizedtable.model import (
     UnsanitizedTable
 )
 
+def get_listing(remote_service: str):
+    match remote_service:
+        case "qualtrics":
+            from .qualtrics import fetch_qualtrics_listing
+            return fetch_qualtrics_listing()
+        case _:
+            raise Exception("Unrecognized service: {}".format(remote_service))
+
 def fetch_blob(uri: str | Path, progress_callback: t.Callable[[int], None] = lambda _: None) -> Blob:
     match urlparse(str(uri)):
         case ParseResult(scheme="qualtrics", netloc=remote_id):

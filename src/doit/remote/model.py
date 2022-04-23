@@ -2,6 +2,18 @@ import typing as t
 from pydantic import BaseModel
 from datetime import datetime
 
+### Listing
+
+class RemoteTableListing(t.NamedTuple):
+    uri: str
+    title: str
+
+class LocalTableListing(t.NamedTuple):
+    name: str
+    title: str
+
+### Blob
+
 class SourceColumnInfo(BaseModel):
     name: str
     prompt: str
@@ -16,12 +28,9 @@ TableSourceInfo = QualtricsSourceInfo
 
 class BlobInfo(BaseModel):
     fetch_date_utc: datetime
+    title: str
     source_info: TableSourceInfo
     columns: t.Tuple[SourceColumnInfo, ...]
-
-class RemoteTableListing(t.NamedTuple):
-    uri: str
-    title: str
 
 LazyBlobData = t.Mapping[str, t.Callable[[], bytes]]
 

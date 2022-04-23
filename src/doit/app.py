@@ -8,14 +8,17 @@ from .remote.service import (
     open_blob,
     load_blob,
     uri_from_blobinfo,
+    get_listing,
 )
 
 from .remote.model import (
     Blob,
     BlobInfo,
+    LocalTableListing,
+    RemoteTableListing,
 )
 
-def add_instrument(
+def add_source(
     instrument_name: str,
     uri: str,
     progress_callback: t.Callable[[int], None],
@@ -25,7 +28,7 @@ def add_instrument(
     save_blob(blob, blob_from_instrument_name(instrument_name))
     return blob
     
-def fetch_instrument(
+def fetch_source(
     instrument_name: str,
     progress_callback: t.Callable[[int], None],
     blob_from_instrument_name: t.Callable[[str], Path],
@@ -40,7 +43,7 @@ def fetch_instrument(
     bkup_filename = filename.rename(blob_bkup_filename(instrument_name, info.fetch_date_utc))
 
     try:
-        new_blob = add_instrument(
+        new_blob = add_source(
             instrument_name,
             uri_from_blobinfo(info),
             progress_callback,
@@ -56,9 +59,43 @@ def fetch_instrument(
     else:
         return new_blob.info
 
-def load_instrument(
+def load_source(
     instrument_name: str,
     blob_from_instrument_name: t.Callable[[str], Path],
 ):
     with open_blob(blob_from_instrument_name(instrument_name)) as blob:
         return load_blob(blob)
+
+def load_source_info(
+    instrument_name: str,
+    blob_from_instrument_name: t.Callable[[str], Path],
+):
+    with open_blob(blob_from_instrument_name(instrument_name)) as blob:
+        return blob.info
+
+def get_remote_source_listing(
+    remote_service: str
+) -> t.Tuple[RemoteTableListing, ...]:
+    return get_listing(remote_service)
+
+def get_local_source_listing(
+    source_workdir: Path,
+    blob_from_instrument_name: t.Callable[[str], Path],
+) -> t.Tuple[LocalTableListing, ...]:
+    sources = tuple(
+        i.name
+            for i in source_workdir.iterdir()
+                if i.is_dir() and i.name[0] != '.' and blob_from_instrument_name(i.name).exists()
+    )
+    return tuple(
+        LocalTableListing(
+            name=source,
+            title=load_source_info(source, blob_from_instrument_name).title,
+        ) for source in sources
+    )
+
+
+#def source_listing(
+#    source_workdir: str
+#) -> t.Tuple[str]:
+#    dirs = 

@@ -42,10 +42,10 @@ def fetch_qualtrics_blob(remote_id: str, progress_callback: t.Callable[[int], No
 
     info = BlobInfo(
         fetch_date_utc=datetime.now(timezone.utc),
+        title=table.source_title,
         source_info=QualtricsSourceInfo(
             type='qualtrics',
             remote_id=remote_id,
-            title=table.source_title,
             data_checksum=table.data_checksum,
             schema_checksum=table.schema_checksum,
         ),
@@ -132,16 +132,16 @@ class QualtricsRemote:
     def post(self, endpoint: str, payload: t.Mapping[str, t.Any]) -> requests.Response:
         return requests.request("POST", self.get_endpoint_url(endpoint), data=json.dumps(payload), headers=self.get_headers())
 
-    def fetch_table_listing(self) -> t.List[RemoteTableListing]:
+    def fetch_table_listing(self) -> t.Tuple[RemoteTableListing, ...]:
         response = self.get("surveys").json()
         assert 'result' in response
         survey_list = QualtricsSurveyList(**response['result'])
-        return [
+        return tuple(
             RemoteTableListing(
                 uri = "qualtrics://{}".format(i.id),
                 title = i.name
             ) for i in survey_list.elements
-        ]
+        )
 
     def fetch_remote_table_data(
         self,

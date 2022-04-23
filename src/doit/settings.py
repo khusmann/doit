@@ -15,8 +15,13 @@ def yaml_config_settings_source(settings: AppSettings) -> t.Dict[str, t.Any]:
 class AppSettings(BaseSettings):
 
     ### New Settings
+    source_dir = Path("./build/unsafe/sources")
+
+    def source_table_workdir(self, instrument_id: str) -> Path:
+        return self.source_dir / instrument_id
+
     def blob_from_instrument_name(self, instrument_name: str) -> Path:
-        return (self.unsafe_table_workdir(instrument_name) / instrument_name).with_suffix(".tar.gz")
+        return (self.source_table_workdir(instrument_name) / instrument_name).with_suffix(".tar.gz")
 
     def blob_bkup_filename(self, instrument_name: str, old_date: datetime) -> Path:
         old_filename = self.blob_from_instrument_name(instrument_name)
@@ -28,19 +33,17 @@ class AppSettings(BaseSettings):
     output_prefix = "study"
 
     # UnsafeTableManager
-    unsafe_source_repo_dir = Path("./build/unsafe/sources")
 
-    def unsafe_table_workdir(self, instrument_id: str) -> Path:
-        return self.unsafe_source_repo_dir / instrument_id
+
 
     def unsafe_table_fileinfo_file(self, instrument_id: str) -> Path:
-        return (self.unsafe_table_workdir(instrument_id) / instrument_id).with_suffix(".json")
+        return (self.source_table_workdir(instrument_id) / instrument_id).with_suffix(".json")
 
     def unsafe_table_fetchinfo_file(self, instrument_id: str) -> Path:
-        return (self.unsafe_table_workdir(instrument_id) / instrument_id).with_suffix(".fetch.json")
+        return (self.source_table_workdir(instrument_id) / instrument_id).with_suffix(".fetch.json")
 
     def get_unsafe_table_names(self) -> t.List[str]:
-        return [ i.name for i in self.unsafe_source_repo_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
+        return [ i.name for i in self.source_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
 
     # SanitizerManager
 
