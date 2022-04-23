@@ -3,6 +3,7 @@ import typing as t
 import yaml
 from pydantic import BaseSettings
 from pathlib import Path
+from datetime import datetime
 
 def yaml_config_settings_source(settings: AppSettings) -> t.Dict[str, t.Any]:
     encoding = settings.__config__.env_file_encoding
@@ -12,6 +13,17 @@ def yaml_config_settings_source(settings: AppSettings) -> t.Dict[str, t.Any]:
         return {}
 
 class AppSettings(BaseSettings):
+
+    ### New Settings
+    def blob_from_instrument_name(self, instrument_name: str) -> Path:
+        return (self.unsafe_table_workdir(instrument_name) / instrument_name).with_suffix(".tar.gz")
+
+    def blob_bkup_filename(self, instrument_name: str, old_date: datetime) -> Path:
+        old_filename = self.blob_from_instrument_name(instrument_name)
+        tail = "".join(old_filename.suffixes)
+        new_tail = ".{}.tar.gz".format(int(old_date.timestamp()))
+        return old_filename.with_name(old_filename.name.replace(tail, new_tail))
+
     # General
     output_prefix = "study"
 

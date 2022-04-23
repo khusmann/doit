@@ -1,13 +1,24 @@
 from __future__ import annotations
 import typing as t
-from pathlib import Path
 import requests
 import json
 import zipfile
 import io
 from pydantic import BaseModel, BaseSettings, Field, parse_obj_as
+from datetime import datetime, timezone
 
-from . import RemoteTableListing
+from .model import (
+    LazyBlobData,
+    RemoteTableListing,
+    BlobInfo,
+    SourceColumnInfo,
+    QualtricsSourceInfo,
+    Blob,
+)
+
+from ..unsanitizedtable.io.qualtrics import (
+    load_unsanitizedtable_qualtrics
+)
 
 class QualtricsRemoteSettings(BaseSettings):
     api_key: t.Optional[str]
@@ -17,11 +28,55 @@ class QualtricsRemoteSettings(BaseSettings):
     class Config(BaseSettings.Config):
         env_prefix = "qualtrics_"
 
-def fetch_qualtrics_source(remote_id: str, save_data_path: Path, save_schema_path: Path, settings: QualtricsRemoteSettings = QualtricsRemoteSettings()):
-    return QualtricsRemote(settings).fetch_remote_table(remote_id, save_data_path, save_schema_path)
-
 def fetch_qualtrics_listing(settings: QualtricsRemoteSettings = QualtricsRemoteSettings()):
     return QualtricsRemote(settings).fetch_table_listing()
+
+def fetch_qualtrics_blob(remote_id: str, progress_callback: t.Callable[[int], None] = lambda _: None):
+    remote = QualtricsRemote(QualtricsRemoteSettings())
+    table_schema = remote.fetch_remote_table_schema(remote_id)
+    table_data = remote.fetch_remote_table_data(remote_id, progress_callback)
+
+    table = load_unsanitizedtable_qualtrics(table_schema, table_data)
+
+    progress_callback(100)
+
+    info = BlobInfo(
+        fetch_date_utc=datetime.now(timezone.utc),
+        source_info=QualtricsSourceInfo(
+            type='qualtrics',
+            remote_id=remote_id,
+            title=table.source_title,
+            data_checksum=table.data_checksum,
+            schema_checksum=table.schema_checksum,
+        ),
+        columns=tuple(
+            SourceColumnInfo(
+                name=c.id.unsafe_name,
+                prompt=c.prompt,
+                ) for c in table.schema
+        )
+    )
+
+    return Blob(
+        info=info,
+        data={
+            "schema.json": table_schema.encode('utf-8'),
+            "data.json": table_data.encode('utf-8'),
+        }
+    )
+
+def load_qualtrics_blob_data(lazy_data: LazyBlobData):
+    schema_lazy = lazy_data.get('schema.json')
+
+    if not schema_lazy:
+        raise Exception("Error: cannot find schema.json in qualtrics blob")
+
+    data_lazy = lazy_data.get('data.json')
+
+    if not data_lazy:
+        raise Exception("Error: cannot find data.json in qualtrics blob")
+
+    return load_unsanitizedtable_qualtrics(schema_lazy().decode('utf-8'), data_lazy().decode('utf-8'))
 
 ### List Surveys API
 class QualtricsSurveyListElement(BaseModel):
@@ -88,23 +143,11 @@ class QualtricsRemote:
             ) for i in survey_list.elements
         ]
 
-    def fetch_remote_table(
-        self,
-        remote_id: str,
-        data_path: Path,
-        schema_path: Path,
-        progress_callback: t.Callable[[int], None] = lambda _: None,
-    ):
-        self.fetch_remote_table_data(remote_id, data_path, progress_callback)
-        self.fetch_remote_table_schema(remote_id, schema_path)
-        progress_callback(100)
-
     def fetch_remote_table_data(
         self,
         qualtrics_id: str,
-        data_path: Path,
         progress_callback: t.Callable[[int], None] = lambda _: None,
-    ) -> None:
+    ) -> str:
         endpoint_prefix = "surveys/{}/export-responses".format(qualtrics_id)
         response = self.post(endpoint_prefix, dict(format='json')).json()
         
@@ -131,13 +174,10 @@ class QualtricsRemote:
 
         with zipfile.ZipFile(io.BytesIO(requestDownload.content)) as zip:
             assert len(zip.filelist) == 1
-            datafile = Path(zip.extract(zip.filelist[0], Path(data_path).parent))
-            datafile.rename(data_path)
+            return zip.read(zip.filelist[0]).decode(encoding="utf-8", errors='strict')
 
-    def fetch_remote_table_schema(self, qualtrics_id: str, schema_path: Path) -> None:
+    def fetch_remote_table_schema(self, qualtrics_id: str) -> str:
         endpoint_prefix = "surveys/{}/response-schema".format(qualtrics_id)
         response = self.get(endpoint_prefix).json()
         assert 'result' in response
-
-        with open(schema_path, 'w') as f:
-            json.dump(response['result'], f)
+        return json.dumps(response['result'])

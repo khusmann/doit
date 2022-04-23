@@ -1,68 +1,64 @@
-#import typing as t
+import typing as t
 from pathlib import Path
-from pydantic import BaseModel
-from .settings import AppSettings
+from datetime import datetime
 
-class QualtricsSourceInfo(BaseModel):
-    uri: str
-    title: str
-    data_path: Path
-    schema_path: Path
+from .remote.service import (
+    fetch_blob,
+    save_blob,
+    open_blob,
+    load_blob,
+    uri_from_blobinfo,
+)
 
-class LocalCsvSourceInfo(BaseModel):
-    title: str
-    path: Path
+from .remote.model import (
+    Blob,
+    BlobInfo,
+)
 
-TableSourceInfo = QualtricsSourceInfo | LocalCsvSourceInfo
-
-defaults = AppSettings()
-
-def add_instrument(instrument_name: str, uri: str) -> TableSourceInfo:
-    return _fetch_instrument(
-        uri=uri,
-        save_data_path=defaults.unsafe_table_workdir(instrument_name) / "qualtrics-data.json",
-        save_schema_path=defaults.unsafe_table_workdir(instrument_name) / "qualtrics-schema.json",
-    )
-
-def _fetch_instrument(
+def add_instrument(
+    instrument_name: str,
     uri: str,
-    save_data_path: Path,
-    save_schema_path: Path,
-) -> TableSourceInfo:
-    from urllib.parse import urlparse, ParseResult
-
-    save_data_path.parent.mkdir(exist_ok=True, parents=True)
-    save_schema_path.parent.mkdir(exist_ok=True, parents=True)
-
-    match urlparse(uri):
-        case ParseResult(scheme="qualtrics", netloc=remote_id):
-            from .remote.qualtrics import fetch_qualtrics_source
-            from .unsanitizedtable.io.qualtrics import load_unsanitizedtable_qualtrics
-
-            fetch_qualtrics_source(remote_id, save_data_path, save_schema_path)
-
-            with open(save_data_path, 'r') as data_json, open(save_schema_path, 'r') as schema_json:
-                table = load_unsanitizedtable_qualtrics(schema_json.read(), data_json.read())
-
-                sourceinfo = QualtricsSourceInfo(
-                    uri=uri,
-                    title=table.source_title,
-                    data_path=save_data_path,
-                    schema_path=save_schema_path,
-                )
-
-
-
-        case _:
-            raise Exception("Unrecognized uri: {}".format(uri))
+    progress_callback: t.Callable[[int], None],
+    blob_from_instrument_name: t.Callable[[str], Path],
+) -> Blob:
+    blob = fetch_blob(uri, progress_callback)
+    save_blob(blob, blob_from_instrument_name(instrument_name))
+    return blob
     
-    # TODO: write TableSourceInfo
-    #with open(self.settings.unsafe_table_fileinfo_file(instrument_id), 'w') as f:
-    #    f.write(file_info.json())
+def fetch_instrument(
+    instrument_name: str,
+    progress_callback: t.Callable[[int], None],
+    blob_from_instrument_name: t.Callable[[str], Path],
+    blob_bkup_filename: t.Callable[[str, datetime], Path],
+) -> t.Optional[BlobInfo]:
 
-    return sourceinfo
+    with open_blob(blob_from_instrument_name(instrument_name)) as blob:
+        info = blob.info
 
-def fetch_instrument(instrument_name: str):
-    # Read TableSourceInfo
-    # _fetch_instrument()
-    pass
+    filename = blob_from_instrument_name(instrument_name)
+
+    bkup_filename = filename.rename(blob_bkup_filename(instrument_name, info.fetch_date_utc))
+
+    try:
+        new_blob = add_instrument(
+            instrument_name,
+            uri_from_blobinfo(info),
+            progress_callback,
+            blob_from_instrument_name,
+        )
+    except Exception as e:
+        bkup_filename.rename(filename)
+        raise e
+
+    if info.source_info == new_blob.info.source_info:
+        bkup_filename.unlink()
+        return None
+    else:
+        return new_blob.info
+
+def load_instrument(
+    instrument_name: str,
+    blob_from_instrument_name: t.Callable[[str], Path],
+):
+    with open_blob(blob_from_instrument_name(instrument_name)) as blob:
+        return load_blob(blob)

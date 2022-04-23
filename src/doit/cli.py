@@ -7,6 +7,9 @@ import click
 from tqdm import tqdm
 
 from . import app
+from .settings import AppSettings
+
+defaults = AppSettings()
 
 def progress_callback(**args: t.Any):
     pbar: tqdm[int] = tqdm(total=100, unit="pct", **args)
@@ -33,7 +36,15 @@ def source_cli():
 @click.argument('uri')
 def source_add(instrument_name: str, uri: str):
     """Add an instrument source"""
-    app.add_instrument(instrument_name, uri)
+    click.secho()
+    progress = progress_callback()
+    app.add_instrument(
+        instrument_name,
+        uri,
+        progress,
+        defaults.blob_from_instrument_name,
+    )
+    click.secho()
 
 @source_cli.command(name="rm")
 @click.argument('instrument_id')
@@ -86,23 +97,34 @@ def sanitizer_update(instrument_str: str | None):
     """Update sanitizers with new data"""
     pass
 
-@cli.group(name="run")
+@cli.command(name="run")
 def run_cli():
-    """Run a processing command"""
+    """Run the entire pipeline (fetch, sanitize, link)"""
     pass
 
-@run_cli.command()
-@click.argument('instrument_id', required=False, shell_complete=complete_instrument_name)
-def fetch(instrument_id: str | None):
+@cli.command()
+@click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
+def fetch(instrument_name: str | None):
     """Fetch data from sources"""
-    pass
+    click.secho()
+    progress = progress_callback()
+    if instrument_name:
+        app.fetch_instrument(
+            instrument_name,
+            progress,
+            defaults.blob_from_instrument_name,
+            defaults.blob_bkup_filename,
+        )
+    else:
+        click.secho("TODO: fetch all instruments")
+    click.secho()
 
-@run_cli.command()
+@cli.command()
 def sanitize():
     """Sanitize sources"""
     pass
 
-@run_cli.command()
+@cli.command()
 def link():
     """Link study"""
     pass
@@ -111,3 +133,7 @@ def link():
 def debug():
     """Debug"""
     print("Do debug stuffasdf")
+
+    table = app.load_instrument('test-survey', defaults.blob_from_instrument_name)
+
+    print(table)
