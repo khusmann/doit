@@ -14,6 +14,7 @@ class SanitizedColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
     sanitizer_checksum: t.Optional[str]
+    type: t.Literal['ordinal', 'multiselect', 'text']
 
 class SanitizedTableInfo(t.NamedTuple):
     data_checksum: str

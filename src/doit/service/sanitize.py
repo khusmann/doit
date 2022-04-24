@@ -14,6 +14,9 @@ from ..sanitizer.model import (
 )
 
 from ..unsanitizedtable.model import (
+    UnsanitizedColumnId,
+    UnsanitizedColumnInfo,
+    UnsanitizedMultiselectColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableRowView,
 )
@@ -54,6 +57,27 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> Sanitize
                 { new: row_subset.get(old) for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids) } 
             )
 
+def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedColumnInfo], sanitizer: Sanitizer) -> t.Tuple[SanitizedColumnInfo, ...]:
+    match sanitizer:
+        case LookupSanitizer():
+            return tuple(
+                SanitizedColumnInfo(
+                    id=id,
+                    prompt="; ".join(column_lookup[c].prompt for c in sanitizer.key_col_ids),
+                    sanitizer_checksum=sanitizer.checksum,
+                    type='text',
+                ) for id in sanitizer.new_col_ids
+            )
+        case IdentitySanitizer():
+            return tuple(
+                SanitizedColumnInfo(
+                    id=SanitizedColumnId(column_lookup[c].id.unsafe_name),
+                    prompt=column_lookup[c].prompt,
+                    sanitizer_checksum=None,
+                    type='multiselect' if isinstance(c, UnsanitizedMultiselectColumnInfo) else 'text',
+                ) for c in sanitizer.key_col_ids
+            )
+
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitizer]) -> SanitizedTable:
 
     # Step 1: Create identity sanitizer for safe columns
@@ -66,29 +90,12 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitiz
     
     # Step 2: Create columns for the sanitized table
 
-    def columns_from_sanitizer(sanitizer: Sanitizer):
-        match sanitizer:
-            case LookupSanitizer():
-                return (
-                    SanitizedColumnInfo(
-                        id=id,
-                        prompt="; ".join(c.prompt for c in table.schema if c.id in sanitizer.key_col_ids),
-                        sanitizer_checksum=sanitizer.checksum,
-                    ) for id in sanitizer.new_col_ids
-                )
-            case IdentitySanitizer():
-                return (
-                    SanitizedColumnInfo(
-                        id=SanitizedColumnId(c.id.unsafe_name),
-                        prompt=c.prompt,
-                        sanitizer_checksum=None,
-                    ) for c in table.schema if c.id in safe_column_sanitizer.key_col_ids
-                )
+    column_info_lookup = { c.id: c for c in table.schema }
 
     all_columns = tuple(
         c
             for sanitizer in all_sanitizers
-                for c in columns_from_sanitizer(sanitizer)
+                for c in sanitize_columns(column_info_lookup, sanitizer)
     )
     
     # Step 3: And then you're done!

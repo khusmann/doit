@@ -1,14 +1,19 @@
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, relationship
-from sqlalchemy.ext.declarative import declarative_base
-
 from sqlalchemy import (
+    create_engine,
+    Table,
     Column,
     Integer,
     String,
     ForeignKey,
 )
+
+from sqlalchemy.orm import (
+    Session,
+    relationship,
+)
+
+from sqlalchemy.engine import Engine
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
@@ -38,7 +43,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
             columns=[
                 ColumnEntrySql(
                     name=column.id.name,
-                    type="type_field",
+                    type=column.type,
                     prompt=column.prompt,
                 ) for column in table.info.columns
             ]
@@ -67,9 +72,22 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
                     id=SanitizedColumnId(column.name),
                     prompt=column.prompt,
                     sanitizer_checksum=column.sanitizer_checksum,
+                    type=column.type,
                 ) for column in result.columns
             ),
         )
+
+def from_tabledata(table: SanitizedTableInfo, name: str):
+    return Table(
+        name,
+        Base.metadata,
+        *[
+            Column(
+                i.id.name,
+                str,
+            ) for i in table.columns
+        ]
+    )
 
 class TableEntrySql(Base):
     __tablename__ = "__table_entries__"

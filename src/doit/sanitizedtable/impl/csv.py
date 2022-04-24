@@ -36,6 +36,7 @@ def load_sanitizedtable_csv(csv_text: str) -> SanitizedTable:
                     id=cid,
                     prompt=cid.name,
                     sanitizer_checksum=None,
+                    type='text',
                 ) for cid in column_ids
             ),
 
