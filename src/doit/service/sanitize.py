@@ -71,11 +71,11 @@ def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedCo
         case IdentitySanitizer():
             return tuple(
                 SanitizedColumnInfo(
-                    id=SanitizedColumnId(column_lookup[c].id.unsafe_name),
-                    prompt=column_lookup[c].prompt,
+                    id=SanitizedColumnId(column_lookup[id].id.unsafe_name),
+                    prompt=column_lookup[id].prompt,
                     sanitizer_checksum=None,
-                    type='multiselect' if isinstance(c, UnsanitizedMultiselectColumnInfo) else 'text',
-                ) for c in sanitizer.key_col_ids
+                    type='multiselect' if isinstance(id, UnsanitizedMultiselectColumnInfo) else 'text',
+                ) for id in sanitizer.key_col_ids
             )
 
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitizer]) -> SanitizedTable:
@@ -88,14 +88,20 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitiz
     
     all_sanitizers = (*sanitizers, safe_column_sanitizer)
     
-    # Step 2: Create columns for the sanitized table
+    # Step 2: Sanitize columns and rows
 
     column_info_lookup = { c.id: c for c in table.schema }
 
-    all_columns = tuple(
+    sanitized_columns = tuple(
         c
             for sanitizer in all_sanitizers
                 for c in sanitize_columns(column_info_lookup, sanitizer)
+    )
+
+    sanitized_rows = tuple(
+        SanitizedTableRowView.combine_views(
+            *(sanitize_row(row, sanitizer) for sanitizer in all_sanitizers)
+        ) for row in table.data.rows
     )
     
     # Step 3: And then you're done!
@@ -104,14 +110,10 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitiz
         info=SanitizedTableInfo(
             data_checksum=table.data_checksum,
             schema_checksum=table.schema_checksum,
-            columns=all_columns,
+            columns=sanitized_columns,
         ),
         data=SanitizedTableData(
-            column_ids=tuple(c.id for c in all_columns),
-            rows=tuple(
-                SanitizedTableRowView.combine_views(
-                    *(sanitize_row(row, sanitizer) for sanitizer in all_sanitizers)
-                ) for row in table.data.rows
-            ),
+            column_ids=tuple(c.id for c in sanitized_columns),
+            rows=sanitized_rows,
         ),
     )
