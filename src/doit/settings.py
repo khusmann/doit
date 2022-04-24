@@ -40,7 +40,7 @@ class AppSettings(BaseSettings):
         return self.sanitized_repo_dir / self.sanitized_repo_filename
 
     def sanitized_repo_bkup_path(self, old_date: datetime) -> Path:
-        return self.sanitized_repo_path.with_suffix(".{}.{}".format(int(old_date.timestamp()), self.sanitized_repo_path.suffix))
+        return self.sanitized_repo_path.with_suffix(".{}{}".format(int(old_date.timestamp()), self.sanitized_repo_path.suffix))
         
     # General
     output_prefix = "study"

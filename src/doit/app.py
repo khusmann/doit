@@ -1,6 +1,6 @@
 import typing as t
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .remote.io import (
     fetch_blob,
@@ -98,12 +98,13 @@ def get_local_source_listing(
         ) for source in sources
     )
 
-def get_sanitizedtable_repo(
+def new_sanitizedtable_repo_version(
     sanitized_repo_name: Path,
+    sanitized_repo_bkup_path: t.Callable[[datetime], Path]
 ):
-    # Save old one...
+    if sanitized_repo_name.exists():
+        sanitized_repo_name.rename(sanitized_repo_bkup_path(datetime.now(timezone.utc)))
     return new_sanitizedtable_repo(sanitized_repo_name)
-
 
 #def source_listing(
 #    source_workdir: str

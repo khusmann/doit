@@ -135,8 +135,9 @@ def sanitize():
         defaults.blob_from_instrument_name
     )
 
-    repo = app.get_sanitizedtable_repo(
+    repo = app.new_sanitizedtable_repo_version(
         defaults.sanitized_repo_path,
+        defaults.sanitized_repo_bkup_path,
     )
 
     click.secho()

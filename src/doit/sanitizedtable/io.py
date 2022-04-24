@@ -5,7 +5,7 @@ from .model import (
     SanitizedTableRepoWriter,
 )
 
-def new_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy") -> SanitizedTableRepoWriter:
+def new_sanitizedtable_repo(filename: Path | str = "", repo_impl: str = "sqlalchemy") -> SanitizedTableRepoWriter:
     filename = Path(filename)
 
     if filename.exists():
@@ -18,7 +18,7 @@ def new_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy")
         case _:
             raise Exception("Unknown impl: {}".format(repo_impl))
 
-def open_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy") -> SanitizedTableRepoReader:
+def open_sanitizedtable_repo(filename: Path | str = "", repo_impl: str = "sqlalchemy") -> SanitizedTableRepoReader:
     filename = Path(filename)
 
     if not filename.exists():
