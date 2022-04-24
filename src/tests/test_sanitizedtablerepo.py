@@ -5,7 +5,7 @@ from doit.sanitizedtable.impl.csv import (
 )
 
 from doit.sanitizedtable.impl.sqlalchemy import (
-    new_sqlalchemy_repo,
+    SqlAlchemyRepo,
 )
 
 def test_invariance():
@@ -18,10 +18,10 @@ def test_invariance():
 
     sanitizedtable = load_sanitizedtable_csv(sanitizedtable_raw)
 
-    repo = new_sqlalchemy_repo(":memory:")
+    repo = SqlAlchemyRepo()
 
     repo.write_table(sanitizedtable, "test-table")
 
-    result_info = repo.reader.read_table_info("test-table")
+    result_info = repo.read_table_info("test-table")
 
     assert result_info == sanitizedtable.info

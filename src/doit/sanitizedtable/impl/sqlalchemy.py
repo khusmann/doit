@@ -21,31 +21,12 @@ from ..model import (
     SanitizedTableRepoWriter,
 )
 
-def new_sqlalchemy_repo(filename: str):
-    db_url = "sqlite:///{}".format(filename)
-    return SqlAlchemyRepo(db_url).writer()
-
-def open_sqlalchemy_repo(filename: str):
-    db_url = "sqlite:///{}".format(filename)
-    return SqlAlchemyRepo(db_url).reader()
-
-class SqlAlchemyRepo:
+class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
     engine: Engine
 
-    def __init__(self, db_url: str):
-        self.engine = create_engine(db_url)
+    def __init__(self, filename: str = ""):
+        self.engine = create_engine("sqlite:///{}".format(filename))
         Base.metadata.create_all(self.engine)
-
-    def reader(self) -> SanitizedTableRepoReader:
-        return SanitizedTableRepoReader(
-            read_table_info=self.read_table_info
-        )
-
-    def writer(self) -> SanitizedTableRepoWriter:
-        return SanitizedTableRepoWriter(
-            write_table=self.write_table,
-            reader=self.reader(),
-        )
 
     def write_table(self, table: SanitizedTable, name: str):
         session = Session(self.engine)

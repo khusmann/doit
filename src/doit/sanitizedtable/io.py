@@ -1,6 +1,11 @@
 from pathlib import Path
 
-def new_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy"):
+from .model import (
+    SanitizedTableRepoReader,
+    SanitizedTableRepoWriter,
+)
+
+def new_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy") -> SanitizedTableRepoWriter:
     filename = Path(filename)
 
     if filename.exists():
@@ -8,12 +13,12 @@ def new_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy")
 
     match repo_impl:
         case "sqlalchemy":
-            from .impl.sqlalchemy import new_sqlalchemy_repo
-            return new_sqlalchemy_repo(str(filename))
+            from .impl.sqlalchemy import SqlAlchemyRepo
+            return SqlAlchemyRepo(str(filename))
         case _:
             raise Exception("Unknown impl: {}".format(repo_impl))
 
-def open_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy"):
+def open_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy") -> SanitizedTableRepoReader:
     filename = Path(filename)
 
     if not filename.exists():
@@ -21,7 +26,7 @@ def open_sanitizedtable_repo(filename: Path | str, repo_impl: str = "sqlalchemy"
 
     match repo_impl:
         case "sqlalchemy":
-            from .impl.sqlalchemy import open_sqlalchemy_repo
-            return open_sqlalchemy_repo(str(filename))
+            from .impl.sqlalchemy import SqlAlchemyRepo
+            return SqlAlchemyRepo(str(filename))
         case _:
             raise Exception("Unknown impl: {}".format(repo_impl))
