@@ -8,7 +8,7 @@ from doit.common import (
     EmptyHeaderError,
 )
 
-from doit.unsanitizedtable.io.csv import (
+from doit.unsanitizedtable.impl.csv import (
     load_unsanitizedtable_csv,
 )
 

@@ -25,7 +25,6 @@ from ..model import (
     LookupSanitizer,
 )
 
-
 def is_header_safe(header: str):
     return re.match(r'^\(.+\)$', header) is None
 

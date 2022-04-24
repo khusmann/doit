@@ -5,7 +5,7 @@ from doit.common import (
     Omitted,
 )
 
-from doit.unsanitizedtable.io.qualtrics import (
+from doit.unsanitizedtable.impl.qualtrics import (
     load_unsanitizedtable_qualtrics,
 )
 

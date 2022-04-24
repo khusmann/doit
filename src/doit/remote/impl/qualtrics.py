@@ -16,7 +16,7 @@ from ..model import (
     Blob,
 )
 
-from ...unsanitizedtable.io.qualtrics import (
+from ...unsanitizedtable.impl.qualtrics import (
     load_unsanitizedtable_qualtrics
 )
 

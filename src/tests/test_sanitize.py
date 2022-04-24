@@ -5,11 +5,11 @@ from doit.common import (
     Redacted,
 )
 
-from doit.sanitizer.io.csv import (
+from doit.sanitizer.impl.csv import (
     load_sanitizer_csv,
 )
 
-from doit.unsanitizedtable.io.csv import (
+from doit.unsanitizedtable.impl.csv import (
     load_unsanitizedtable_csv,
 )
 
