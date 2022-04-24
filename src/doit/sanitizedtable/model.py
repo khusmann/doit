@@ -27,7 +27,8 @@ class SanitizedTable(t.NamedTuple):
     data: SanitizedTableData
 
 class SanitizedTableRepoReader(t.NamedTuple):
-    read_table: t.Callable[[str], SanitizedTable]
+    read_table_info: t.Callable[[str], SanitizedTableInfo]
 
 class SanitizedTableRepoWriter(t.NamedTuple):
     write_table: t.Callable[[SanitizedTable, str], None]
+    reader: SanitizedTableRepoReader
