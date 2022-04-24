@@ -22,6 +22,8 @@ def test_invariance():
 
     repo.write_table(sanitizedtable, "test-table")
 
-    result_info = repo.read_table_info("test-table")
+    result = repo.read_table("test-table")
 
-    assert result_info == sanitizedtable.info
+    assert result == sanitizedtable
+
+
