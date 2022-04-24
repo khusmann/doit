@@ -35,19 +35,16 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
             name=name,
             data_checksum=table.info.data_checksum,
             schema_checksum=table.info.schema_checksum,
+            columns=[
+                ColumnEntrySql(
+                    name=column.id.name,
+                    type="type_field",
+                    prompt=column.prompt,
+                ) for column in table.info.columns
+            ]
         )
 
         session.add(table_entry) # type: ignore
-
-        for column in table.info.columns:
-            column_entry = ColumnEntrySql(
-                name=column.id.name,
-                type="type_field",
-                prompt=column.prompt,
-                parent_table=table_entry,
-            )
-            session.add(column_entry) #type: ignore
-
         session.commit()
 
     def read_table_info(self, name: str) -> SanitizedTableInfo:
