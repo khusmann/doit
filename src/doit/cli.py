@@ -161,6 +161,10 @@ def debug():
     """Debug"""
     print("Do debug stuffasdf")
 
-    table = app.load_unsanitizedtable('test_survey', defaults.blob_from_instrument_name)
+    table = app.load_study_spec(
+        defaults.config_file,
+        defaults.instrument_dir,
+        defaults.measure_dir,
+    )
 
     print(table)

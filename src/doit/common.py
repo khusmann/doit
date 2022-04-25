@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 OrdinalValue = t.NewType('OrdinalValue', int)
 OrdinalLabel = t.NewType('OrdinalValue', str)
+OrdinalTag = t.NewType('OrdinalTag', str)
 
 ### Error types
 

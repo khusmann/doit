@@ -13,8 +13,8 @@ def new_sanitizedtable_repo(filename: Path | str = "", repo_impl: str = "sqlalch
 
     match repo_impl:
         case "sqlalchemy":
-            from .impl.sqlalchemy import SqlAlchemyRepo
-            return SqlAlchemyRepo(str(filename))
+            from .sqlalchemy.impl import SqlAlchemyRepo
+            return SqlAlchemyRepo.new(str(filename))
         case _:
             raise Exception("Unknown impl: {}".format(repo_impl))
 
@@ -26,7 +26,7 @@ def open_sanitizedtable_repo(filename: Path | str = "", repo_impl: str = "sqlalc
 
     match repo_impl:
         case "sqlalchemy":
-            from .impl.sqlalchemy import SqlAlchemyRepo
-            return SqlAlchemyRepo(str(filename))
+            from .sqlalchemy.impl import SqlAlchemyRepo
+            return SqlAlchemyRepo.open(str(filename))
         case _:
             raise Exception("Unknown impl: {}".format(repo_impl))

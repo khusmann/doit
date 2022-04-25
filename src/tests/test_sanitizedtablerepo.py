@@ -1,10 +1,10 @@
 from textwrap import dedent
 
-from doit.sanitizedtable.impl.csv import (
+from doit.sanitizedtable.csv import (
     load_sanitizedtable_csv,
 )
 
-from doit.sanitizedtable.impl.sqlalchemy import (
+from doit.sanitizedtable.sqlalchemy.impl import (
     SqlAlchemyRepo,
 )
 
@@ -18,7 +18,7 @@ def test_invariance():
 
     sanitizedtable = load_sanitizedtable_csv(sanitizedtable_raw)
 
-    repo = SqlAlchemyRepo()
+    repo = SqlAlchemyRepo.new()
 
     repo.write_table(sanitizedtable, "test-table")
 

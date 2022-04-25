@@ -1,5 +1,6 @@
 import typing as t
 from pathlib import Path
+import yaml
 from datetime import datetime, timezone
 
 from .remote.io import (
@@ -20,6 +21,15 @@ from .remote.model import (
 
 from .sanitizedtable.io import (
     new_sanitizedtable_repo,
+)
+
+from .study.spec import (
+    StudyConfigSpec,
+    StudySpec,
+    InstrumentSpec,
+    MeasureName,
+    InstrumentName,
+    MeasureSpec,
 )
 
 def add_source(
@@ -106,7 +116,22 @@ def new_sanitizedtable_repo_version(
         sanitized_repo_name.rename(sanitized_repo_bkup_path(datetime.now(timezone.utc)))
     return new_sanitizedtable_repo(sanitized_repo_name)
 
-#def source_listing(
-#    source_workdir: str
-#) -> t.Tuple[str]:
-#    dirs = 
+def load_study_spec(
+    config_file: Path,
+    instrument_dir: Path,
+    measure_dir: Path,
+) -> StudySpec:
+    return StudySpec(
+        config=load_spec(StudyConfigSpec, config_file),
+        measures={ MeasureName(i.stem): load_spec(MeasureSpec, i) for i in measure_dir.glob("*.yaml")},
+        instruments={ InstrumentName(i.stem): load_spec(InstrumentSpec, i) for i in instrument_dir.glob("*.yaml")}
+    )
+
+SpecT = t.TypeVar("SpecT", MeasureSpec, StudyConfigSpec, InstrumentSpec)
+
+def load_spec(
+    spec_type: t.Type[SpecT],
+    spec_path: Path
+) -> SpecT:
+    with open(spec_path, 'r') as f:
+        return spec_type.parse_obj(yaml.safe_load(f))

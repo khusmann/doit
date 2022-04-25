@@ -14,7 +14,10 @@ def yaml_config_settings_source(settings: AppSettings) -> t.Dict[str, t.Any]:
 
 class AppSettings(BaseSettings):
 
-    ### New Settings
+    # General
+    output_prefix = "study"
+
+    ### Sources
     source_dir = Path("./build/unsafe/sources")
 
     def source_table_workdir(self, instrument_id: str) -> Path:
@@ -29,6 +32,21 @@ class AppSettings(BaseSettings):
         new_tail = ".{}.tar.gz".format(int(old_date.timestamp()))
         return old_filename.with_name(old_filename.name.replace(tail, new_tail))
 
+    ### Sanitizers
+
+    sanitizer_repo_dir = Path("./build/unsafe/sanitizers")
+
+    def sanitizer_workdir(self, instrument_id: str) -> Path:
+        return self.sanitizer_repo_dir / instrument_id
+
+    def sanitizer_file(self, instrument_id: str, sanitizer_id: str) -> Path:
+        return ((self.sanitizer_workdir(instrument_id) / sanitizer_id).with_suffix(".csv"))
+
+    #def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
+    #    return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]
+
+    ### SanitizedTableRepo
+
     sanitized_repo_dir = Path("./build/safe/sanitized")
 
     @property
@@ -42,51 +60,15 @@ class AppSettings(BaseSettings):
     def sanitized_repo_bkup_path(self, old_date: datetime) -> Path:
         return self.sanitized_repo_path.with_suffix(".{}{}".format(int(old_date.timestamp()), self.sanitized_repo_path.suffix))
         
-    # General
-    output_prefix = "study"
 
-    # UnsafeTableManager
+    # StudySpec
 
-    def unsafe_table_fileinfo_file(self, instrument_id: str) -> Path:
-        return (self.source_table_workdir(instrument_id) / instrument_id).with_suffix(".json")
-
-    def unsafe_table_fetchinfo_file(self, instrument_id: str) -> Path:
-        return (self.source_table_workdir(instrument_id) / instrument_id).with_suffix(".fetch.json")
-
-    def get_unsafe_table_names(self) -> t.List[str]:
-        return [ i.name for i in self.source_dir.iterdir() if i.is_dir() and i.name[0] != '.' ]
-
-    # SanitizerManager
-
-    sanitizer_repo_dir = Path("./build/unsafe/sanitizers")
-
-    def sanitizer_workdir(self, instrument_id: str) -> Path:
-        return self.sanitizer_repo_dir / instrument_id
-
-    def sanitizer_file(self, instrument_id: str, sanitizer_id: str) -> Path:
-        return ((self.sanitizer_workdir(instrument_id) / sanitizer_id).with_suffix(".csv"))
-
-    def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
-        return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]
-
-    # StudySpecManager
     instrument_dir = Path("./instruments")
     measure_dir = Path("./measures")
     config_file = Path("./study.yaml")
 
-    def instrument_file(self, instrument_id: str) -> Path:
-        return (self.instrument_dir / instrument_id).with_suffix(".yaml")
+    # StudyRepo
 
-    def measure_file(self, measure_id: str) -> Path:
-        return (self.measure_dir / measure_id).with_suffix(".yaml")
-
-    def get_instrument_spec_names(self) -> t.List[str]:
-        return [ i.stem for i in self.instrument_dir.glob("*.yaml")]
-
-    def get_measure_spec_names(self) -> t.List[str]:
-        return [ i.stem for i in self.measure_dir.glob("*.yaml")]
-
-    # StudyRepoManager
     study_repo_dir = Path("./build/safe/linked")
 
     @property
