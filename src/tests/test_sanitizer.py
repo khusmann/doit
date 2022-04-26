@@ -18,7 +18,7 @@ from doit.unsanitizedtable.model import (
     UnsanitizedTableRowView,
 )
 
-from doit.sanitizer.io.csv import (
+from doit.sanitizer.io import (
     load_sanitizer_csv,
 )
 

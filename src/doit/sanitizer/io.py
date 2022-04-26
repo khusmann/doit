@@ -2,7 +2,7 @@ import csv
 import re
 import hashlib
 
-from ...common.table import (
+from ..common.table import (
     Some,
     DuplicateHeaderError,
     EmptyHeaderError,
@@ -12,15 +12,15 @@ from ...common.table import (
     TableRowView,
 )
 
-from ...unsanitizedtable.model import (
+from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
 )
 
-from ...sanitizedtable.model import (
+from ..sanitizedtable.model import (
     SanitizedColumnId,
 )
 
-from ..model import (
+from .model import (
     SanitizedColumnId,
     LookupSanitizer,
 )

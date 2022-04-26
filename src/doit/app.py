@@ -1,6 +1,5 @@
 import typing as t
 from pathlib import Path
-import yaml
 from datetime import datetime, timezone
 
 from .remote.fetch import (
@@ -10,8 +9,8 @@ from .remote.fetch import (
 
 from .remote.blob import (
     write_blob,
-    open_blob,
-    load_blob_data,
+    read_blob_info,
+    read_blob,
 )
 
 from .remote.model import (
@@ -21,12 +20,8 @@ from .remote.model import (
     RemoteTableListing,
 )
 
-from .study.spec import (
-    StudyConfigSpec,
-    StudySpec,
-    InstrumentSpec,
-    MeasureSpec,
-)
+from .study.spec import StudySpec
+from .study.io import load_studyspec_yaml
 
 def add_source(
     instrument_name: str,
@@ -45,8 +40,7 @@ def fetch_source(
     blob_bkup_filename: t.Callable[[str, datetime], Path],
 ) -> t.Optional[BlobInfo]:
 
-    with open_blob(blob_from_instrument_name(instrument_name)) as blob:
-        info = blob.info
+    info = read_blob_info(blob_from_instrument_name(instrument_name))
 
     filename = blob_from_instrument_name(instrument_name)
 
@@ -73,15 +67,13 @@ def load_unsanitizedtable(
     instrument_name: str,
     blob_from_instrument_name: t.Callable[[str], Path],
 ):
-    with open_blob(blob_from_instrument_name(instrument_name)) as blob:
-        return load_blob_data(blob)
+    return read_blob(blob_from_instrument_name(instrument_name))
 
 def load_source_info(
     instrument_name: str,
     blob_from_instrument_name: t.Callable[[str], Path],
 ):
-    with open_blob(blob_from_instrument_name(instrument_name)) as blob:
-        return blob.info
+    return read_blob_info(blob_from_instrument_name(instrument_name))
 
 def get_remote_source_listing(
     remote_service: str
@@ -118,17 +110,8 @@ def load_study_spec(
     instrument_dir: Path,
     measure_dir: Path,
 ) -> StudySpec:
-    return StudySpec(
-        config=load_spec(StudyConfigSpec, config_file),
-        measures={ i.stem: load_spec(MeasureSpec, i) for i in measure_dir.glob("*.yaml")},
-        instruments={ i.stem: load_spec(InstrumentSpec, i) for i in instrument_dir.glob("*.yaml")}
+    return load_studyspec_yaml(
+        config=config_file.read_text(),
+        measures={ i.stem: i.read_text() for i in measure_dir.glob("*.yaml")},
+        instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")}
     )
-
-SpecT = t.TypeVar("SpecT", MeasureSpec, StudyConfigSpec, InstrumentSpec)
-
-def load_spec(
-    spec_type: t.Type[SpecT],
-    spec_path: Path
-) -> SpecT:
-    with open(spec_path, 'r') as f:
-        return spec_type.parse_obj(yaml.safe_load(f))

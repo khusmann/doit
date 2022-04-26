@@ -1,11 +1,11 @@
 import csv
 import hashlib
 
-from ...common.table import (
+from ..common.table import (
     omitted_if_empty,
 )
 
-from ..model import (
+from .model import (
     SanitizedColumnId,
     SanitizedColumnInfo,
     SanitizedTableData,

@@ -143,6 +143,8 @@ class StudySpec(t.NamedTuple):
     measures: t.Mapping[str, MeasureSpec]
     instruments: t.Mapping[str, InstrumentSpec]
 
+    
+
 MeasureItemGroupSpec.update_forward_refs()
 MultiselectItemSpec.update_forward_refs()
 CodeMapSpec.update_forward_refs()

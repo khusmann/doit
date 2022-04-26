@@ -5,7 +5,7 @@ from doit.common.table import (
     Redacted,
 )
 
-from doit.sanitizer.io.csv import (
+from doit.sanitizer.io import (
     load_sanitizer_csv,
 )
 
@@ -13,7 +13,7 @@ from doit.unsanitizedtable.io.csv import (
     load_unsanitizedtable_csv,
 )
 
-from doit.sanitizedtable.io.csv import (
+from doit.sanitizedtable.io import (
     load_sanitizedtable_csv,
 )
 

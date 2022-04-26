@@ -36,12 +36,6 @@ class BlobInfo(BaseModel):
     source_info: TableSourceInfo
     columns: t.Tuple[SourceColumnInfo, ...]
 
-LazyBlobData = t.Mapping[str, t.Callable[[], bytes]]
-
-class LazyBlob(t.NamedTuple):
-    info: BlobInfo
-    lazy_data: LazyBlobData
-
 class Blob(t.NamedTuple):
     info: BlobInfo
     data: t.Mapping[str, bytes]
