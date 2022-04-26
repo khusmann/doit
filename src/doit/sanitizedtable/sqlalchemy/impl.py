@@ -98,7 +98,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         
         info = tableinfo_from_sql(session.get_by_name(TableEntrySql, name))
 
-        raw_rows = session.query(self.datatables[name]).all()
+        raw_rows = session.get_rows(self.datatables[name])
 
         data = tabledata_from_sql(info.columns, raw_rows) 
 

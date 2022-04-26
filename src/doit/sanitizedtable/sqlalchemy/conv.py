@@ -18,10 +18,6 @@ from ...common.table import (
     TableRowView,
 )
 
-from ...common.sqlalchemy import (
-    str_or_none,
-)
-
 from .model import (
     Base,
     TableEntrySql,
@@ -112,8 +108,8 @@ def sql_from_tableinfo(info: SanitizedTableInfo, name: str) -> TableEntrySql:
 
 def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
     return SanitizedTableInfo(
-        data_checksum=str(entry.data_checksum),
-        schema_checksum=str(entry.schema_checksum),
+        data_checksum=entry.data_checksum,
+        schema_checksum=entry.schema_checksum,
         columns=tuple(
             columninfo_from_sql(column) for column in entry.columns
         ),
@@ -121,9 +117,9 @@ def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
 
 def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
     return SanitizedColumnInfo(
-        id=SanitizedColumnId(str(entry.name)),
-        prompt=str(entry.prompt),
-        sanitizer_checksum=str_or_none(entry.sanitizer_checksum),
-        type=str(entry.type), # type: ignore TODO: handle different SanitizedColumnInfo types
+        id=SanitizedColumnId(entry.name),
+        prompt=entry.prompt,
+        sanitizer_checksum=entry.sanitizer_checksum,
+        type=entry.type, # type: ignore TODO: handle different SanitizedColumnInfo types
     )
 

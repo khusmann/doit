@@ -1,3 +1,5 @@
+from __future__ import annotations
+import typing as t
 from sqlalchemy import (
     Column,
     Integer,
@@ -7,11 +9,12 @@ from sqlalchemy import (
 
 from sqlalchemy.orm import (
     relationship,
+    RelationshipProperty,
 )
 
 from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+Base: t.Any = declarative_base()
 
 class TableEntrySql(Base):
     __tablename__ = "__table_entries__"
@@ -19,7 +22,7 @@ class TableEntrySql(Base):
     name = Column(String, nullable=False, unique=True)
     data_checksum = Column(String, nullable=False)
     schema_checksum = Column(String, nullable=False)
-    columns = relationship(
+    columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         backref="parent_table",
         order_by="ColumnEntrySql.id",

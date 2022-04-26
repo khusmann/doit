@@ -1,3 +1,5 @@
+from __future__ import annotations
+import typing as t
 from sqlalchemy import (
     Column,
     Integer,
@@ -8,11 +10,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import (
     relationship,
     backref,
+    RelationshipProperty,
 )
 
 from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+backref: t.Any = backref
+Base: t.Any = declarative_base()
 
 class MeasureEntrySql(Base):
     __tablename__ = "__measure_entries__"
@@ -20,7 +24,7 @@ class MeasureEntrySql(Base):
     name = Column(String, nullable=False, unique=True)
     title = Column(String)
     description = Column(String)
-    items = relationship(
+    items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         backref="parent_measure",
         order_by="ColumnEntrySql.id",
@@ -39,9 +43,8 @@ class ColumnEntrySql(Base):
     title = Column(String)
     description = Column(String)
 
-    items = relationship(
+    items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         backref=backref("parent_node", remote_side=id),
         order_by="ColumnEntrySql.id",
     )
-
