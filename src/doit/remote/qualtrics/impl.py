@@ -4,11 +4,11 @@ import requests
 import json
 import zipfile
 import io
-from pydantic import BaseModel, BaseSettings, Field, parse_obj_as
 from datetime import datetime, timezone
 
+from pydantic import parse_obj_as
+
 from ..model import (
-    LazyBlobData,
     RemoteTableListing,
     BlobInfo,
     SourceColumnInfo,
@@ -16,17 +16,17 @@ from ..model import (
     Blob,
 )
 
-from ...unsanitizedtable.impl.qualtrics import (
-    load_unsanitizedtable_qualtrics
+from .model import (
+    QualtricsRemoteSettings,
+    QualtricsSurveyList,
+    QualtricsExportResponse,
+    QualtricsExportStatusInProgress,
+    QualtricsExportStatus,
 )
 
-class QualtricsRemoteSettings(BaseSettings):
-    api_key: t.Optional[str]
-    data_center: t.Optional[str]
-    api_url = "https://{data_center}.qualtrics.com/API/v3/{endpoint}"
-
-    class Config(BaseSettings.Config):
-        env_prefix = "qualtrics_"
+from ...unsanitizedtable.io.qualtrics import (
+    load_unsanitizedtable_qualtrics
+)
 
 def fetch_qualtrics_listing(settings: QualtricsRemoteSettings = QualtricsRemoteSettings()):
     return QualtricsRemote(settings).fetch_table_listing()
@@ -64,51 +64,6 @@ def fetch_qualtrics_blob(remote_id: str, progress_callback: t.Callable[[int], No
             "data.json": table_data.encode('utf-8'),
         }
     )
-
-def load_qualtrics_blob_data(lazy_data: LazyBlobData):
-    schema_lazy = lazy_data.get('schema.json')
-
-    if not schema_lazy:
-        raise Exception("Error: cannot find schema.json in qualtrics blob")
-
-    data_lazy = lazy_data.get('data.json')
-
-    if not data_lazy:
-        raise Exception("Error: cannot find data.json in qualtrics blob")
-
-    return load_unsanitizedtable_qualtrics(schema_lazy().decode('utf-8'), data_lazy().decode('utf-8'))
-
-### List Surveys API
-class QualtricsSurveyListElement(BaseModel):
-    id: str
-    name: str
-
-class QualtricsSurveyList(BaseModel):
-    elements: t.List[QualtricsSurveyListElement]
-
-### Download Survey API
-
-class QualtricsExportResponse(BaseModel):
-    progressId: str
-
-class QualtricsExportStatusInProgress(BaseModel):
-    percentComplete: str
-    status: t.Literal["inProgress"]
-
-class QualtricsExportStatusComplete(BaseModel):
-    status: t.Literal["complete"]
-    fileId: t.Optional[str]
-
-class QualtricsExportStatusFailed(BaseModel):
-    status: t.Literal["failed"]
-
-QualtricsExportStatus = t.Annotated[
-    t.Union[
-        QualtricsExportStatusComplete,
-        QualtricsExportStatusInProgress,
-        QualtricsExportStatusFailed
-    ], Field(discriminator='status')
-]
 
 class QualtricsRemote:
     settings = QualtricsRemoteSettings

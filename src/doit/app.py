@@ -3,13 +3,15 @@ from pathlib import Path
 import yaml
 from datetime import datetime, timezone
 
-from .remote.io import (
+from .remote.fetch import (
     fetch_blob,
-    save_blob,
-    open_blob,
-    load_blob,
-    uri_from_blobinfo,
     get_listing,
+)
+
+from .remote.blob import (
+    write_blob,
+    open_blob,
+    load_blob_data,
 )
 
 from .remote.model import (
@@ -19,16 +21,10 @@ from .remote.model import (
     RemoteTableListing,
 )
 
-from .sanitizedtable.io import (
-    new_sanitizedtable_repo,
-)
-
 from .study.spec import (
     StudyConfigSpec,
     StudySpec,
     InstrumentSpec,
-    MeasureName,
-    InstrumentName,
     MeasureSpec,
 )
 
@@ -39,7 +35,7 @@ def add_source(
     blob_from_instrument_name: t.Callable[[str], Path],
 ) -> Blob:
     blob = fetch_blob(uri, progress_callback)
-    save_blob(blob, blob_from_instrument_name(instrument_name))
+    write_blob(blob, blob_from_instrument_name(instrument_name))
     return blob
     
 def fetch_source(
@@ -59,7 +55,7 @@ def fetch_source(
     try:
         new_blob = add_source(
             instrument_name,
-            uri_from_blobinfo(info),
+            info.source_info.uri,
             progress_callback,
             blob_from_instrument_name,
         )
@@ -78,7 +74,7 @@ def load_unsanitizedtable(
     blob_from_instrument_name: t.Callable[[str], Path],
 ):
     with open_blob(blob_from_instrument_name(instrument_name)) as blob:
-        return load_blob(blob)
+        return load_blob_data(blob)
 
 def load_source_info(
     instrument_name: str,
@@ -108,13 +104,14 @@ def get_local_source_listing(
         ) for source in sources
     )
 
-def new_sanitizedtable_repo_version(
+def new_sanitizedtable_repo(
     sanitized_repo_name: Path,
     sanitized_repo_bkup_path: t.Callable[[datetime], Path]
 ):
     if sanitized_repo_name.exists():
         sanitized_repo_name.rename(sanitized_repo_bkup_path(datetime.now(timezone.utc)))
-    return new_sanitizedtable_repo(sanitized_repo_name)
+    from .sanitizedtable.sqlalchemy.impl import SqlAlchemyRepo
+    return SqlAlchemyRepo.new(str(sanitized_repo_name))
 
 def load_study_spec(
     config_file: Path,
@@ -123,8 +120,8 @@ def load_study_spec(
 ) -> StudySpec:
     return StudySpec(
         config=load_spec(StudyConfigSpec, config_file),
-        measures={ MeasureName(i.stem): load_spec(MeasureSpec, i) for i in measure_dir.glob("*.yaml")},
-        instruments={ InstrumentName(i.stem): load_spec(InstrumentSpec, i) for i in instrument_dir.glob("*.yaml")}
+        measures={ i.stem: load_spec(MeasureSpec, i) for i in measure_dir.glob("*.yaml")},
+        instruments={ i.stem: load_spec(InstrumentSpec, i) for i in instrument_dir.glob("*.yaml")}
     )
 
 SpecT = t.TypeVar("SpecT", MeasureSpec, StudyConfigSpec, InstrumentSpec)

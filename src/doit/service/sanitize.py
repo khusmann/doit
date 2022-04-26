@@ -1,6 +1,6 @@
 import typing as t
 
-from ..common import (
+from ..common.table import (
     LookupSanitizerMiss,
     TableRowView,
     Omitted,

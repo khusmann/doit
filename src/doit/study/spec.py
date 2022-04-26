@@ -2,16 +2,10 @@ from __future__ import annotations
 import typing as t
 from pydantic import Field, validator, BaseModel
 
-from ..common import (
+from ..common.table import (
     OrdinalLabel,
     OrdinalTag,
     OrdinalValue,
-)
-
-from .view import (
-    MeasureName,
-    InstrumentName,
-    ColumnName,
 )
 
 ### CodeMapSpec
@@ -96,13 +90,13 @@ class QuestionInstrumentItemSpec(BaseModel):
     prompt: str
     type: t.Literal['question']
     remote_id: SanitizedColumnIdStr
-    id: t.Optional[ColumnName]
+    id: t.Optional[str]
     map: t.Optional[t.Mapping[str, t.Optional[str]]]
 
 class ConstantInstrumentItemSpec(BaseModel):
     type: t.Literal['constant']
     value: str
-    id: ColumnName
+    id: str
 
 InstrumentItemSpec = t.Annotated[
     t.Union[
@@ -146,8 +140,8 @@ class StudyConfigSpec(BaseModel):
 
 class StudySpec(t.NamedTuple):
     config: StudyConfigSpec
-    measures: t.Mapping[MeasureName, MeasureSpec]
-    instruments: t.Mapping[InstrumentName, InstrumentSpec]
+    measures: t.Mapping[str, MeasureSpec]
+    instruments: t.Mapping[str, InstrumentSpec]
 
 MeasureItemGroupSpec.update_forward_refs()
 MultiselectItemSpec.update_forward_refs()

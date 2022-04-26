@@ -1,8 +1,6 @@
-from __future__ import annotations
-from abc import ABC
 import typing as t
 
-from ..common import (
+from ..common.table import (
     TableData,
     TableRowView,
 )
@@ -27,9 +25,3 @@ SanitizedTableData = TableData[SanitizedColumnId]
 class SanitizedTable(t.NamedTuple):
     info: SanitizedTableInfo
     data: SanitizedTableData
-
-class SanitizedTableRepoReader(ABC):
-    def read_tableinfo(self, name: str) -> SanitizedTableInfo: ...
-
-class SanitizedTableRepoWriter(ABC):
-    def write_table(self, table: SanitizedTable, name: str) -> None: ...

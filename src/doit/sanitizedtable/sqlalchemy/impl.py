@@ -5,7 +5,6 @@ from sqlalchemy import (
     create_engine,
     Table,
     insert,
-    select,
 )
 
 from sqlalchemy.orm import (
@@ -14,53 +13,32 @@ from sqlalchemy.orm import (
 
 from sqlalchemy.engine import Engine
 
+from ...common.sqlalchemy import (
+    SessionWrapper
+)
+
 from .model import (
     Base,
     TableEntrySql,
 )
 
-from .conversion import (
+from .conv import (
+    render_tabledata,
     sql_from_tableinfo,
     sqlschema_from_tableinfo,
+    tabledata_from_sql,
     tableinfo_from_sql,
-    render_value,
-)
-
-from ...common import (
-    Omitted,
-    Some,
-    TableRowView,
 )
 
 from ..model import (
     SanitizedTable,
-    SanitizedTableData,
     SanitizedTableInfo,
+)
+
+from ..repo import (
     SanitizedTableRepoReader,
     SanitizedTableRepoWriter,
 )
-
-T = t.TypeVar('T')
-
-class SessionWrapper(Session):
-    def __init__(self, engine: Engine):
-        super().__init__(engine)
-
-    def get_by_name(self, type: t.Type[T], name: str) -> T:
-        entry: T | None = self.execute( # type: ignore
-            select(type).filter_by(name=name)
-        ).scalars().one_or_none()
-
-        if entry is None:
-            raise Exception("Error: Entry named {} not found".format(name))
-
-        return entry
-
-    def get_all(self, type: t.Type[T]) -> t.Sequence[T]:
-        return self.execute( # type: ignore
-            select(type)
-        ).scalars().all()
-
 
 class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
     engine: Engine
@@ -75,13 +53,13 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         return create_engine("sqlite:///{}".format(filename))
 
     @classmethod
-    def new(cls, filename: str = ""):
+    def new(cls, filename: str = "") -> SanitizedTableRepoWriter:
         engine = cls.create_engine(filename)
         Base.metadata.create_all(engine)
         return cls(engine, {})
 
     @classmethod
-    def open(cls, filename: str = ""):
+    def open(cls, filename: str = "") -> SanitizedTableRepoReader:
         engine = cls.create_engine(filename)
 
         session = SessionWrapper(engine)
@@ -104,10 +82,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         ) 
 
         session.execute( # type: ignore
-            insert(self.datatables[name]).values([
-                tuple(render_value(c, row.get(c.id)) for c in table.info.columns)
-                    for row in table.data.rows
-            ])
+            insert(self.datatables[name]).values(render_tabledata(table))
         )        
 
         session.commit()
@@ -125,16 +100,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
 
         raw_rows = session.query(self.datatables[name]).all()
 
-        column_ids = tuple(c.id for c in info.columns)
-
-        data = SanitizedTableData(
-            column_ids=column_ids,
-            rows=tuple(
-                TableRowView({
-                    cid: Some(v) if v else Omitted() for cid, v in zip(column_ids, row)
-                }) for row in raw_rows
-            )
-        )
+        data = tabledata_from_sql(info.columns, raw_rows) 
 
         return SanitizedTable(
             info=info,

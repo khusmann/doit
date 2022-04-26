@@ -24,6 +24,10 @@ class QualtricsSourceInfo(BaseModel):
     data_checksum: str
     schema_checksum: str
 
+    @property
+    def uri(self):
+        return "qualtrics://" + self.remote_id
+
 TableSourceInfo = QualtricsSourceInfo
 
 class BlobInfo(BaseModel):

@@ -5,7 +5,6 @@ from .model import (
 
 from ..spec import (
     MeasureSpec,
-    MeasureName,
     MeasureNodeSpec,
     OrdinalMeasureItemSpec,
     SimpleMeasureItemSpec,
@@ -13,7 +12,7 @@ from ..spec import (
     MeasureItemGroupSpec,
 )
 
-def sql_from_measure_spec(spec: MeasureSpec, name: MeasureName):
+def sql_from_measure_spec(spec: MeasureSpec, name: str):
     return MeasureEntrySql(
         name=name,
         title=spec.title,

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import typing as t
 import json
 
 from sqlalchemy import (
@@ -8,7 +9,18 @@ from sqlalchemy import (
     String,
 )
 
-from ...common import TableValue
+from ...common.table import (
+    Omitted,
+    Some,
+    ErrorValue,
+    Redacted,
+    TableValue,
+    TableRowView,
+)
+
+from ...common.sqlalchemy import (
+    str_or_none,
+)
 
 from .model import (
     Base,
@@ -16,25 +28,36 @@ from .model import (
     ColumnEntrySql,
 )
 
-from ...common import (
-    Omitted,
-    Some,
-    ErrorValue,
-    Redacted,
-)
 
 from ..model import (
     SanitizedColumnId,
     SanitizedColumnInfo,
     SanitizedTableInfo,
+    SanitizedTable,
+    SanitizedTableData,
 )
-
 
 COLUMN_TYPE_LOOKUP = {
     'ordinal': Integer,
     'multiselect': String,
     'text': String,
 }
+
+def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: t.Sequence[t.Any]):
+    return SanitizedTableData(
+            column_ids=tuple(c.id for c in columns),
+            rows=tuple(
+                TableRowView({
+                    c.id: Some(v) if v else Omitted() for c, v in zip(columns, row)
+                }) for row in rows
+            )
+        )
+
+def render_tabledata(table: SanitizedTable):
+    return [
+        tuple(render_value(c, row.get(c.id)) for c in table.info.columns)
+            for row in table.data.rows
+    ]
 
 def render_value(column: SanitizedColumnInfo, v: TableValue):
     if isinstance(v, Omitted):
@@ -92,12 +115,15 @@ def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
         data_checksum=str(entry.data_checksum),
         schema_checksum=str(entry.schema_checksum),
         columns=tuple(
-            SanitizedColumnInfo(
-                id=SanitizedColumnId(column.name),
-                prompt=column.prompt,
-                sanitizer_checksum=column.sanitizer_checksum,
-                type=column.type,
-            ) for column in entry.columns
+            columninfo_from_sql(column) for column in entry.columns
         ),
+    )
+
+def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
+    return SanitizedColumnInfo(
+        id=SanitizedColumnId(str(entry.name)),
+        prompt=str(entry.prompt),
+        sanitizer_checksum=str_or_none(entry.sanitizer_checksum),
+        type=str(entry.type), # type: ignore TODO: handle different SanitizedColumnInfo types
     )
 

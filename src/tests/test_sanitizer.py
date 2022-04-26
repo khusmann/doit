@@ -2,7 +2,7 @@ import pytest
 from textwrap import dedent
 from itertools import repeat
 
-from doit.common import (
+from doit.common.table import (
     EmptySanitizerKeyError,
     Omitted,
     Redacted,
@@ -18,7 +18,7 @@ from doit.unsanitizedtable.model import (
     UnsanitizedTableRowView,
 )
 
-from doit.sanitizer.impl.csv import (
+from doit.sanitizer.io.csv import (
     load_sanitizer_csv,
 )
 

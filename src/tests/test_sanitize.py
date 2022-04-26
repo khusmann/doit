@@ -1,19 +1,19 @@
 from textwrap import dedent
 from doit.sanitizedtable.model import SanitizedColumnId
 
-from doit.common import (
+from doit.common.table import (
     Redacted,
 )
 
-from doit.sanitizer.impl.csv import (
+from doit.sanitizer.io.csv import (
     load_sanitizer_csv,
 )
 
-from doit.unsanitizedtable.impl.csv import (
+from doit.unsanitizedtable.io.csv import (
     load_unsanitizedtable_csv,
 )
 
-from doit.sanitizedtable.csv import (
+from doit.sanitizedtable.io.csv import (
     load_sanitizedtable_csv,
 )
 

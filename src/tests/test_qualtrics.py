@@ -1,11 +1,11 @@
 import pytest
 
-from doit.common import (
+from doit.common.table import (
     Some,
     Omitted,
 )
 
-from doit.unsanitizedtable.impl.qualtrics import (
+from doit.unsanitizedtable.io.qualtrics import (
     load_unsanitizedtable_qualtrics,
 )
 

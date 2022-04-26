@@ -1,14 +1,14 @@
 import pytest
 from textwrap import dedent
 
-from doit.common import (
+from doit.common.table import (
     Some,
     Omitted,
     DuplicateHeaderError,
     EmptyHeaderError,
 )
 
-from doit.unsanitizedtable.impl.csv import (
+from doit.unsanitizedtable.io.csv import (
     load_unsanitizedtable_csv,
 )
 

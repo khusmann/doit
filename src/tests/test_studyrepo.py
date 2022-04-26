@@ -11,7 +11,6 @@ from doit.study.spec import (
     StudySpec,
     MeasureSpec,
     StudyConfigSpec,
-    MeasureName
 )
 
 @pytest.fixture
@@ -23,7 +22,7 @@ def studyspec():
             indices={},
         ),
         measures={
-            MeasureName("measure"): MeasureSpec(
+            "measure": MeasureSpec(
                 title="Measure Title",
                 description=None,
                 items=(OrdinalMeasureItemSpec(
@@ -40,6 +39,8 @@ def studyspec():
 
 def test_add_measure(studyspec: StudySpec):
     repo = SqlAlchemyRepo.new(studyspec)
+
+    assert isinstance(repo, SqlAlchemyRepo)
 
     print(repo.query_measure("measure"))
 

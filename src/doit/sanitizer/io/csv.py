@@ -2,7 +2,7 @@ import csv
 import re
 import hashlib
 
-from ...common import (
+from ...common.table import (
     Some,
     DuplicateHeaderError,
     EmptyHeaderError,

@@ -1,9 +1,10 @@
 import typing as t
 import re
 import hashlib
+
 from pydantic import Field, BaseModel
 
-from doit.common import (
+from doit.common.table import (
     TableRowView,
     omitted_if_empty,
     Some,
@@ -20,6 +21,7 @@ from ..model import (
     UnsanitizedTableData,
     UnsanitizedTextColumnInfo,
 )
+
 
 ### QualtricsSchema
 
@@ -92,7 +94,9 @@ class QualtricsDataRow(BaseModel):
 class QualtricsData(BaseModel):
     responses: t.List[QualtricsDataRow]
 
-## Functions
+class QualtricsSchemaMapping(t.NamedTuple):
+    qualtrics_ids: t.Tuple[str, ...]
+    columns: t.Tuple[UnsanitizedColumnInfo, ...]
 
 IGNORE_ITEMS = [
     "locationLongitude",
@@ -141,10 +145,6 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
             )
         case QualtricsArrayQuestion(description=prompt):
             raise Exception("Not implemented: {}".format(value))
-
-class QualtricsSchemaMapping(t.NamedTuple):
-    qualtrics_ids: t.Tuple[str, ...]
-    columns: t.Tuple[UnsanitizedColumnInfo, ...]
 
 def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
     responseId = (

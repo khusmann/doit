@@ -1,6 +1,6 @@
 from textwrap import dedent
 
-from doit.sanitizedtable.csv import (
+from doit.sanitizedtable.io.csv import (
     load_sanitizedtable_csv,
 )
 

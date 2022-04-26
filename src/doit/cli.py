@@ -135,7 +135,7 @@ def sanitize():
         defaults.blob_from_instrument_name
     )
 
-    repo = app.new_sanitizedtable_repo_version(
+    repo = app.new_sanitizedtable_repo(
         defaults.sanitized_repo_path,
         defaults.sanitized_repo_bkup_path,
     )
