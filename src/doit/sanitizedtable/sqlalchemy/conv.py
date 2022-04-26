@@ -18,7 +18,7 @@ from ...common.table import (
     TableRowView,
 )
 
-from .model import (
+from .sqlmodel import (
     Base,
     TableEntrySql,
     ColumnEntrySql,

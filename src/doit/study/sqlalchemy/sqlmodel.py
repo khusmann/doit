@@ -9,14 +9,12 @@ from sqlalchemy import (
 
 from sqlalchemy.orm import (
     relationship,
-    backref,
     RelationshipProperty,
 )
 
-from sqlalchemy.ext.declarative import declarative_base
+from ...common.sqlalchemy import declarative_base, backref
 
-backref: t.Any = backref
-Base: t.Any = declarative_base()
+Base  = declarative_base()
 
 class MeasureEntrySql(Base):
     __tablename__ = "__measure_entries__"

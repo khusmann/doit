@@ -2,15 +2,14 @@ from __future__ import annotations
 import typing as t
 
 from sqlalchemy import create_engine, Table
-from sqlalchemy.orm import Session
 from sqlalchemy.engine import Engine
-from ...common.sqlalchemy import SessionWrapper
 
+from ...common.sqlalchemy import SessionWrapper
 
 from ..spec import StudySpec
 from ..repo import StudyRepoReader, StudyRepoWriter
 
-from .model import (
+from .sqlmodel import (
     Base,
     MeasureEntrySql,
 )
@@ -44,12 +43,10 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         engine = create_engine("sqlite:///{}".format(filename))
         Base.metadata.create_all(engine)
 
-        session = Session(engine)
+        session = SessionWrapper(engine)
 
         for name, measure in spec.measures.items():
-            session.add( # type: ignore
-                sql_from_measure_spec(measure, name)
-            )
+            session.add(sql_from_measure_spec(measure, name))
 
         session.commit()
 

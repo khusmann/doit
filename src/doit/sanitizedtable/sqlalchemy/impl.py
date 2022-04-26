@@ -4,20 +4,12 @@ import typing as t
 from sqlalchemy import (
     create_engine,
     Table,
-    insert,
-)
-
-from sqlalchemy.orm import (
-    Session,
 )
 
 from sqlalchemy.engine import Engine
+from ...common.sqlalchemy import SessionWrapper
 
-from ...common.sqlalchemy import (
-    SessionWrapper
-)
-
-from .model import (
+from .sqlmodel import (
     Base,
     TableEntrySql,
 )
@@ -75,15 +67,11 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         self.datatables[name] = sqlschema_from_tableinfo(table.info, name)
         self.datatables[name].create(self.engine)
 
-        session = Session(self.engine)
+        session = SessionWrapper(self.engine)
 
-        session.add( # type: ignore
-            sql_from_tableinfo(table.info, name)
-        ) 
+        session.add(sql_from_tableinfo(table.info, name)) 
 
-        session.execute( # type: ignore
-            insert(self.datatables[name]).values(render_tabledata(table))
-        )        
+        session.insert_rows(self.datatables[name], render_tabledata(table))
 
         session.commit()
 

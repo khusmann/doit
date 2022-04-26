@@ -12,9 +12,9 @@ from sqlalchemy.orm import (
     RelationshipProperty,
 )
 
-from sqlalchemy.ext.declarative import declarative_base
+from ...common.sqlalchemy import declarative_base
 
-Base: t.Any = declarative_base()
+Base = declarative_base()
 
 class TableEntrySql(Base):
     __tablename__ = "__table_entries__"

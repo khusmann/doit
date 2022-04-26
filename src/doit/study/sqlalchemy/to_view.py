@@ -1,4 +1,4 @@
-from .model import (
+from .sqlmodel import (
     ColumnEntrySql,
     MeasureEntrySql,
 )
