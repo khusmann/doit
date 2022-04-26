@@ -9,7 +9,7 @@ from doit.study.sqlalchemy.impl import (
 fake = Faker()
 fake.add_provider(StudySpecProvider)
 
-@pytest.mark.parametrize("seed", [0, 1])
+@pytest.mark.parametrize("seed", [0, 1, 2])
 def test_add_measure(seed: int):
     Faker.seed(seed)
 
@@ -23,4 +23,4 @@ def test_add_measure(seed: int):
 
     print(repo.query_measure(measure_names[0]))
 
-    assert 5==6
+    #assert 5==6

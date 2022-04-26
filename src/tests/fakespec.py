@@ -127,8 +127,8 @@ class InstrumentCreationContext:
 
 
 class StudySpecProvider(BaseProvider):
-
     def study_spec(self) -> StudySpec:
+        fake.unique.clear()
         config=self.study_config()
         measures=self.measure_map()
         context=InstrumentCreationContext(
