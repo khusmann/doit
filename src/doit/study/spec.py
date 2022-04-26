@@ -84,12 +84,10 @@ class MeasureSpec(BaseModel):
 
 ### Instrument
 
-SanitizedColumnIdStr = t.NewType('SanitizedColumnIdStr', str)
-
 class QuestionInstrumentItemSpec(BaseModel):
     prompt: str
     type: t.Literal['question']
-    remote_id: SanitizedColumnIdStr
+    remote_id: t.Optional[str]
     id: t.Optional[str]
     map: t.Optional[t.Mapping[str, t.Optional[str]]]
 
@@ -97,13 +95,6 @@ class ConstantInstrumentItemSpec(BaseModel):
     type: t.Literal['constant']
     value: str
     id: str
-
-InstrumentItemSpec = t.Annotated[
-    t.Union[
-        QuestionInstrumentItemSpec,
-        ConstantInstrumentItemSpec,
-    ], Field(discriminator='type')
-]
 
 class InstrumentItemGroupSpec(BaseModel):
     type: t.Literal['group']
@@ -113,7 +104,8 @@ class InstrumentItemGroupSpec(BaseModel):
 
 InstrumentNodeSpec = t.Annotated[
     t.Union[
-        InstrumentItemSpec,
+        QuestionInstrumentItemSpec,
+        ConstantInstrumentItemSpec,
         InstrumentItemGroupSpec,
     ], Field(discriminator='type')
 ]

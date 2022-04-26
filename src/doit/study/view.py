@@ -58,7 +58,7 @@ class GroupMeasureNodeView(t.NamedTuple):
     prompt: str
     items: t.Tuple[MeasureNodeView, ...]
 
-MeasureNodeView = OrdinalMeasureNodeView | TextMeasureNodeView
+MeasureNodeView = OrdinalMeasureNodeView | TextMeasureNodeView | GroupMeasureNodeView
 
 class MeasureView(t.NamedTuple):
     name: str

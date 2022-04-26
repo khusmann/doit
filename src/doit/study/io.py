@@ -1,6 +1,4 @@
 import typing as t
-import yaml
-
 
 from .spec import (
     StudySpec,
@@ -11,13 +9,14 @@ from .spec import (
 
 # TODO: Better error messages
 
-def load_studyspec_yaml(
+def load_studyspec_str(
     config: str,
     measures: t.Mapping[str, str],
     instruments: t.Mapping[str, str],
+    parser: t.Callable[[str], t.Any],
 ):
     return StudySpec(
-        config=StudyConfigSpec.parse_obj(yaml.safe_load(config)),
-        measures={ k: MeasureSpec.parse_obj(yaml.safe_load(v)) for k, v in measures.items() },
-        instruments={ k: InstrumentSpec.parse_obj(yaml.safe_load(v)) for k, v in instruments.items() },
+        config=StudyConfigSpec.parse_obj(parser(config)),
+        measures={ k: MeasureSpec.parse_obj(parser(v)) for k, v in measures.items() },
+        instruments={ k: InstrumentSpec.parse_obj(parser(v)) for k, v in instruments.items() },
     )

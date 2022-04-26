@@ -8,6 +8,7 @@ from .model import (
 )
 
 from ..view import (
+    GroupMeasureNodeView,
     InstrumentView,
     MeasureNodeView,
     ColumnView,
@@ -34,6 +35,14 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                 prompt=str(entry.prompt),
                 tag_map={},
                 label_map={},
+            )
+        case "group":
+            return GroupMeasureNodeView(
+                name=str(entry.name),
+                prompt=str(entry.prompt),
+                items=tuple(
+                    to_measurenodeview(i) for i in entry.items
+                )
             )
         case _:
             raise Exception("Not implemented")

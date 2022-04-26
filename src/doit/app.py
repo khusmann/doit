@@ -21,7 +21,7 @@ from .remote.model import (
 )
 
 from .study.spec import StudySpec
-from .study.io import load_studyspec_yaml
+from .study.io import load_studyspec_str
 
 def add_source(
     instrument_name: str,
@@ -110,8 +110,10 @@ def load_study_spec(
     instrument_dir: Path,
     measure_dir: Path,
 ) -> StudySpec:
-    return load_studyspec_yaml(
+    import yaml
+    return load_studyspec_str(
         config=config_file.read_text(),
         measures={ i.stem: i.read_text() for i in measure_dir.glob("*.yaml")},
-        instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")}
+        instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")},
+        parser=yaml.safe_load,
     )
