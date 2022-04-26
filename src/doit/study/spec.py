@@ -94,7 +94,7 @@ class QuestionInstrumentItemSpec(BaseModel):
 class ConstantInstrumentItemSpec(BaseModel):
     type: t.Literal['constant']
     value: str
-    id: str
+    id: t.Optional[str]
 
 class InstrumentItemGroupSpec(BaseModel):
     type: t.Literal['group']

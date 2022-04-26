@@ -36,6 +36,13 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                 tag_map={},
                 label_map={},
             )
+        case "categorical":
+            return OrdinalMeasureNodeView(
+                name=str(entry.name),
+                prompt=str(entry.prompt),
+                tag_map={},
+                label_map={},
+            )
         case "group":
             return GroupMeasureNodeView(
                 name=str(entry.name),
@@ -45,7 +52,12 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                 )
             )
         case _:
-            raise Exception("Not implemented")
+            return OrdinalMeasureNodeView(
+                name=str(entry.name),
+                prompt=str(entry.prompt),
+                tag_map={},
+                label_map={},
+            )           
 
 
 def to_instrumentview() -> InstrumentView:
