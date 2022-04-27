@@ -42,6 +42,7 @@ def to_measureview(entry: MeasureEntrySql):
         description=entry.description,
         items=tuple(
             to_measurenodeview(n) for n in entry.items
+                if n.parent_column_id is None
         ),
     )
 
@@ -124,6 +125,7 @@ def to_instrumentview(entry: InstrumentEntrySql):
         instructions=entry.instructions,
         nodes=tuple(
             to_instrumentnodeview(i) for i in entry.items
+                if i.parent_node_id is None
         ),
     )
 

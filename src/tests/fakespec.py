@@ -4,8 +4,6 @@ from faker import Faker
 from faker.providers import BaseProvider
 from doit.common.table import OrdinalValue
 
-from dataclasses import dataclass
-
 from doit.study.spec import (
     ConstantInstrumentItemSpec,
     IndexColumnSpec,
@@ -28,7 +26,7 @@ from doit.study.spec import (
 
 fake = Faker()
 
-def make_measure_node_pool(measure_map: t.Mapping[str, MeasureSpec]) -> t.Tuple[t.Mapping[str, MeasureNodeSpec], ...]:
+def make_measure_node_pools(measure_map: t.Mapping[str, MeasureSpec]) -> t.Tuple[t.Mapping[str, MeasureNodeSpec], ...]:
     def inner(items: t.Tuple[MeasureNodeSpec], parent_name: str) -> t.Tuple[t.Tuple[str, MeasureNodeSpec], ...]:
         children = tuple(
             (".".join((parent_name, i.id)), i)
@@ -52,11 +50,9 @@ def make_index_column_pool(index_column_map: t.Mapping[RelativeIndexColumnName, 
         "indices.{}".format(k): v for k, v in index_column_map.items()
     }
 
-@dataclass
-class InstrumentCreationContext:
+class InstrumentCreationContext(t.NamedTuple):
     parent: StudySpecProvider
-    measure_node_pools: t.Collection[t.Mapping[str, MeasureNodeSpec]]
-    index_pool: t.Mapping[str, IndexColumnSpec]
+    connection_pools: t.Collection[t.Tuple[t.Mapping[str, IndexColumnSpec], t.Mapping[str, MeasureNodeSpec]]]
 
     def instrument_map(self, n: int = 4) -> t.Mapping[str, InstrumentSpec]:
         return {
@@ -68,7 +64,11 @@ class InstrumentCreationContext:
         return "instrument_{}".format(fake.unique.word())
 
     def instrument(self) -> InstrumentSpec:
-        measure_pool: t.Mapping[str, MeasureNodeSpec] = self.parent.random_element(self.measure_node_pools) # type: ignore
+        connection_pool: t.Tuple[t.Mapping[str, IndexColumnSpec], t.Mapping[str, MeasureNodeSpec]] = (
+            self.parent.random_element(self.connection_pools) # type: ignore
+        )
+
+        index_pool, measure_pool = connection_pool
 
         question_pool = tuple(
             self.question_instrument_node(i) for i in measure_pool.items()
@@ -82,12 +82,20 @@ class InstrumentCreationContext:
             self.parent.random_element(p) # type: ignore
                 for p in zip(question_pool, constant_pool)
         ) + tuple(self.question_instrument_node(None) for _ in range(int(len(measure_pool)/4)))
+
+        indices = tuple(
+            ConstantInstrumentItemSpec(
+                type='constant',
+                value=self.parent.random_element(index.values.__root__)['tag'], # type: ignore
+                id=index_name,
+            ) for index_name, index in index_pool.items()
+        )
         
         return InstrumentSpec(
             title=fake.text(20),
             description=fake.sentence(20),
             instructions=fake.sentence(20),
-            items=self.instrument_node_tree(pool)
+            items=indices+self.instrument_node_tree(pool)
         )
 
     def question_instrument_node(self, connect_node: t.Optional[t.Tuple[str, MeasureNodeSpec | IndexColumnSpec]]):
@@ -131,10 +139,20 @@ class StudySpecProvider(BaseProvider):
         fake.unique.clear()
         config=self.study_config()
         measures=self.measure_map()
+
+        measure_node_pools = make_measure_node_pools(measures)
+        index_column_pool = make_index_column_pool(config.indices)
+
+
+
         context=InstrumentCreationContext(
             self,
-            make_measure_node_pool(measures),
-            make_index_column_pool(config.indices),
+            tuple(
+                (
+                    dict(self.random_elements(index_column_pool.items())), # type: ignore
+                    m,
+                ) for m in measure_node_pools
+            )
         )
         return StudySpec(
             config=config,

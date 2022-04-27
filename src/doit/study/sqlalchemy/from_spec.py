@@ -35,6 +35,7 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
     name = ".".join(('indices', index_name))
     return ColumnEntrySql(
         name=name,
+        shortname=index_name,
         title=spec.title,
         description=spec.description,
         type='index',
@@ -49,41 +50,44 @@ class AddMeasureContext(t.NamedTuple):
             name=name,
             title=spec.title,
             description=spec.description,
-            items=[
-                self.sql_from_measurenode_spec(item, name) for item in spec.items
-            ]
+            items=self.sql_from_measurenode_spec(spec.items, name),
         )
 
-    def sql_from_measurenode_spec(self, spec: MeasureNodeSpec, parent_name: str) -> ColumnEntrySql:
-            name = ".".join((parent_name, spec.id))
-            match spec:
-                case OrdinalMeasureItemSpec():
-                    codemap = self.get_codemap_by_relname(spec.codes)
-                    if not codemap:
-                        raise Exception("Error: Cannot find codemap: {}".format(spec.codes))
-                    return ColumnEntrySql(
-                        name=name,
-                        type=spec.type,
-                        prompt=spec.prompt,
-                        codemap=codemap,
-                    )
-                case SimpleMeasureItemSpec():
-                    return ColumnEntrySql(
-                        name=name,
-                        prompt=spec.prompt,
-                        type=spec.type,
-                    )
-                case MultiselectItemSpec():
-                    raise Exception("Error: MultiselectItemSpec not implemented")
-                case MeasureItemGroupSpec():
-                    return ColumnEntrySql(
-                        name=name,
-                        type=spec.type,
-                        prompt=spec.prompt,
-                        items=[
-                            self.sql_from_measurenode_spec(item, name) for item in spec.items
-                        ]
-                    )
+    def sql_from_measurenode_spec(self, specs: t.Sequence[MeasureNodeSpec], parent_name: str) -> t.List[ColumnEntrySql]:
+        def inner(spec: MeasureNodeSpec) -> t.List[ColumnEntrySql]:
+                name = ".".join((parent_name, spec.id))
+                match spec:
+                    case OrdinalMeasureItemSpec():
+                        codemap = self.get_codemap_by_relname(spec.codes)
+                        if not codemap:
+                            raise Exception("Error: Cannot find codemap: {}".format(spec.codes))
+                        return [ColumnEntrySql(
+                            name=name,
+                            type=spec.type,
+                            prompt=spec.prompt,
+                            codemap=codemap,
+                        )]
+                    case SimpleMeasureItemSpec():
+                        return [ColumnEntrySql(
+                            name=name,
+                            prompt=spec.prompt,
+                            type=spec.type,
+                        )]
+                    case MultiselectItemSpec():
+                        raise Exception("Error: MultiselectItemSpec not implemented")
+                    case MeasureItemGroupSpec():
+                        items=self.sql_from_measurenode_spec(spec.items, name)
+                        return [ColumnEntrySql(
+                            name=name,
+                            type=spec.type,
+                            prompt=spec.prompt,
+                            items=items,
+                        ), *items]
+        return [
+            sql
+                for i in specs
+                    for sql in inner(i)
+        ]
 
 class AddInstrumentContext(t.NamedTuple):
     get_column_by_name: t.Callable[[str], ColumnEntrySql]
@@ -94,34 +98,36 @@ class AddInstrumentContext(t.NamedTuple):
             title=spec.title,
             description=spec.description,
             instructions=spec.instructions,
-            items=[
-                self.sql_from_instrumentnode_spec(item)
-                    for item in spec.items
-            ]
+            items=self.sql_from_instrumentnode_spec(spec.items),
         )
 
-    def sql_from_instrumentnode_spec(self, spec: InstrumentNodeSpec):
-        match spec:
-            case QuestionInstrumentItemSpec():
-                return InstrumentNodeSql(
-                    prompt=spec.prompt,
-                    source_column_name=spec.remote_id,
-                    source_value_map={},
-                    type=spec.type,
-                    column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
-                )
-            case ConstantInstrumentItemSpec():
-                return InstrumentNodeSql(
-                    constant_value=spec.value,
-                    type=spec.type,
-                    column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
-                )
-            case InstrumentItemGroupSpec():
-                return InstrumentNodeSql(
-                    title=spec.title,
-                    prompt=spec.prompt,
-                    type=spec.type,
-                    items=[
-                        self.sql_from_instrumentnode_spec(i) for i in spec.items
-                    ],
-                )
+    def sql_from_instrumentnode_spec(self, specs: t.Sequence[InstrumentNodeSpec]) -> t.List[InstrumentNodeSql]:
+        def inner(spec: InstrumentNodeSpec) -> t.List[InstrumentNodeSql]:
+            match spec:
+                case QuestionInstrumentItemSpec():
+                    return [InstrumentNodeSql(
+                        prompt=spec.prompt,
+                        source_column_name=spec.remote_id,
+                        source_value_map={},
+                        type=spec.type,
+                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
+                    )]
+                case ConstantInstrumentItemSpec():
+                    return [InstrumentNodeSql(
+                        constant_value=spec.value,
+                        type=spec.type,
+                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
+                    )]
+                case InstrumentItemGroupSpec():
+                    items = self.sql_from_instrumentnode_spec(spec.items)
+                    return [InstrumentNodeSql(
+                        title=spec.title,
+                        prompt=spec.prompt,
+                        type=spec.type,
+                        items=items,
+                    ), *items]
+        return [
+            sql
+                for i in specs
+                    for sql in inner(i)
+        ]

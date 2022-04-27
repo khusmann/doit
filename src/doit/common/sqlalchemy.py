@@ -40,6 +40,16 @@ class SessionWrapper:
 
         return entry
 
+    def get_or_create_by_name(self, type: t.Type[T], name: str) -> T:
+        entry: T | None = self.impl.execute( # type: ignore
+            select(type).filter_by(name=name) # type: ignore
+        ).scalars().one_or_none()
+
+        if entry is None:
+            entry = type(name=name)
+
+        return entry
+
     def get_all(self, type: t.Type[T]) -> t.Sequence[T]:
         return self.impl.execute( # type: ignore
             select(type) # type: ignore

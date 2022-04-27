@@ -76,7 +76,8 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         session.commit()
 
     def read_tableinfo(self, name: str) -> SanitizedTableInfo:
-        return tableinfo_from_sql(SessionWrapper(self.engine).get_by_name(TableEntrySql, name))
+        session = SessionWrapper(self.engine)
+        return tableinfo_from_sql(session.get_by_name(TableEntrySql, name))
 
     def read_table(self, name: str) -> SanitizedTable:
         if name not in self.datatables:

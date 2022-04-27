@@ -6,6 +6,7 @@ from sqlalchemy import (
     String,
     ForeignKey,
     JSON,
+    Table,
 )
 
 from sqlalchemy.orm import (
@@ -48,6 +49,7 @@ class ColumnEntrySql(Base):
     parent_column_id = Column(Integer, ForeignKey(id))
     codemap_id = Column(Integer, ForeignKey(CodemapSql.id))
     name = Column(String, nullable=False)
+    shortname = Column(String)
 
     type = Column(String, nullable=False)
 
@@ -67,10 +69,16 @@ class ColumnEntrySql(Base):
         order_by="InstrumentNodeSql.id"        
     )
 
+    studytables: RelationshipProperty[t.List[StudyTableSql]] = relationship(
+        "StudyTableSql",
+        secondary=lambda: TableColumnAssociationSql,
+        back_populates="columns",
+    )
+
+
 class InstrumentEntrySql(Base):
     __tablename__ = "__instrument_entries__"
     id = Column(Integer, primary_key=True)
-#    studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
     name = Column(String, nullable=False, unique=True)
     title = Column(String)
     description = Column(String)
@@ -107,4 +115,21 @@ class InstrumentNodeSql(Base):
         backref=backref("parent_node", remote_side=id),
         order_by="InstrumentNodeSql.id",
     )
+
+class StudyTableSql(Base):
+    __tablename__ = "__table_info__"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
+        "ColumnEntrySql",
+        secondary=lambda: TableColumnAssociationSql,
+        back_populates="studytables"
+    )
+
+TableColumnAssociationSql = Table(
+    "__table_column_association__",
+    Base.metadata,
+    Column('studytable_id', ForeignKey(StudyTableSql.id), primary_key=True),
+    Column('column_entry_id', ForeignKey(ColumnEntrySql.id), primary_key=True),
+)
 

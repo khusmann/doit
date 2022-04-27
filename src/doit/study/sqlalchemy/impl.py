@@ -15,6 +15,7 @@ from .sqlmodel import (
     ColumnEntrySql,
     InstrumentEntrySql,
     MeasureEntrySql,
+    StudyTableSql,
 )
 
 from .from_spec import (
@@ -51,32 +52,61 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         session = SessionWrapper(engine)
 
+        # Add codemaps
         for measure_name, measure in spec.measures.items():
             for codemap_name, codemap in measure.codes.items():
                 session.add(sql_from_codemap_spec(codemap, measure_name, codemap_name))
 
+        # Add Indices
         for index_name, index in spec.config.indices.items():
             session.add(sql_from_index_column_spec(index, index_name))
 
+        # Add Measures
         for measure_name, measure in spec.measures.items():
             session.add(
                 AddMeasureContext(
-                    lambda codemap_relname: session.get_by_name(CodemapSql, ".".join((measure_name, codemap_relname)))
+                    get_codemap_by_relname=lambda codemap_relname: session.get_by_name(CodemapSql, ".".join((measure_name, codemap_relname)))
                 ).sql_from_measure_spec(
                     measure,
                     measure_name
                 )
             )
 
+        # Add Instruments    
         for instrument_name, instrument in spec.instruments.items():
             session.add(
                 AddInstrumentContext(
-                    lambda column_name: session.get_by_name(ColumnEntrySql, column_name)
+                    get_column_by_name=lambda column_name: session.get_by_name(ColumnEntrySql, column_name),
                 ).sql_from_instrument_spec(
                     instrument,
                     instrument_name,
                 )
             )
+
+        # Add Studytables
+        for instrument in session.get_all(InstrumentEntrySql):
+            all_columns: t.List[ColumnEntrySql] = [
+                i.column_entry # type: ignore
+                    for i in instrument.items
+                        if i.column_entry is not None # type: ignore
+            ]
+
+            index_columns = [i for i in all_columns if i.type == 'index']
+
+            if not index_columns:
+                raise Exception("Error: instrument {} has no indices".format(instrument.name))
+
+            table_name = "-".join(sorted(i.shortname for i in index_columns))
+
+            table = session.get_or_create_by_name(StudyTableSql, table_name)
+
+            table.columns.extend(all_columns)
+
+        # Verify each column belongs to only one Studytable (TODO: Test this)
+
+        for column in session.get_all(ColumnEntrySql):
+            if len(column.studytables) > 1 and column.type != 'index':
+                raise Exception("Error: column {} found in muliple tables. Check the indices in the associated instruments".format(column.name))
 
         session.commit()
 
@@ -86,19 +116,22 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         pass
 
     def query_instrument(self, instrument_name: str):
+        session = SessionWrapper(self.engine)
         return to_instrumentview(
-            SessionWrapper(self.engine).get_by_name(InstrumentEntrySql, instrument_name)
+            session.get_by_name(InstrumentEntrySql, instrument_name)
         )
 
     def query_measure(self, measure_name: str):
+        session = SessionWrapper(self.engine)
         return to_measureview(
-            SessionWrapper(self.engine).get_by_name(MeasureEntrySql, measure_name)
+            session.get_by_name(MeasureEntrySql, measure_name)
         )
 
     def query_linker(self, instrument_name: str): # TODO return type Linker
         pass
     
     def query_column(self, column_name: str):
+        session = SessionWrapper(self.engine)
         return to_columnview(
-            SessionWrapper(self.engine).get_by_name(ColumnEntrySql, column_name)
+            session.get_by_name(ColumnEntrySql, column_name)
         )
