@@ -33,13 +33,13 @@ def to_measureview(entry: MeasureEntrySql) -> MeasureView:
         ),
     )
 
-class CodeMapValue(t.TypedDict):
-    value: OrdinalValue
-    tag: OrdinalTag
-    text: OrdinalLabel
-
 def to_ordinalmeasurenodeview(entry: ColumnEntrySql) -> OrdinalMeasureNodeView:
     # TODO: Make types better?
+
+    class CodeMapValue(t.TypedDict):
+        value: OrdinalValue
+        tag: OrdinalTag
+        text: OrdinalLabel
 
     codemap: CodeMapSql | None = entry.codemap # type: ignore
     
