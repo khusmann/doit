@@ -39,4 +39,20 @@ def test_add_instrument(seed: int):
 
     print(repo.query_instrument(instrument_names[0]).json(indent=3))
 
+    #assert 5==6
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_studytable(seed: int):
+    Faker.seed(seed)
+
+    studyspec: StudySpec = fake.study_spec()
+
+    instrument_names = tuple(studyspec.instruments)
+
+    repo = SqlAlchemyRepo.new(studyspec)
+
+    assert isinstance(repo, SqlAlchemyRepo)
+
+    print(repo.query_studytable_by_instrument(instrument_names[1]).json(indent=3))
+
     assert 5==6

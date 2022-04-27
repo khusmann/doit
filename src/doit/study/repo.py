@@ -7,15 +7,11 @@ from .view import (
     InstrumentView,
     MeasureView,
     ColumnView,
+    StudyTableView,
 )
 
 class StudyRepoWriter(ABC):
 
-    @abstractmethod
-    def query_linker(self, instrument_name: str): ... # TODO return type Linker
-    
-    # In service: link_table(table: SanitizedTable, linker: Linker) -> LinkedTable
-    
     @abstractmethod
     def write_table(self, table: str): ... # TODO Change to type LinkedTable
 
@@ -24,6 +20,9 @@ class StudyRepoWriter(ABC):
     def new(cls, spec: StudySpec, filename: str = "") -> StudyRepoWriter: ...
 
 class StudyRepoReader(ABC):
+
+    @abstractmethod
+    def query_studytable_by_instrument(self, instrument_name: str) -> StudyTableView: ...
 
     @abstractmethod
     def query_instrument(self, instrument_name: str) -> InstrumentView: ...

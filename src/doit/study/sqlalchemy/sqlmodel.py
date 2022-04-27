@@ -26,7 +26,6 @@ class CodemapSql(Base):
 
     column_entries: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
-        backref="codemap",
         order_by="ColumnEntrySql.id"
     )
 
@@ -38,7 +37,6 @@ class MeasureEntrySql(Base):
     description = Column(String)
     items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
-        backref="parent_measure",
         order_by="ColumnEntrySql.id",
     )
 
@@ -63,9 +61,8 @@ class ColumnEntrySql(Base):
         order_by="ColumnEntrySql.id",
     )
 
-    instrument_entries: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
+    instrument_nodes: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
         "InstrumentNodeSql",
-        backref=backref("column_entry", remote_side=id),
         order_by="InstrumentNodeSql.id"        
     )
 
@@ -75,11 +72,45 @@ class ColumnEntrySql(Base):
         back_populates="columns",
     )
 
+    parent_measure: RelationshipProperty[MeasureEntrySql] = relationship(
+        "MeasureEntrySql",
+        back_populates="items",
+    )
+
+    codemap: RelationshipProperty[CodemapSql] = relationship(
+        "CodemapSql",
+        back_populates="column_entries"
+    )
+
+class StudyTableSql(Base):
+    __tablename__ = "__table_info__"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+
+    columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
+        "ColumnEntrySql",
+        secondary=lambda: TableColumnAssociationSql,
+        back_populates="studytables"
+    )
+
+    instruments: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
+        "InstrumentEntrySql",
+        back_populates="studytable",
+        order_by="InstrumentEntrySql.id",
+    )
+
+TableColumnAssociationSql = Table(
+    "__table_column_association__",
+    Base.metadata,
+    Column('studytable_id', ForeignKey(StudyTableSql.id), primary_key=True),
+    Column('column_entry_id', ForeignKey(ColumnEntrySql.id), primary_key=True),
+)
 
 class InstrumentEntrySql(Base):
     __tablename__ = "__instrument_entries__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
+    studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
     title = Column(String)
     description = Column(String)
     instructions = Column(String)
@@ -88,9 +119,12 @@ class InstrumentEntrySql(Base):
     data_checksum = Column(String)
     schema_checksum = Column(String)
 
+    studytable: RelationshipProperty[StudyTableSql] = relationship(
+        "StudyTableSql",
+    )
+
     items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
         "InstrumentNodeSql",
-        backref="parent_instrument",
         order_by="InstrumentNodeSql.id",
     )
 
@@ -116,20 +150,12 @@ class InstrumentNodeSql(Base):
         order_by="InstrumentNodeSql.id",
     )
 
-class StudyTableSql(Base):
-    __tablename__ = "__table_info__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
-    columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
-        "ColumnEntrySql",
-        secondary=lambda: TableColumnAssociationSql,
-        back_populates="studytables"
+    parent_instrument: RelationshipProperty[InstrumentEntrySql] = relationship(
+        "InstrumentEntrySql",
+        back_populates="items",
     )
 
-TableColumnAssociationSql = Table(
-    "__table_column_association__",
-    Base.metadata,
-    Column('studytable_id', ForeignKey(StudyTableSql.id), primary_key=True),
-    Column('column_entry_id', ForeignKey(ColumnEntrySql.id), primary_key=True),
-)
-
+    column_entry: RelationshipProperty[ColumnEntrySql] = relationship(
+        "ColumnEntrySql",
+        back_populates="instrument_nodes",
+    )

@@ -111,5 +111,11 @@ class MeasureView(ImmutableBaseModel):
     description: t.Optional[str]
     items: t.Tuple[MeasureNodeView, ...]
 
+### Studytable View
+
+class StudyTableView(ImmutableBaseModel):
+    name: str
+    columns: t.Tuple[ColumnView, ...]
+
 GroupMeasureNodeView.update_forward_refs()
 GroupInstrumentNodeView.update_forward_refs()

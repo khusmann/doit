@@ -29,6 +29,7 @@ from .to_view import (
     to_instrumentview,
     to_measureview,
     to_columnview,
+    to_studytableview,
 )
 
 class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
@@ -86,9 +87,9 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         # Add Studytables
         for instrument in session.get_all(InstrumentEntrySql):
             all_columns: t.List[ColumnEntrySql] = [
-                i.column_entry # type: ignore
+                i.column_entry
                     for i in instrument.items
-                        if i.column_entry is not None # type: ignore
+                        if i.column_entry is not None
             ]
 
             index_columns = [i for i in all_columns if i.type == 'index']
@@ -101,9 +102,9 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
             table = session.get_or_create_by_name(StudyTableSql, table_name)
 
             table.columns.extend(all_columns)
+            table.instruments.append(instrument)
 
         # Verify each column belongs to only one Studytable (TODO: Test this)
-
         for column in session.get_all(ColumnEntrySql):
             if len(column.studytables) > 1 and column.type != 'index':
                 raise Exception("Error: column {} found in muliple tables. Check the indices in the associated instruments".format(column.name))
@@ -127,8 +128,12 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
             session.get_by_name(MeasureEntrySql, measure_name)
         )
 
-    def query_linker(self, instrument_name: str): # TODO return type Linker
-        pass
+    def query_studytable_by_instrument(self, instrument_name: str): # TODO return type Linker
+        session = SessionWrapper(self.engine)
+        instrument = session.get_by_name(InstrumentEntrySql, instrument_name)
+        return to_studytableview(
+            instrument.studytable
+        )
     
     def query_column(self, column_name: str):
         session = SessionWrapper(self.engine)

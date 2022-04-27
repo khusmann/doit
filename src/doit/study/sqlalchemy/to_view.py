@@ -15,6 +15,7 @@ from .sqlmodel import (
     InstrumentEntrySql,
     InstrumentNodeSql,
     MeasureEntrySql,
+    StudyTableSql,
 )
 
 from ..view import (
@@ -33,6 +34,7 @@ from ..view import (
     SimpleMeasureNodeView,
     CodemapView,
     IndexColumnView,
+    StudyTableView,
 )
 
 def to_measureview(entry: MeasureEntrySql):
@@ -63,16 +65,14 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
     entry_type = entry.type
     match entry_type:
         case 'ordinal' | 'categorical':
-            codemap_sql: CodemapSql | None = entry.codemap # type: ignore
-
-            if not codemap_sql:
+            if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
             return OrdinalMeasureNodeView(
                 name=entry.name,
                 prompt=entry.prompt,
                 type=entry_type,
-                codes=to_codemapview(codemap_sql)
+                codes=to_codemapview(entry.codemap)
             )
         case 'text' | 'real' | 'integer':
             return SimpleMeasureNodeView(
@@ -99,12 +99,12 @@ def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
                 prompt=entry.prompt,
                 source_column_name=entry.source_column_name,
                 map={},
-                column_info=to_columnview(entry.column_entry) if entry.column_entry else None, # type: ignore
+                column_info=to_columnview(entry.column_entry) if entry.column_entry else None,
             )
         case 'constant':
             return ConstantInstrumentNodeView(
                 value=entry.constant_value,
-                column_info=to_columnview(entry.column_entry) if entry.column_entry else None, # type: ignore
+                column_info=to_columnview(entry.column_entry) if entry.column_entry else None,
             )
         case 'group':
             return GroupInstrumentNodeView(
@@ -133,23 +133,21 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
     entry_type = entry.type
     match entry_type:
         case 'ordinal' | 'categorical' | 'index':
-            codemap_sql: CodemapSql | None = entry.codemap # type: ignore
-
-            if not codemap_sql:
+            if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
             if entry_type == 'index':
                 return IndexColumnView(
                     name=entry.name,
                     title=entry.title,
-                    codes=to_codemapview(codemap_sql)
+                    codes=to_codemapview(entry.codemap)
                 )
             else:
                 return OrdinalColumnView(
                     name=entry.name,
                     prompt=entry.prompt,
                     type=entry_type,
-                    codes=to_codemapview(codemap_sql)
+                    codes=to_codemapview(entry.codemap)
                 )
 
         case 'real' | 'text' | 'integer':
@@ -161,4 +159,10 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
 
         case _:
             raise Exception("Error: unknown column type {}".format(entry_type))
+
+def to_studytableview(entry: StudyTableSql) -> StudyTableView:
+    return StudyTableView(
+        name=entry.name,
+        columns=tuple(to_columnview(i) for i in entry.columns),
+    )
 
