@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing as t
+from pydantic import BaseModel
 
 from ..common.table import (
     OrdinalLabel,
@@ -9,16 +10,20 @@ from ..common.table import (
 
 ### InstrumentView - Info to populate an instrument's page
 
-class QuestionInstrumentNodeView(t.NamedTuple):
+class QuestionInstrumentNodeView(BaseModel):
     pass
 
-class ConstantInstrumentNodeView(t.NamedTuple):
+class ConstantInstrumentNodeView(BaseModel):
     pass
 
-class GroupInstrumentNodeView(t.NamedTuple):
+class GroupInstrumentNodeView(BaseModel):
     pass
 
-InstrumentNodeView = QuestionInstrumentNodeView | ConstantInstrumentNodeView | GroupInstrumentNodeView
+InstrumentNodeView = t.Union[
+    QuestionInstrumentNodeView,
+    ConstantInstrumentNodeView,
+    GroupInstrumentNodeView,
+]
 
 class InstrumentView(t.NamedTuple):
     name: str
@@ -34,33 +39,41 @@ class InstrumentView(t.NamedTuple):
 
 ### IndicesView - Info to populate the indices page
 
-class IndexItemView(t.NamedTuple):
+class IndexItemView(BaseModel):
     name: str
 
-class IndicesView(t.NamedTuple):
+class IndicesView(BaseModel):
     items: t.Tuple[str, ...]
 
 ### MeasureView - Info to populate a measure's page
 
-class OrdinalMeasureNodeView(t.NamedTuple):
+class OrdinalMeasureNodeView(BaseModel):
     name: str
     prompt: str
     tag_map: t.Mapping[OrdinalValue, OrdinalTag]
     label_map: t.Mapping[OrdinalValue, OrdinalLabel]
+    type: t.Literal['ordinal', 'categorical']
+    entity_type: t.Literal['ordinalmeasurenode']
 
-class TextMeasureNodeView(t.NamedTuple):
+class SimpleMeasureNodeView(BaseModel):
     name: str
     prompt: str
-    # Sanitizer checksum
+    type: t.Literal['text', 'integer', 'real']
+    entity_type: t.Literal['simplemeasurenode']
 
-class GroupMeasureNodeView(t.NamedTuple):
+class GroupMeasureNodeView(BaseModel):
     name: str
     prompt: str
     items: t.Tuple[MeasureNodeView, ...]
+    entity_type: t.Literal['groupmeasurenode']
 
-MeasureNodeView = OrdinalMeasureNodeView | TextMeasureNodeView | GroupMeasureNodeView
+MeasureNodeView = t.Union[
+    OrdinalMeasureNodeView,
+    SimpleMeasureNodeView,
+    GroupMeasureNodeView,
+]
 
-class MeasureView(t.NamedTuple):
+class MeasureView(BaseModel):
     name: str
     title: str
     description: t.Optional[str]
@@ -68,15 +81,23 @@ class MeasureView(t.NamedTuple):
 
 ### ColumnView
 
-class OrdinalColumnView(t.NamedTuple):
+class OrdinalColumnView(BaseModel):
     name: str
     prompt: str
+    type: t.Literal['ordinal', 'categorical', 'index']
     tag_map: t.Mapping[OrdinalValue, OrdinalTag]
     label_map: t.Mapping[OrdinalValue, OrdinalLabel]
+    entity_type: t.Literal['ordinalcolumn']
 
-class TextColumnView(t.NamedTuple):
+class SimpleColumnView(BaseModel):
     name: str
     prompt: str
-    # Sanitizer checksum
+    type: t.Literal['text', 'integer', 'real']
+    entity_type: t.Literal['simplecolumn']
 
-ColumnView = OrdinalColumnView | TextColumnView
+ColumnView = t.Union[
+    OrdinalColumnView,
+    SimpleColumnView,
+]
+
+GroupMeasureNodeView.update_forward_refs()

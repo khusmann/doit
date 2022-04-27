@@ -1,4 +1,6 @@
+import typing as t
 from .sqlmodel import (
+    CodeMapSql,
     ColumnEntrySql,
     MeasureEntrySql,
 )
@@ -10,7 +12,11 @@ from ..view import (
     ColumnView,
     MeasureView,
     OrdinalMeasureNodeView,
-    TextColumnView,
+    SimpleColumnView,
+    SimpleMeasureNodeView,
+    OrdinalLabel,
+    OrdinalValue,
+    OrdinalTag,
 )
 
 def to_measureview(entry: MeasureEntrySql) -> MeasureView:
@@ -23,37 +29,62 @@ def to_measureview(entry: MeasureEntrySql) -> MeasureView:
         ),
     )
 
+class CodeMapValue(t.TypedDict):
+    value: OrdinalValue
+    tag: OrdinalTag
+    text: OrdinalLabel
+
+def to_ordinalmeasurenodeview(entry: ColumnEntrySql) -> OrdinalMeasureNodeView:
+    # TODO: Make types better?
+
+    codemap: CodeMapSql | None = entry.codemap # type: ignore
+    
+    if not codemap:
+        raise Exception("Error: {} missing codemap".format(entry.name))
+
+    codemap_values: t.Sequence[CodeMapValue] = codemap.values  # type: ignore
+
+    return OrdinalMeasureNodeView(
+        name=entry.name,
+        prompt=entry.prompt,
+        tag_map={i['value']: i['tag'] for i in codemap_values},
+        label_map={i['value']: i['text'] for i in codemap_values},
+        type=entry.type, # type: ignore
+        entity_type='ordinalmeasurenode',
+    )
+
+def to_simplemeasurenodeview(entry: ColumnEntrySql) -> SimpleMeasureNodeView:
+    return SimpleMeasureNodeView(
+        name=entry.name,
+        prompt=entry.prompt,
+        type=entry.type, # type: ignore
+        entity_type='simplemeasurenode',
+    )
+
+def to_groupmeasurenodeview(entry: ColumnEntrySql) -> GroupMeasureNodeView:
+    return GroupMeasureNodeView(
+        name=entry.name,
+        prompt=entry.prompt,
+        items=tuple(
+            to_measurenodeview(i) for i in entry.items
+        ),
+        entity_type='groupmeasurenode',
+    )
+
+VIEW_CONV_LOOKUP = {
+    "ordinal": to_ordinalmeasurenodeview,
+    "categorical": to_ordinalmeasurenodeview,
+    "text": to_simplemeasurenodeview,
+    "real": to_simplemeasurenodeview,
+    "integer": to_simplemeasurenodeview,
+    "group": to_groupmeasurenodeview,
+}
+
 def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
-    match entry.type:
-        case "ordinal":
-            return OrdinalMeasureNodeView(
-                name=entry.name,
-                prompt=entry.prompt,
-                tag_map={},
-                label_map={},
-            )
-        case "categorical":
-            return OrdinalMeasureNodeView(
-                name=entry.name,
-                prompt=entry.prompt,
-                tag_map={},
-                label_map={},
-            )
-        case "group":
-            return GroupMeasureNodeView(
-                name=entry.name,
-                prompt=entry.prompt,
-                items=tuple(
-                    to_measurenodeview(i) for i in entry.items
-                )
-            )
-        case _:
-            return OrdinalMeasureNodeView(
-                name=entry.name,
-                prompt=entry.prompt,
-                tag_map={},
-                label_map={},
-            )           
+    view_conv = VIEW_CONV_LOOKUP.get(entry.type)
+    if not view_conv:
+        raise Exception("Error: No view conversion for type {}".format(entry.type))
+    return view_conv(entry)
 
 
 def to_instrumentview() -> InstrumentView:
@@ -66,8 +97,10 @@ def to_instrumentview() -> InstrumentView:
     )
 
 def to_columnview() -> ColumnView:
-    return TextColumnView(
+    return SimpleColumnView(
         name="stub.foo",
         prompt="stub",
+        type="text",
+        entity_type='simplecolumn'
     )
 

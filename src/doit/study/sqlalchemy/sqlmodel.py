@@ -5,6 +5,7 @@ from sqlalchemy import (
     Integer,
     String,
     ForeignKey,
+    JSON,
 )
 
 from sqlalchemy.orm import (
@@ -15,6 +16,18 @@ from sqlalchemy.orm import (
 from ...common.sqlalchemy import declarative_base, backref
 
 Base  = declarative_base()
+
+class CodeMapSql(Base):
+    __tablename__ = "__codemaps__"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    values = Column(JSON, nullable=False)
+
+    column_entries: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
+        "ColumnEntrySql",
+        backref="codemap",
+        order_by="ColumnEntrySql.id"
+    )
 
 class MeasureEntrySql(Base):
     __tablename__ = "__measure_entries__"
@@ -33,6 +46,7 @@ class ColumnEntrySql(Base):
     id = Column(Integer, primary_key=True)
     parent_measure_id = Column(Integer, ForeignKey(MeasureEntrySql.id))
     parent_column_id = Column(Integer, ForeignKey(id))
+    codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
     name = Column(String, nullable=False)
 
     type = Column(String, nullable=False)

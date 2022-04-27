@@ -23,4 +23,4 @@ def test_add_measure(seed: int):
 
     print(repo.query_measure(measure_names[0]))
 
-    #assert 5==6
+    assert 5==6
