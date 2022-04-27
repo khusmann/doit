@@ -11,14 +11,17 @@ from ..repo import StudyRepoReader, StudyRepoWriter
 
 from .sqlmodel import (
     Base,
+    CodemapSql,
     ColumnEntrySql,
     InstrumentEntrySql,
     MeasureEntrySql,
 )
 
 from .from_spec import (
-    sql_from_instrument_spec,
-    sql_from_measure_spec
+    AddInstrumentContext,
+    AddMeasureContext,
+    sql_from_codemap_spec,
+    sql_from_index_column_spec,
 )
 
 from .to_view import (
@@ -48,15 +51,30 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         session = SessionWrapper(engine)
 
-        for name, measure in spec.measures.items():
-            session.add(sql_from_measure_spec(measure, name))
+        for measure_name, measure in spec.measures.items():
+            for codemap_name, codemap in measure.codes.items():
+                session.add(sql_from_codemap_spec(codemap, measure_name, codemap_name))
 
-        for name, instrument in spec.instruments.items():
+        for index_name, index in spec.config.indices.items():
+            session.add(sql_from_index_column_spec(index, index_name))
+
+        for measure_name, measure in spec.measures.items():
             session.add(
-                sql_from_instrument_spec(
+                AddMeasureContext(
+                    lambda codemap_relname: session.get_by_name(CodemapSql, ".".join((measure_name, codemap_relname)))
+                ).sql_from_measure_spec(
+                    measure,
+                    measure_name
+                )
+            )
+
+        for instrument_name, instrument in spec.instruments.items():
+            session.add(
+                AddInstrumentContext(
+                    lambda column_name: session.get_by_name(ColumnEntrySql, column_name)
+                ).sql_from_instrument_spec(
                     instrument,
-                    name,
-                    lambda x: session.get_by_name(ColumnEntrySql, x)
+                    instrument_name,
                 )
             )
 
@@ -81,4 +99,6 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         pass
     
     def query_column(self, column_name: str):
-        return to_columnview()
+        return to_columnview(
+            SessionWrapper(self.engine).get_by_name(ColumnEntrySql, column_name)
+        )

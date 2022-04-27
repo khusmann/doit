@@ -1,6 +1,8 @@
 from __future__ import annotations
 import typing as t
-from pydantic import Field, validator, BaseModel
+from pydantic import Field, validator
+
+from ..common import ImmutableBaseModel
 
 from ..common.table import (
     OrdinalLabel,
@@ -10,7 +12,7 @@ from ..common.table import (
 
 ### CodeMapSpec
 
-class CodeMapSpec(BaseModel):
+class CodeMapSpec(ImmutableBaseModel):
     class Value(t.TypedDict):
         value: OrdinalValue
         tag: OrdinalTag
@@ -30,7 +32,7 @@ class CodeMapSpec(BaseModel):
 
 ### Measure
 
-#class AggregateMeasureItem(BaseModel):
+#class AggregateMeasureItem(ImmutableBaseModel):
 #    prompt: str
 #    type: t.Literal['aggregate']
 #    aggretate_type: t.Literal['mean']
@@ -39,30 +41,30 @@ class CodeMapSpec(BaseModel):
 RelativeMeasureNodeName = t.NewType('RealtiveMeasureNodeName', str)
 RelativeCodeMapName = t.NewType('RelativeCodeMapName', str)
 
-class OrdinalMeasureItemSpec(BaseModel):
+class OrdinalMeasureItemSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: str
     type: t.Literal['ordinal', 'categorical']
     codes: RelativeCodeMapName
 
-class SimpleMeasureItemSpec(BaseModel):
+class SimpleMeasureItemSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: str
     type: t.Literal['text', 'real', 'integer']
 
-class MeasureItemGroupSpec(BaseModel):
+class MeasureItemGroupSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: t.Optional[str]
     type: t.Literal['group']
     items: t.Tuple[MeasureNodeSpec, ...]
 
-class MultiselectItemSpec(BaseModel):
+class MultiselectItemSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: t.Optional[str]
     type: t.Literal['multiselect']
     items: t.Tuple[MultiselectItemSpec.Child, ...]
 
-    class Child(BaseModel):
+    class Child(ImmutableBaseModel):
         id: RelativeMeasureNodeName
         prompt: str
         type: t.Literal['bool'] = 'bool'
@@ -76,7 +78,7 @@ MeasureNodeSpec = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-class MeasureSpec(BaseModel):
+class MeasureSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     items: t.Tuple[MeasureNodeSpec, ...]
@@ -84,19 +86,19 @@ class MeasureSpec(BaseModel):
 
 ### Instrument
 
-class QuestionInstrumentItemSpec(BaseModel):
+class QuestionInstrumentItemSpec(ImmutableBaseModel):
     prompt: str
     type: t.Literal['question']
     remote_id: t.Optional[str]
     id: t.Optional[str]
     map: t.Optional[t.Mapping[str, t.Optional[str]]]
 
-class ConstantInstrumentItemSpec(BaseModel):
+class ConstantInstrumentItemSpec(ImmutableBaseModel):
     type: t.Literal['constant']
     value: str
     id: t.Optional[str]
 
-class InstrumentItemGroupSpec(BaseModel):
+class InstrumentItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[InstrumentNodeSpec, ...]
     prompt: t.Optional[str]
@@ -110,7 +112,7 @@ InstrumentNodeSpec = t.Annotated[
     ], Field(discriminator='type')
 ]
 
-class InstrumentSpec(BaseModel):
+class InstrumentSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     instructions: t.Optional[str]
@@ -118,14 +120,14 @@ class InstrumentSpec(BaseModel):
 
 RelativeIndexColumnName = t.NewType('RelativeIndexColumnName', str)
 
-class IndexColumnSpec(BaseModel):
+class IndexColumnSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     values: CodeMapSpec
 
 ### Config
 
-class StudyConfigSpec(BaseModel):
+class StudyConfigSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     indices: t.Mapping[RelativeIndexColumnName, IndexColumnSpec]

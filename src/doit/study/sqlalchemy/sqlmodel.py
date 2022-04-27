@@ -17,7 +17,7 @@ from ...common.sqlalchemy import declarative_base, backref
 
 Base  = declarative_base()
 
-class CodeMapSql(Base):
+class CodemapSql(Base):
     __tablename__ = "__codemaps__"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
@@ -46,7 +46,7 @@ class ColumnEntrySql(Base):
     id = Column(Integer, primary_key=True)
     parent_measure_id = Column(Integer, ForeignKey(MeasureEntrySql.id))
     parent_column_id = Column(Integer, ForeignKey(id))
-    codemap_id = Column(Integer, ForeignKey(CodeMapSql.id))
+    codemap_id = Column(Integer, ForeignKey(CodemapSql.id))
     name = Column(String, nullable=False)
 
     type = Column(String, nullable=False)
@@ -59,6 +59,12 @@ class ColumnEntrySql(Base):
         "ColumnEntrySql",
         backref=backref("parent_node", remote_side=id),
         order_by="ColumnEntrySql.id",
+    )
+
+    instrument_entries: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
+        "InstrumentNodeSql",
+        backref=backref("column_entry", remote_side=id),
+        order_by="InstrumentNodeSql.id"        
     )
 
 class InstrumentEntrySql(Base):

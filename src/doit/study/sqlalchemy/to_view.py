@@ -1,6 +1,16 @@
 import typing as t
+from pydantic import parse_obj_as
+
+from ...common import ImmutableBaseModel
+
+from ...common.table import (
+    OrdinalLabel,
+    OrdinalTag,
+    OrdinalValue,
+)
+
 from .sqlmodel import (
-    CodeMapSql,
+    CodemapSql,
     ColumnEntrySql,
     InstrumentEntrySql,
     InstrumentNodeSql,
@@ -9,21 +19,23 @@ from .sqlmodel import (
 
 from ..view import (
     ConstantInstrumentNodeView,
+    GroupInstrumentNodeView,
     GroupMeasureNodeView,
     InstrumentNodeView,
     InstrumentView,
     MeasureNodeView,
     ColumnView,
     MeasureView,
+    OrdinalColumnView,
     OrdinalMeasureNodeView,
+    QuestionInstrumentNodeView,
     SimpleColumnView,
     SimpleMeasureNodeView,
-    OrdinalLabel,
-    OrdinalValue,
-    OrdinalTag,
+    CodemapView,
+    IndexColumnView,
 )
 
-def to_measureview(entry: MeasureEntrySql) -> MeasureView:
+def to_measureview(entry: MeasureEntrySql):
     return MeasureView(
         name=entry.name,
         title=entry.title,
@@ -33,71 +45,78 @@ def to_measureview(entry: MeasureEntrySql) -> MeasureView:
         ),
     )
 
-def to_ordinalmeasurenodeview(entry: ColumnEntrySql) -> OrdinalMeasureNodeView:
-    # TODO: Make types better?
-
-    class CodeMapValue(t.TypedDict):
+def to_codemapview(entry: CodemapSql) -> CodemapView:
+    class CodemapValue(ImmutableBaseModel):
         value: OrdinalValue
         tag: OrdinalTag
         text: OrdinalLabel
 
-    codemap: CodeMapSql | None = entry.codemap # type: ignore
-    
-    if not codemap:
-        raise Exception("Error: {} missing codemap".format(entry.name))
+    codemap_values = parse_obj_as(t.Tuple[CodemapValue, ...], entry.values)
 
-    codemap_values: t.Sequence[CodeMapValue] = codemap.values  # type: ignore
-
-    return OrdinalMeasureNodeView(
-        name=entry.name,
-        prompt=entry.prompt,
-        tag_map={i['value']: i['tag'] for i in codemap_values},
-        label_map={i['value']: i['text'] for i in codemap_values},
-        type=entry.type, # type: ignore
-        entity_type='ordinalmeasurenode',
+    return CodemapView(
+        tags={i.value: i.tag for i in codemap_values},
+        labels={i.value: i.text for i in codemap_values},
     )
-
-def to_simplemeasurenodeview(entry: ColumnEntrySql) -> SimpleMeasureNodeView:
-    return SimpleMeasureNodeView(
-        name=entry.name,
-        prompt=entry.prompt,
-        type=entry.type, # type: ignore
-        entity_type='simplemeasurenode',
-    )
-
-def to_groupmeasurenodeview(entry: ColumnEntrySql) -> GroupMeasureNodeView:
-    return GroupMeasureNodeView(
-        name=entry.name,
-        prompt=entry.prompt,
-        items=tuple(
-            to_measurenodeview(i) for i in entry.items
-        ),
-        entity_type='groupmeasurenode',
-    )
-
-VIEW_CONV_LOOKUP = {
-    "ordinal": to_ordinalmeasurenodeview,
-    "categorical": to_ordinalmeasurenodeview,
-    "text": to_simplemeasurenodeview,
-    "real": to_simplemeasurenodeview,
-    "integer": to_simplemeasurenodeview,
-    "group": to_groupmeasurenodeview,
-}
 
 def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
-    view_conv = VIEW_CONV_LOOKUP.get(entry.type)
-    if not view_conv:
-        raise Exception("Error: No view conversion for type {}".format(entry.type))
-    return view_conv(entry)
+    entry_type = entry.type
+    match entry_type:
+        case 'ordinal' | 'categorical':
+            codemap_sql: CodemapSql | None = entry.codemap # type: ignore
 
+            if not codemap_sql:
+                raise Exception("Error: missing codemap")
+
+            return OrdinalMeasureNodeView(
+                name=entry.name,
+                prompt=entry.prompt,
+                type=entry_type,
+                codes=to_codemapview(codemap_sql)
+            )
+        case 'text' | 'real' | 'integer':
+            return SimpleMeasureNodeView(
+                name=entry.name,
+                prompt=entry.prompt,
+                type=entry_type,
+            )
+        case 'group':
+            return GroupMeasureNodeView(
+                name=entry.name,
+                prompt=entry.prompt,
+                items=tuple(
+                    to_measurenodeview(i) for i in entry.items
+                ),
+            )
+        case _:
+            raise Exception("Error: No view conversion for type {}".format(entry.type))
 
 def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
-    return ConstantInstrumentNodeView(
-        value=entry.constant_value,
-        entity_type="constantinstrumentnode",
-    )
+    entry_type = entry.type
+    match entry_type:
+        case 'question':
+            return QuestionInstrumentNodeView(
+                prompt=entry.prompt,
+                source_column_name=entry.source_column_name,
+                map={},
+                column_info=to_columnview(entry.column_entry) if entry.column_entry else None, # type: ignore
+            )
+        case 'constant':
+            return ConstantInstrumentNodeView(
+                value=entry.constant_value,
+                column_info=to_columnview(entry.column_entry) if entry.column_entry else None, # type: ignore
+            )
+        case 'group':
+            return GroupInstrumentNodeView(
+                title=entry.title,
+                prompt=entry.prompt,
+                items=tuple(
+                    to_instrumentnodeview(i) for i in entry.items
+                )
+            )
+        case _:
+            raise Exception("Error: No view conversion for type {}".format(entry.type))
 
-def to_instrumentview(entry: InstrumentEntrySql) -> InstrumentView:
+def to_instrumentview(entry: InstrumentEntrySql):
     return InstrumentView(
         name=entry.name,
         title=entry.title,
@@ -108,11 +127,36 @@ def to_instrumentview(entry: InstrumentEntrySql) -> InstrumentView:
         ),
     )
 
-def to_columnview() -> ColumnView:
-    return SimpleColumnView(
-        name="stub.foo",
-        prompt="stub",
-        type="text",
-        entity_type='simplecolumn'
-    )
+def to_columnview(entry: ColumnEntrySql) -> ColumnView:
+    entry_type = entry.type
+    match entry_type:
+        case 'ordinal' | 'categorical' | 'index':
+            codemap_sql: CodemapSql | None = entry.codemap # type: ignore
+
+            if not codemap_sql:
+                raise Exception("Error: missing codemap")
+
+            if entry_type == 'index':
+                return IndexColumnView(
+                    name=entry.name,
+                    title=entry.title,
+                    codes=to_codemapview(codemap_sql)
+                )
+            else:
+                return OrdinalColumnView(
+                    name=entry.name,
+                    prompt=entry.prompt,
+                    type=entry_type,
+                    codes=to_codemapview(codemap_sql)
+                )
+
+        case 'real' | 'text' | 'integer':
+            return SimpleColumnView(
+                name=entry.name,
+                prompt=entry.prompt,
+                type=entry_type,
+            )
+
+        case _:
+            raise Exception("Error: unknown column type {}".format(entry_type))
 

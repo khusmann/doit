@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing as t
-from pydantic import BaseModel
+
+from ..common import ImmutableBaseModel
 
 from ..common.table import (
     OrdinalLabel,
@@ -8,26 +9,51 @@ from ..common.table import (
     OrdinalValue,
 )
 
-### InstrumentView - Info to populate an instrument's page
+### ColumnView
 
-class QuestionInstrumentNodeView(BaseModel):
+class CodemapView(ImmutableBaseModel):
+    tags: t.Mapping[OrdinalValue, OrdinalTag]
+    labels: t.Mapping[OrdinalValue, OrdinalLabel]
+
+class OrdinalColumnView(ImmutableBaseModel):
     name: str
     prompt: str
+    type: t.Literal['ordinal', 'categorical']
+    codes: CodemapView
+
+class IndexColumnView(ImmutableBaseModel):
+    name: str
+    title: str
+    description: t.Optional[str]
+    codes: CodemapView
+
+class SimpleColumnView(ImmutableBaseModel):
+    name: str
+    prompt: str
+    type: t.Literal['text', 'integer', 'real']
+
+ColumnView = t.Union[
+    OrdinalColumnView,
+    SimpleColumnView,
+    IndexColumnView,
+]
+
+### InstrumentView - Info to populate an instrument's page
+
+class QuestionInstrumentNodeView(ImmutableBaseModel):
+    prompt: str
     source_column_name: str
-#    column_info: ColumnView
+    column_info: t.Optional[ColumnView]
 #    map: 
-    entity_type: t.Literal['questioninstrumentnode']
 
-class ConstantInstrumentNodeView(BaseModel):
-#   column_info: ColumnView
+class ConstantInstrumentNodeView(ImmutableBaseModel):
     value: str
-    entity_type: t.Literal['constantinstrumentnode']
+    column_info: t.Optional[ColumnView]
 
-class GroupInstrumentNodeView(BaseModel):
+class GroupInstrumentNodeView(ImmutableBaseModel):
     title: t.Optional[str]
     prompt: t.Optional[str]
-    entity_type: t.Literal['groupinstrumentnode']
-    items: t.Tuple[GroupInstrumentNodeView, ...]
+    items: t.Tuple[InstrumentNodeView, ...]
 
 InstrumentNodeView = t.Union[
     QuestionInstrumentNodeView,
@@ -35,7 +61,7 @@ InstrumentNodeView = t.Union[
     GroupInstrumentNodeView,
 ]
 
-class InstrumentView(t.NamedTuple):
+class InstrumentView(ImmutableBaseModel):
     name: str
     title: str
     description: t.Optional[str]
@@ -49,33 +75,29 @@ class InstrumentView(t.NamedTuple):
 
 ### IndicesView - Info to populate the indices page
 
-class IndexItemView(BaseModel):
+class IndexItemView(ImmutableBaseModel):
     name: str
 
-class IndicesView(BaseModel):
+class IndicesView(ImmutableBaseModel):
     items: t.Tuple[str, ...]
 
 ### MeasureView - Info to populate a measure's page
 
-class OrdinalMeasureNodeView(BaseModel):
+class OrdinalMeasureNodeView(ImmutableBaseModel):
     name: str
     prompt: str
-    tag_map: t.Mapping[OrdinalValue, OrdinalTag]
-    label_map: t.Mapping[OrdinalValue, OrdinalLabel]
     type: t.Literal['ordinal', 'categorical']
-    entity_type: t.Literal['ordinalmeasurenode']
+    codes: CodemapView
 
-class SimpleMeasureNodeView(BaseModel):
+class SimpleMeasureNodeView(ImmutableBaseModel):
     name: str
     prompt: str
     type: t.Literal['text', 'integer', 'real']
-    entity_type: t.Literal['simplemeasurenode']
 
-class GroupMeasureNodeView(BaseModel):
+class GroupMeasureNodeView(ImmutableBaseModel):
     name: str
     prompt: str
     items: t.Tuple[MeasureNodeView, ...]
-    entity_type: t.Literal['groupmeasurenode']
 
 MeasureNodeView = t.Union[
     OrdinalMeasureNodeView,
@@ -83,32 +105,11 @@ MeasureNodeView = t.Union[
     GroupMeasureNodeView,
 ]
 
-class MeasureView(BaseModel):
+class MeasureView(ImmutableBaseModel):
     name: str
     title: str
     description: t.Optional[str]
     items: t.Tuple[MeasureNodeView, ...]
-
-### ColumnView
-
-class OrdinalColumnView(BaseModel):
-    name: str
-    prompt: str
-    type: t.Literal['ordinal', 'categorical', 'index']
-    tag_map: t.Mapping[OrdinalValue, OrdinalTag]
-    label_map: t.Mapping[OrdinalValue, OrdinalLabel]
-    entity_type: t.Literal['ordinalcolumn']
-
-class SimpleColumnView(BaseModel):
-    name: str
-    prompt: str
-    type: t.Literal['text', 'integer', 'real']
-    entity_type: t.Literal['simplecolumn']
-
-ColumnView = t.Union[
-    OrdinalColumnView,
-    SimpleColumnView,
-]
 
 GroupMeasureNodeView.update_forward_refs()
 GroupInstrumentNodeView.update_forward_refs()
