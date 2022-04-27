@@ -60,3 +60,45 @@ class ColumnEntrySql(Base):
         backref=backref("parent_node", remote_side=id),
         order_by="ColumnEntrySql.id",
     )
+
+class InstrumentEntrySql(Base):
+    __tablename__ = "__instrument_entries__"
+    id = Column(Integer, primary_key=True)
+#    studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
+    name = Column(String, nullable=False, unique=True)
+    title = Column(String)
+    description = Column(String)
+    instructions = Column(String)
+    source_service = Column(String)
+    source_title = Column(String)
+    data_checksum = Column(String)
+    schema_checksum = Column(String)
+
+    items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
+        "InstrumentNodeSql",
+        backref="parent_instrument",
+        order_by="InstrumentNodeSql.id",
+    )
+
+class InstrumentNodeSql(Base):
+    __tablename__ = "__instrument_nodes__"
+    id = Column(Integer, primary_key=True)
+    parent_node_id = Column(Integer, ForeignKey(id))
+    parent_instrument_id = Column(Integer, ForeignKey(InstrumentEntrySql.id))
+    column_entry_id = Column(Integer, ForeignKey(ColumnEntrySql.id))
+    source_column_name = Column(String)
+    source_column_type = Column(String)
+    source_prompt = Column(String)
+    type = Column(String, nullable=False)
+
+    source_value_map = Column(JSON)
+    title = Column(String)
+    prompt = Column(String)
+    constant_value = Column(String)
+
+    items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
+        "InstrumentNodeSql",
+        backref=backref("parent_node", remote_side=id),
+        order_by="InstrumentNodeSql.id",
+    )
+

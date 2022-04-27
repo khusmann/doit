@@ -2,11 +2,15 @@ import typing as t
 from .sqlmodel import (
     CodeMapSql,
     MeasureEntrySql,
-    ColumnEntrySql
+    ColumnEntrySql,
+    InstrumentEntrySql,
+    InstrumentNodeSql,
 )
 
 from ..spec import (
     CodeMapSpec,
+    InstrumentNodeSpec,
+    InstrumentSpec,
     MeasureSpec,
     MeasureNodeSpec,
     OrdinalMeasureItemSpec,
@@ -72,4 +76,25 @@ def sql_from_measurenode_spec(codemap_by_relname: t.Callable[[RelativeCodeMapNam
                 )
     return inner
 
+def sql_from_instrument_spec(spec: InstrumentSpec, name: str, column_by_name: t.Callable[[str], ColumnEntrySql]):
 
+    return InstrumentEntrySql(
+        name=name,
+        title=spec.title,
+        description=spec.description,
+        instructions=spec.instructions,
+        items=[
+            sql_from_instrumentnode_spec(column_by_name)(item)
+                for item in spec.items
+        ]
+    )
+
+def sql_from_instrumentnode_spec(column_by_name: t.Callable[[str], ColumnEntrySql]):
+    def inner(spec: InstrumentNodeSpec):
+        return InstrumentNodeSql(
+            prompt="asdf",            
+            constant_value="asdf",
+            type=spec.type,
+        )
+        
+    return inner

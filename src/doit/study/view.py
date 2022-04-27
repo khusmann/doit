@@ -11,13 +11,23 @@ from ..common.table import (
 ### InstrumentView - Info to populate an instrument's page
 
 class QuestionInstrumentNodeView(BaseModel):
-    pass
+    name: str
+    prompt: str
+    source_column_name: str
+#    column_info: ColumnView
+#    map: 
+    entity_type: t.Literal['questioninstrumentnode']
 
 class ConstantInstrumentNodeView(BaseModel):
-    pass
+#   column_info: ColumnView
+    value: str
+    entity_type: t.Literal['constantinstrumentnode']
 
 class GroupInstrumentNodeView(BaseModel):
-    pass
+    title: t.Optional[str]
+    prompt: t.Optional[str]
+    entity_type: t.Literal['groupinstrumentnode']
+    items: t.Tuple[GroupInstrumentNodeView, ...]
 
 InstrumentNodeView = t.Union[
     QuestionInstrumentNodeView,
@@ -101,3 +111,4 @@ ColumnView = t.Union[
 ]
 
 GroupMeasureNodeView.update_forward_refs()
+GroupInstrumentNodeView.update_forward_refs()

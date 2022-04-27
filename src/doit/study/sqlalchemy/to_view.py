@@ -2,11 +2,15 @@ import typing as t
 from .sqlmodel import (
     CodeMapSql,
     ColumnEntrySql,
+    InstrumentEntrySql,
+    InstrumentNodeSql,
     MeasureEntrySql,
 )
 
 from ..view import (
+    ConstantInstrumentNodeView,
     GroupMeasureNodeView,
+    InstrumentNodeView,
     InstrumentView,
     MeasureNodeView,
     ColumnView,
@@ -87,13 +91,21 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
     return view_conv(entry)
 
 
-def to_instrumentview() -> InstrumentView:
+def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
+    return ConstantInstrumentNodeView(
+        value=entry.constant_value,
+        entity_type="constantinstrumentnode",
+    )
+
+def to_instrumentview(entry: InstrumentEntrySql) -> InstrumentView:
     return InstrumentView(
-        name="stub",
-        title="stub",
-        description=None,
-        instructions=None,
-        nodes=(),
+        name=entry.name,
+        title=entry.title,
+        description=entry.description,
+        instructions=entry.instructions,
+        nodes=tuple(
+            to_instrumentnodeview(i) for i in entry.items
+        ),
     )
 
 def to_columnview() -> ColumnView:

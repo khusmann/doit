@@ -11,10 +11,13 @@ from ..repo import StudyRepoReader, StudyRepoWriter
 
 from .sqlmodel import (
     Base,
+    ColumnEntrySql,
+    InstrumentEntrySql,
     MeasureEntrySql,
 )
 
 from .from_spec import (
+    sql_from_instrument_spec,
     sql_from_measure_spec
 )
 
@@ -48,6 +51,15 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         for name, measure in spec.measures.items():
             session.add(sql_from_measure_spec(measure, name))
 
+        for name, instrument in spec.instruments.items():
+            session.add(
+                sql_from_instrument_spec(
+                    instrument,
+                    name,
+                    lambda x: session.get_by_name(ColumnEntrySql, x)
+                )
+            )
+
         session.commit()
 
         return SqlAlchemyRepo(engine)
@@ -56,7 +68,9 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         pass
 
     def query_instrument(self, instrument_name: str):
-        return to_instrumentview()
+        return to_instrumentview(
+            SessionWrapper(self.engine).get_by_name(InstrumentEntrySql, instrument_name)
+        )
 
     def query_measure(self, measure_name: str):
         return to_measureview(
