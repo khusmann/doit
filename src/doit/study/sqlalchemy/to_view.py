@@ -88,7 +88,7 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                 ),
             )
         case _:
-            raise Exception("Error: No view conversion for type {}".format(entry.type))
+            raise Exception("Error: Unknown measure node type {}".format(entry.type))
 
 def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
     entry_type = entry.type
@@ -114,7 +114,7 @@ def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
                 )
             )
         case _:
-            raise Exception("Error: No view conversion for type {}".format(entry.type))
+            raise Exception("Error: Unknown instrument node type {}".format(entry.type))
 
 def to_instrumentview(entry: InstrumentEntrySql):
     return InstrumentView(
