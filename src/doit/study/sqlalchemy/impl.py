@@ -1,7 +1,11 @@
 from __future__ import annotations
 import typing as t
 
-from sqlalchemy import create_engine, Table
+from sqlalchemy import (
+    create_engine,
+    MetaData,
+)
+
 from sqlalchemy.engine import Engine
 
 from ...common.sqlalchemy import SessionWrapper
@@ -16,6 +20,7 @@ from .sqlmodel import (
     InstrumentEntrySql,
     MeasureEntrySql,
     StudyTableSql,
+    metadata_from_studytables,
 )
 
 from .from_spec import (
@@ -34,21 +39,26 @@ from .to_view import (
 
 class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
     engine: Engine
-    datatables: t.Dict[str, Table]
+    datatable_metadata: MetaData
 
-    def __init__(self, engine: Engine):
+    def __init__(self, engine: Engine, datatable_metadata: MetaData):
         self.engine = engine
-        self.datatables = {}
+        self.datatable_metadata = datatable_metadata
+
+    @classmethod
+    def create_engine(cls, filename: str):
+        return create_engine("sqlite:///{}".format(filename))
 
     @classmethod
     def open(cls, filename: str = "") -> StudyRepoReader:
-        return cls(
-            create_engine("sqlite:///{}".format(filename)),
-        )
+        engine = cls.create_engine(filename)
+        session = SessionWrapper(engine)
+        datatable_metadata = metadata_from_studytables(session.get_all(StudyTableSql))
+        return cls(engine, datatable_metadata)
 
     @classmethod
     def new(cls, spec: StudySpec, filename: str = "") -> StudyRepoWriter:
-        engine = create_engine("sqlite:///{}".format(filename))
+        engine = cls.create_engine(filename)
         Base.metadata.create_all(engine)
 
         session = SessionWrapper(engine)
@@ -101,7 +111,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
             table = session.get_or_create_by_name(StudyTableSql, table_name)
 
-            table.columns.extend(all_columns)
+            table.columns.extend(i for i in all_columns if i not in table.columns)
             table.instruments.append(instrument)
 
         # Verify each column belongs to only one Studytable (TODO: Test this)
@@ -109,9 +119,13 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
             if len(column.studytables) > 1 and column.type != 'index':
                 raise Exception("Error: column {} found in muliple tables. Check the indices in the associated instruments".format(column.name))
 
-        session.commit()
+        datatable_metadata = metadata_from_studytables(session.get_all(StudyTableSql))
+        for table in datatable_metadata.tables.values():
+            table.create(engine)
 
-        return SqlAlchemyRepo(engine)
+        session.commit()
+        
+        return cls(engine, datatable_metadata)
         
     def write_table(self, table: str):
         pass

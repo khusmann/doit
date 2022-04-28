@@ -1,9 +1,8 @@
 from __future__ import annotations
-import typing as t
 
 from sqlalchemy import (
     create_engine,
-    Table,
+    MetaData,
 )
 
 from sqlalchemy.engine import Engine
@@ -12,12 +11,12 @@ from ...common.sqlalchemy import SessionWrapper
 from .sqlmodel import (
     Base,
     TableEntrySql,
+    setup_datatable,
 )
 
 from .conv import (
     render_tabledata,
     sql_from_tableinfo,
-    sqlschema_from_tableinfo,
     tabledata_from_sql,
     tableinfo_from_sql,
 )
@@ -34,11 +33,11 @@ from ..repo import (
 
 class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
     engine: Engine
-    datatables: t.Dict[str, Table]
+    datatable_metadata: MetaData
 
-    def __init__(self, engine: Engine, datatables: t.Mapping[str, Table]):
+    def __init__(self, engine: Engine, datatable_metadata: MetaData):
         self.engine = engine
-        self.datatables = dict(datatables)
+        self.datatable_metadata = datatable_metadata
 
     @classmethod
     def create_engine(cls, filename: str):
@@ -48,7 +47,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
     def new(cls, filename: str = "") -> SanitizedTableRepoWriter:
         engine = cls.create_engine(filename)
         Base.metadata.create_all(engine)
-        return cls(engine, {})
+        return cls(engine, MetaData())
 
     @classmethod
     def open(cls, filename: str = "") -> SanitizedTableRepoReader:
@@ -56,22 +55,23 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
 
         session = SessionWrapper(engine)
 
-        datatables = {
-            str(i.name): sqlschema_from_tableinfo(tableinfo_from_sql(i), str(i.name))
-                for i in session.get_all(TableEntrySql)
-        }
+        datatable_metadata = MetaData()
 
-        return cls(engine, datatables)
+        for i in session.get_all(TableEntrySql):
+            setup_datatable(i, str(i.name), datatable_metadata)
+
+        return cls(engine, datatable_metadata)
 
     def write_table(self, table: SanitizedTable, name: str):
-        self.datatables[name] = sqlschema_from_tableinfo(table.info, name)
-        self.datatables[name].create(self.engine)
-
         session = SessionWrapper(self.engine)
 
-        session.add(sql_from_tableinfo(table.info, name)) 
+        entry = sql_from_tableinfo(table.info, name)
+        session.add(entry) 
 
-        session.insert_rows(self.datatables[name], render_tabledata(table))
+        new_table = setup_datatable(entry, name, self.datatable_metadata)
+        new_table.create(self.engine)
+
+        session.insert_rows(new_table, render_tabledata(table))
 
         session.commit()
 
@@ -80,14 +80,14 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         return tableinfo_from_sql(session.get_by_name(TableEntrySql, name))
 
     def read_table(self, name: str) -> SanitizedTable:
-        if name not in self.datatables:
+        if name not in self.datatable_metadata.tables:
             raise Exception("Error: No schema for {}".format(name))
         
         session = SessionWrapper(self.engine)
         
         info = tableinfo_from_sql(session.get_by_name(TableEntrySql, name))
 
-        raw_rows = session.get_rows(self.datatables[name])
+        raw_rows = session.get_rows(self.datatable_metadata.tables[name])
 
         data = tabledata_from_sql(info.columns, raw_rows) 
 

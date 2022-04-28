@@ -5,6 +5,8 @@ from sqlalchemy import (
     Integer,
     String,
     ForeignKey,
+    MetaData,
+    Table,
 )
 
 from sqlalchemy.orm import (
@@ -15,6 +17,24 @@ from sqlalchemy.orm import (
 from ...common.sqlalchemy import declarative_base
 
 Base = declarative_base()
+
+COLUMN_TYPE_LOOKUP = {
+    'ordinal': Integer,
+    'multiselect': String,
+    'text': String,
+}
+
+def setup_datatable(table: TableEntrySql, name: str, metadata: MetaData) -> Table:
+    return Table(
+        name,
+        metadata,
+        *[
+            Column(
+                i.name,
+                COLUMN_TYPE_LOOKUP[i.type],
+            ) for i in table.columns
+        ]
+    )
 
 class TableEntrySql(Base):
     __tablename__ = "__table_entries__"

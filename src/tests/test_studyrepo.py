@@ -38,7 +38,7 @@ def test_add_instrument(seed: int):
     assert isinstance(repo, SqlAlchemyRepo)
 
     print(repo.query_instrument(instrument_names[0]).json(indent=3))
-
+    
     #assert 5==6
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -54,5 +54,5 @@ def test_studytable(seed: int):
     assert isinstance(repo, SqlAlchemyRepo)
 
     print(repo.query_studytable_by_instrument(instrument_names[1]).json(indent=3))
-
-    assert 5==6
+    
+    #assert 5==6

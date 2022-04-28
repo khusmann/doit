@@ -2,13 +2,6 @@ from __future__ import annotations
 import typing as t
 import json
 
-from sqlalchemy import (
-    Table,
-    Column,
-    Integer,
-    String,
-)
-
 from ...common.table import (
     Omitted,
     Some,
@@ -19,7 +12,6 @@ from ...common.table import (
 )
 
 from .sqlmodel import (
-    Base,
     TableEntrySql,
     ColumnEntrySql,
 )
@@ -32,12 +24,6 @@ from ..model import (
     SanitizedTable,
     SanitizedTableData,
 )
-
-COLUMN_TYPE_LOOKUP = {
-    'ordinal': Integer,
-    'multiselect': String,
-    'text': String,
-}
 
 def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: t.Sequence[t.Any]):
     return SanitizedTableData(
@@ -79,18 +65,6 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
             return int(v.value)
         case 'multiselect':
             return json.dumps(v.value)
-
-def sqlschema_from_tableinfo(table: SanitizedTableInfo, name: str) -> Table:
-    return Table(
-        name,
-        Base.metadata,
-        *[
-            Column(
-                i.id.name,
-                COLUMN_TYPE_LOOKUP[i.type],
-            ) for i in table.columns
-        ]
-    )
 
 def sql_from_tableinfo(info: SanitizedTableInfo, name: str) -> TableEntrySql:
     return TableEntrySql(
