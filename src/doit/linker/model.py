@@ -17,6 +17,10 @@ FromFn = t.Callable[[SanitizedTableRowView], TableValue]
 ToFn = t.Callable[[TableValue], LinkedTableRowView]
 
 class Linker(t.NamedTuple):
+    dst_col_ids: t.Tuple[LinkedColumnId, ...]
     from_src: FromFn
     to_dst: ToFn
-    dst_col_ids: t.Tuple[LinkedColumnId, ...]
+
+class InstrumentLinker(t.NamedTuple):
+    studytable_name: str
+    linkers: t.Tuple[Linker, ...]

@@ -1,5 +1,3 @@
-import typing as t
-
 from .sqlmodel import (
     CodemapSql,
     ColumnEntrySql,
@@ -35,6 +33,7 @@ from ..view import (
     QuestionSrcLink,
     StudyTableView,
     LinkerSpec,
+    InstrumentLinkerSpec,
 )
 
 
@@ -126,24 +125,27 @@ def to_instrumentview(entry: InstrumentEntrySql):
 def to_columnview(entry: ColumnEntrySql) -> ColumnView:
     studytable_name = entry.studytables[0].name if len(entry.studytables) == 1 else None
     match entry.type:
-        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.INDEX:
+        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL:
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
-            if entry.type == ColumnEntryType.INDEX:
-                return IndexColumnView(
-                    name=entry.name,
-                    title=entry.title,
-                    codes=to_codemapview(entry.codemap)
-                )
-            else:
-                return OrdinalColumnView(
-                    name=entry.name,
-                    prompt=entry.prompt,
-                    type=entry.type.value,
-                    studytable_name=studytable_name,
-                    codes=to_codemapview(entry.codemap)
-                )
+            return OrdinalColumnView(
+                name=entry.name,
+                prompt=entry.prompt,
+                type=entry.type.value,
+                studytable_name=studytable_name,
+                codes=to_codemapview(entry.codemap)
+            )
+
+        case ColumnEntryType.INDEX:
+            if not entry.codemap:
+                raise Exception("Error: missing codemap")
+
+            return IndexColumnView(
+                name=entry.name,
+                title=entry.title,
+                codes=to_codemapview(entry.codemap)
+            )
 
         case ColumnEntryType.REAL | ColumnEntryType.TEXT | ColumnEntryType.INTEGER:
             return SimpleColumnView(
@@ -196,12 +198,14 @@ def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
         case _:
             raise Exception("Error: cannot link to type {}".format(entry.type))
 
-def to_linkers(entry: InstrumentEntrySql) -> t.Tuple[LinkerSpec, ...]:
-    return tuple(
-        LinkerSpec(
-            src=to_srcconnectionview(i),
-            dst=to_dstconnectionview(i.column_entry),
-        ) for i in entry.items
-            if i.source_column_name is not None and i.column_entry is not None
+def to_instrumentlinkerspec(entry: InstrumentEntrySql):
+    return InstrumentLinkerSpec(
+        studytable_name=entry.name,
+        linker_specs=tuple(
+            LinkerSpec(
+                src=to_srcconnectionview(i),
+                dst=to_dstconnectionview(i.column_entry),
+            ) for i in entry.items
+                if i.source_column_name is not None and i.column_entry is not None
+        ),
     )
-

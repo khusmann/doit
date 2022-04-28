@@ -159,5 +159,9 @@ class LinkerSpec(t.NamedTuple):
     src: SrcLink
     dst: DstLink
 
+class InstrumentLinkerSpec(t.NamedTuple):
+    studytable_name: str
+    linker_specs: t.Tuple[LinkerSpec, ...]
+
 GroupMeasureNodeView.update_forward_refs()
 GroupInstrumentNodeView.update_forward_refs()

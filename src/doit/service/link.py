@@ -12,14 +12,16 @@ from ..common.table import (
 from ..linker.model import (
     FromFn,
     ToFn,
-    Linker
+    Linker,
+    InstrumentLinker,
 )
 
 from ..study.view import (
     DstLink,
+    InstrumentLinkerSpec,
+    LinkerSpec,
     OrdinalDstLink,
     SimpleDstLink,
-    LinkerSpec,
     SrcLink,
     ConstantSrcLink,
     QuestionSrcLink,
@@ -38,7 +40,7 @@ from ..study.model import (
     LinkedColumnId,
 )
 
-def from_question(src: QuestionSrcLink, column_info: SanitizedColumnInfo) -> FromFn:
+def from_question(column_info: SanitizedColumnInfo, src: QuestionSrcLink ) -> FromFn:
     src_name = SanitizedColumnId(src.source_column_name)
     match column_info:
         case SanitizedColumnInfo():
@@ -48,15 +50,15 @@ def from_question(src: QuestionSrcLink, column_info: SanitizedColumnInfo) -> Fro
             return from_text
 
 def from_src(
+    column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo],
     src: SrcLink,
-    column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo]
 ) -> FromFn:
     match src:
         case QuestionSrcLink():
             column_info = column_lookup.get(SanitizedColumnId(src.source_column_name))
             if not column_info:
                 raise Exception("Error: cannot find column in instrument source table ({})".format(src.source_column_name))
-            return from_question(src, column_info)
+            return from_question(column_info, src)
         case ConstantSrcLink():
             def from_constant(_: SanitizedTableRowView):
                 return Some(src.constant_value)
@@ -90,26 +92,32 @@ def to_dst(dst: DstLink) -> ToFn:
         case SimpleDstLink():
             return to_simple(dst)
 
-def link_tableinfo(info: SanitizedTableInfo, linker_specs: t.Sequence[LinkerSpec]) -> t.Tuple[Linker, ...]:
-    column_lookup = { i.id: i for i in info.columns }
-    return tuple(
-        Linker(
-            from_src=from_src(linker_spec.src, column_lookup),
-            to_dst=to_dst(linker_spec.dst),
-            dst_col_ids=(LinkedColumnId(linker_spec.dst.linked_name),)
-        ) for linker_spec in linker_specs
+def linker_from_spec(column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo], spec: LinkerSpec):
+    match spec.dst:
+        case OrdinalDstLink() | SimpleDstLink():
+            return Linker(
+                dst_col_ids=(LinkedColumnId(spec.dst.linked_name),),
+                from_src=from_src(column_lookup, spec.src),
+                to_dst=to_dst(spec.dst),
+            )
+
+def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:
+    column_lookup = { c.id: c for c in tableinfo.columns }
+    return InstrumentLinker(
+        studytable_name=instrumentlinker_spec.studytable_name,
+        linkers=tuple(linker_from_spec(column_lookup, rowlinker_spec) for rowlinker_spec in instrumentlinker_spec.linker_specs),
     )
 
-def link_tabledata(table: SanitizedTableData, linkers: t.Sequence[Linker]) -> LinkedTableData:
+def link_tabledata(table: SanitizedTableData, instrument_linker: InstrumentLinker) -> LinkedTableData:
     dst_column_ids = tuple(
         i
-            for linker in linkers
-                for i in linker.dst_col_ids
+            for row_linker in instrument_linker.linkers
+                for i in row_linker.dst_col_ids
     )
 
     rows = tuple(
         LinkedTableRowView.combine_views(
-            *(linker.to_dst(linker.from_src(row)) for linker in linkers)
+            *(row_linker.to_dst(row_linker.from_src(row)) for row_linker in instrument_linker.linkers)
         ) for row in table.rows
     )
 

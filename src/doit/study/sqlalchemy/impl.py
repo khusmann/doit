@@ -36,7 +36,7 @@ from .to_view import (
     to_measureview,
     to_columnview,
     to_studytableview,
-    to_linkers,
+    to_instrumentlinkerspec,
 )
 
 class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
@@ -152,13 +152,17 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
     def query_studytable_by_instrument(self, instrument_name: str): # TODO return type Linker
         session = SessionWrapper(self.engine)
         instrument = session.get_by_name(InstrumentEntrySql, instrument_name)
+
+        if instrument.studytable is None:
+            raise Exception("Error: Instrument {} is not connected to a StudyTable".format(instrument_name))
+
         return to_studytableview(
             instrument.studytable
         )
 
-    def query_linkers(self, instrument_name: str):
+    def query_instrumentlinkerspec(self, instrument_name: str):
         session = SessionWrapper(self.engine)
-        return to_linkers(
+        return to_instrumentlinkerspec(
             session.get_by_name(InstrumentEntrySql, instrument_name)
         )
     

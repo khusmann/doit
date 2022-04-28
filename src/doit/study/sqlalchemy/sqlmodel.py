@@ -85,12 +85,12 @@ class ColumnEntrySql(Base):
         back_populates="columns",
     )
 
-    parent_measure: RelationshipProperty[MeasureEntrySql] = relationship(
+    parent_measure: RelationshipProperty[MeasureEntrySql | None] = relationship(
         "MeasureEntrySql",
         back_populates="items",
     )
 
-    codemap: RelationshipProperty[CodemapSql] = relationship(
+    codemap: RelationshipProperty[CodemapSql | None] = relationship(
         "CodemapSql",
         back_populates="column_entries"
     )
@@ -160,7 +160,7 @@ class InstrumentEntrySql(Base):
     data_checksum = Column(String)
     schema_checksum = Column(String)
 
-    studytable: RelationshipProperty[StudyTableSql] = relationship(
+    studytable: RelationshipProperty[StudyTableSql | None] = relationship(
         "StudyTableSql",
     )
 
@@ -191,12 +191,12 @@ class InstrumentNodeSql(Base):
         order_by="InstrumentNodeSql.id",
     )
 
-    parent_instrument: RelationshipProperty[InstrumentEntrySql] = relationship(
+    parent_instrument: RelationshipProperty[InstrumentEntrySql | None] = relationship(
         "InstrumentEntrySql",
         back_populates="items",
     )
 
-    column_entry: RelationshipProperty[ColumnEntrySql] = relationship(
+    column_entry: RelationshipProperty[ColumnEntrySql | None] = relationship(
         "ColumnEntrySql",
         back_populates="instrument_nodes",
     )
