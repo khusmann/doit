@@ -17,6 +17,7 @@ from .sqlmodel import (
     Base,
     CodemapSql,
     ColumnEntrySql,
+    ColumnEntryType,
     InstrumentEntrySql,
     MeasureEntrySql,
     StudyTableSql,
@@ -107,7 +108,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
                         if i.column_entry is not None
             ]
 
-            index_columns = [i for i in all_columns if i.type == 'index']
+            index_columns = [i for i in all_columns if i.type == ColumnEntryType.INDEX]
 
             if not index_columns:
                 raise Exception("Error: instrument {} has no indices".format(instrument.name))
@@ -121,7 +122,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         # Verify each column belongs to only one Studytable (TODO: Test this)
         for column in session.get_all(ColumnEntrySql):
-            if len(column.studytables) > 1 and column.type != 'index':
+            if len(column.studytables) > 1 and column.type != ColumnEntryType.INDEX:
                 raise Exception("Error: column {} found in muliple tables. Check the indices in the associated instruments".format(column.name))
 
         datatable_metadata = MetaData()

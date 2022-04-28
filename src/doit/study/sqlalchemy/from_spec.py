@@ -1,6 +1,7 @@
 import typing as t
 from .sqlmodel import (
     CodemapSql,
+    ColumnEntryType,
     MeasureEntrySql,
     ColumnEntrySql,
     InstrumentEntrySql,
@@ -38,9 +39,26 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
         shortname=index_name,
         title=spec.title,
         description=spec.description,
-        type='index',
+        type=ColumnEntryType.INDEX,
         codemap=sql_from_codemap_spec(spec.values, "indices", index_name),
     )
+
+def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
+    match spec.type:
+        case 'group':
+            return ColumnEntryType.GROUP
+        case 'real':
+            return ColumnEntryType.REAL
+        case 'categorical':
+            return ColumnEntryType.CATEGORICAL
+        case 'ordinal':
+            return ColumnEntryType.ORDINAL
+        case 'integer':
+            return ColumnEntryType.INTEGER
+        case 'text':
+            return ColumnEntryType.TEXT
+        case 'multiselect':
+            raise Exception("Error: multiselect not implemented yet")
 
 class AddMeasureContext(t.NamedTuple):
     get_codemap_by_relname: t.Callable[[RelativeCodeMapName], CodemapSql]
@@ -63,7 +81,7 @@ class AddMeasureContext(t.NamedTuple):
                             raise Exception("Error: Cannot find codemap: {}".format(spec.codes))
                         return [ColumnEntrySql(
                             name=name,
-                            type=spec.type,
+                            type=sql_columnentrytype(spec),
                             prompt=spec.prompt,
                             codemap=codemap,
                         )]
@@ -71,7 +89,7 @@ class AddMeasureContext(t.NamedTuple):
                         return [ColumnEntrySql(
                             name=name,
                             prompt=spec.prompt,
-                            type=spec.type,
+                            type=sql_columnentrytype(spec),
                         )]
                     case MultiselectItemSpec():
                         raise Exception("Error: MultiselectItemSpec not implemented")
@@ -79,7 +97,7 @@ class AddMeasureContext(t.NamedTuple):
                         items=self.sql_from_measurenode_spec(spec.items, name)
                         return [ColumnEntrySql(
                             name=name,
-                            type=spec.type,
+                            type=sql_columnentrytype(spec),
                             prompt=spec.prompt,
                             items=items,
                         ), *items]

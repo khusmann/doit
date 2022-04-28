@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing as t
+import enum
 from sqlalchemy import (
     Column,
     Integer,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     Table,
     Float,
     MetaData,
+    Enum,
 )
 
 from sqlalchemy.orm import (
@@ -19,27 +21,6 @@ from sqlalchemy.orm import (
 from ...common.sqlalchemy import declarative_base, backref
 
 Base = declarative_base()
-
-COLUMN_TYPE_LOOKUP = {
-    'index': Integer,
-    'text': String,
-    'real': Float,
-    'integer': Integer,
-    'categorical': Integer,
-    'ordinal': Integer,
-}
-
-def setup_datatable(metadata: MetaData, table: StudyTableSql):
-    return Table(
-        table.name,
-        metadata,
-        *[
-            Column(
-                i.name,
-                COLUMN_TYPE_LOOKUP[i.type],
-            ) for i in table.columns
-        ]
-    )
 
 class CodemapSql(Base):
     __tablename__ = "__codemaps__"
@@ -63,6 +44,15 @@ class MeasureEntrySql(Base):
         order_by="ColumnEntrySql.id",
     )
 
+class ColumnEntryType(enum.Enum):
+    ORDINAL = 'ordinal'
+    CATEGORICAL = 'categorical'
+    TEXT = 'text'
+    REAL = 'real'
+    INTEGER = 'integer'
+    GROUP = 'group'
+    INDEX = 'index'
+
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries__"
     id = Column(Integer, primary_key=True)
@@ -72,7 +62,7 @@ class ColumnEntrySql(Base):
     name = Column(String, nullable=False)
     shortname = Column(String)
 
-    type = Column(String, nullable=False)
+    type = t.cast(Column[ColumnEntryType], Column(Enum(ColumnEntryType), nullable=False))
 
     prompt = Column(String)
     title = Column(String)
@@ -103,6 +93,34 @@ class ColumnEntrySql(Base):
     codemap: RelationshipProperty[CodemapSql] = relationship(
         "CodemapSql",
         back_populates="column_entries"
+    )
+
+def datatablecolumn_from_columnentrytype(type: ColumnEntryType):
+    match type:
+        case (
+            ColumnEntryType.INDEX |
+            ColumnEntryType.INTEGER |
+            ColumnEntryType.CATEGORICAL |
+            ColumnEntryType.ORDINAL
+        ):
+            return Integer
+        case ColumnEntryType.TEXT:
+            return String
+        case ColumnEntryType.REAL:
+            return Float
+        case ColumnEntryType.GROUP:
+            raise Exception("Error: cannot make a datatable column from a column group")
+
+def setup_datatable(metadata: MetaData, table: StudyTableSql):
+    return Table(
+        table.name,
+        metadata,
+        *[
+            Column(
+                i.name,
+                datatablecolumn_from_columnentrytype(i.type),
+            ) for i in table.columns
+        ]
     )
 
 class StudyTableSql(Base):
