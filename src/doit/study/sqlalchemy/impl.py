@@ -20,7 +20,7 @@ from .sqlmodel import (
     InstrumentEntrySql,
     MeasureEntrySql,
     StudyTableSql,
-    metadata_from_studytables,
+    setup_datatable,
 )
 
 from .from_spec import (
@@ -53,7 +53,11 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
     def open(cls, filename: str = "") -> StudyRepoReader:
         engine = cls.create_engine(filename)
         session = SessionWrapper(engine)
-        datatable_metadata = metadata_from_studytables(session.get_all(StudyTableSql))
+
+        datatable_metadata = MetaData()
+        for entry in session.get_all(StudyTableSql):
+            setup_datatable(datatable_metadata, entry)
+
         return cls(engine, datatable_metadata)
 
     @classmethod
@@ -119,8 +123,9 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
             if len(column.studytables) > 1 and column.type != 'index':
                 raise Exception("Error: column {} found in muliple tables. Check the indices in the associated instruments".format(column.name))
 
-        datatable_metadata = metadata_from_studytables(session.get_all(StudyTableSql))
-        for table in datatable_metadata.tables.values():
+        datatable_metadata = MetaData()
+        for entry in session.get_all(StudyTableSql):
+            table = setup_datatable(datatable_metadata, entry)
             table.create(engine)
 
         session.commit()

@@ -58,7 +58,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         datatable_metadata = MetaData()
 
         for i in session.get_all(TableEntrySql):
-            setup_datatable(i, str(i.name), datatable_metadata)
+            setup_datatable(datatable_metadata, i)
 
         return cls(engine, datatable_metadata)
 
@@ -68,7 +68,7 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         entry = sql_from_tableinfo(table.info, name)
         session.add(entry) 
 
-        new_table = setup_datatable(entry, name, self.datatable_metadata)
+        new_table = setup_datatable(self.datatable_metadata, entry)
         new_table.create(self.engine)
 
         session.insert_rows(new_table, render_tabledata(table))

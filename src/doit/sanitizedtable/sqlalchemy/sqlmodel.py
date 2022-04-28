@@ -24,9 +24,9 @@ COLUMN_TYPE_LOOKUP = {
     'text': String,
 }
 
-def setup_datatable(table: TableEntrySql, name: str, metadata: MetaData) -> Table:
+def setup_datatable(metadata: MetaData, table: TableEntrySql) -> Table:
     return Table(
-        name,
+        table.name,
         metadata,
         *[
             Column(

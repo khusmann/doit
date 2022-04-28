@@ -29,20 +29,17 @@ COLUMN_TYPE_LOOKUP = {
     'ordinal': Integer,
 }
 
-def metadata_from_studytables(tables: t.Sequence[StudyTableSql]):
-    metadata = MetaData()
-    for table in tables:
-        Table(
-            table.name,
-            metadata,
-            *[
-                Column(
-                    i.name,
-                    COLUMN_TYPE_LOOKUP[i.type],
-                ) for i in table.columns
-            ]
-        )
-    return metadata
+def setup_datatable(metadata: MetaData, table: StudyTableSql):
+    return Table(
+        table.name,
+        metadata,
+        *[
+            Column(
+                i.name,
+                COLUMN_TYPE_LOOKUP[i.type],
+            ) for i in table.columns
+        ]
+    )
 
 class CodemapSql(Base):
     __tablename__ = "__codemaps__"
