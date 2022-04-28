@@ -11,12 +11,21 @@ from ..common.table import (
 
 ### ColumnView
 
+class CodemapValue(ImmutableBaseModel):
+    value: OrdinalValue
+    tag: OrdinalTag
+    text: OrdinalLabel
+
+class CodemapRaw(ImmutableBaseModel):
+    values: t.Tuple[CodemapValue, ...]
+
 class CodemapView(ImmutableBaseModel):
     tags: t.Mapping[OrdinalValue, OrdinalTag]
     labels: t.Mapping[OrdinalValue, OrdinalLabel]
 
 class OrdinalColumnView(ImmutableBaseModel):
     name: str
+    studytable_name: t.Optional[str]
     prompt: str
     type: t.Literal['ordinal', 'categorical']
     codes: CodemapView
@@ -29,6 +38,7 @@ class IndexColumnView(ImmutableBaseModel):
 
 class SimpleColumnView(ImmutableBaseModel):
     name: str
+    studytable_name: t.Optional[str]
     prompt: str
     type: t.Literal['text', 'integer', 'real']
 
@@ -47,7 +57,7 @@ class QuestionInstrumentNodeView(ImmutableBaseModel):
 #    map: 
 
 class ConstantInstrumentNodeView(ImmutableBaseModel):
-    value: str
+    constant_value: str
     column_info: t.Optional[ColumnView]
 
 class GroupInstrumentNodeView(ImmutableBaseModel):
@@ -116,6 +126,38 @@ class MeasureView(ImmutableBaseModel):
 class StudyTableView(ImmutableBaseModel):
     name: str
     columns: t.Tuple[ColumnView, ...]
+
+
+### LinkerView
+
+class QuestionSrcLink(ImmutableBaseModel):
+    source_column_name: str
+    source_value_map: t.Mapping[str, str]
+
+class ConstantSrcLink(ImmutableBaseModel):
+    constant_value: str
+
+SrcLink = t.Union[
+    QuestionSrcLink,
+    ConstantSrcLink,
+]
+
+class OrdinalDstLink(ImmutableBaseModel):
+    linked_name: str
+    value_from_tag: t.Mapping[str, int] 
+
+class SimpleDstLink(ImmutableBaseModel):
+    linked_name: str
+    type: t.Literal['text', 'real', 'integer']
+
+DstLink = t.Union[
+    OrdinalDstLink,
+    SimpleDstLink,
+]
+
+class LinkerSpec(t.NamedTuple):
+    src: SrcLink
+    dst: DstLink
 
 GroupMeasureNodeView.update_forward_refs()
 GroupInstrumentNodeView.update_forward_refs()

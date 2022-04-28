@@ -47,7 +47,10 @@ class LookupSanitizerMiss(t.NamedTuple):
     lookup: t.Any
     sanitizer_map: t.Any
 
-ErrorReason = ColumnNotFoundInRow | LookupSanitizerMiss
+class IncorrectTypeError(t.NamedTuple):
+    value: t.Any
+
+ErrorReason = ColumnNotFoundInRow | LookupSanitizerMiss | IncorrectTypeError
 
 class ErrorValue:
     stack: traceback.StackSummary

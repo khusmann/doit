@@ -35,7 +35,7 @@ from ..sanitizedtable.model import (
 #    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
 
 def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> SanitizedTableRowView:
-    row_subset = row.subset(sanitizer.key_col_ids)
+    row_subset = row.subset(sanitizer.key_col_ids) # TODO: Only subset in the case of LookupSanitizer
 
     # If any row keys are Error, return that Error for all new vals
     error = next((v for v in row_subset.values() if isinstance(v, ErrorValue)), None)

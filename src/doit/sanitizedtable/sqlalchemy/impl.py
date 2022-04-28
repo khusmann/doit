@@ -56,7 +56,6 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         session = SessionWrapper(engine)
 
         datatable_metadata = MetaData()
-
         for i in session.get_all(TableEntrySql):
             setup_datatable(datatable_metadata, i)
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import typing as t
 from abc import ABC, abstractmethod
 
 from .spec import StudySpec
@@ -8,6 +9,7 @@ from .view import (
     MeasureView,
     ColumnView,
     StudyTableView,
+    LinkerSpec,
 )
 
 class StudyRepoWriter(ABC):
@@ -23,6 +25,9 @@ class StudyRepoReader(ABC):
 
     @abstractmethod
     def query_studytable_by_instrument(self, instrument_name: str) -> StudyTableView: ...
+
+    @abstractmethod
+    def query_linkers(self, instrument_name: str) -> t.Tuple[LinkerSpec, ...]: ...
 
     @abstractmethod
     def query_instrument(self, instrument_name: str) -> InstrumentView: ...

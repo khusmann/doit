@@ -35,6 +35,7 @@ from .to_view import (
     to_measureview,
     to_columnview,
     to_studytableview,
+    to_linkers,
 )
 
 class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
@@ -152,6 +153,12 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         instrument = session.get_by_name(InstrumentEntrySql, instrument_name)
         return to_studytableview(
             instrument.studytable
+        )
+
+    def query_linkers(self, instrument_name: str):
+        session = SessionWrapper(self.engine)
+        return to_linkers(
+            session.get_by_name(InstrumentEntrySql, instrument_name)
         )
     
     def query_column(self, column_name: str):

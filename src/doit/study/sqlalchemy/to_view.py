@@ -1,13 +1,4 @@
 import typing as t
-from pydantic import parse_obj_as
-
-from ...common import ImmutableBaseModel
-
-from ...common.table import (
-    OrdinalLabel,
-    OrdinalTag,
-    OrdinalValue,
-)
 
 from .sqlmodel import (
     CodemapSql,
@@ -19,7 +10,11 @@ from .sqlmodel import (
 )
 
 from ..view import (
+    CodemapRaw,
     ConstantInstrumentNodeView,
+    DstLink,
+    OrdinalDstLink,
+    SimpleDstLink,
     GroupInstrumentNodeView,
     GroupMeasureNodeView,
     InstrumentNodeView,
@@ -34,8 +29,13 @@ from ..view import (
     SimpleMeasureNodeView,
     CodemapView,
     IndexColumnView,
+    SrcLink,
+    ConstantSrcLink,
+    QuestionSrcLink,
     StudyTableView,
+    LinkerSpec,
 )
+
 
 def to_measureview(entry: MeasureEntrySql):
     return MeasureView(
@@ -49,21 +49,15 @@ def to_measureview(entry: MeasureEntrySql):
     )
 
 def to_codemapview(entry: CodemapSql) -> CodemapView:
-    class CodemapValue(ImmutableBaseModel):
-        value: OrdinalValue
-        tag: OrdinalTag
-        text: OrdinalLabel
-
-    codemap_values = parse_obj_as(t.Tuple[CodemapValue, ...], entry.values)
+    codemap = CodemapRaw.parse_obj({ 'values': entry.values })
 
     return CodemapView(
-        tags={i.value: i.tag for i in codemap_values},
-        labels={i.value: i.text for i in codemap_values},
+        tags={i.value: i.tag for i in codemap.values},
+        labels={i.value: i.text for i in codemap.values},
     )
 
 def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
-    entry_type = entry.type
-    match entry_type:
+    match entry.type:
         case 'ordinal' | 'categorical':
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
@@ -71,14 +65,14 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
             return OrdinalMeasureNodeView(
                 name=entry.name,
                 prompt=entry.prompt,
-                type=entry_type,
+                type=entry.type,
                 codes=to_codemapview(entry.codemap)
             )
         case 'text' | 'real' | 'integer':
             return SimpleMeasureNodeView(
                 name=entry.name,
                 prompt=entry.prompt,
-                type=entry_type,
+                type=entry.type,
             )
         case 'group':
             return GroupMeasureNodeView(
@@ -92,8 +86,7 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
             raise Exception("Error: Unknown measure node type {}".format(entry.type))
 
 def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
-    entry_type = entry.type
-    match entry_type:
+    match entry.type:
         case 'question':
             return QuestionInstrumentNodeView(
                 prompt=entry.prompt,
@@ -103,7 +96,7 @@ def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
             )
         case 'constant':
             return ConstantInstrumentNodeView(
-                value=entry.constant_value,
+                constant_value=entry.constant_value,
                 column_info=to_columnview(entry.column_entry) if entry.column_entry else None,
             )
         case 'group':
@@ -130,13 +123,13 @@ def to_instrumentview(entry: InstrumentEntrySql):
     )
 
 def to_columnview(entry: ColumnEntrySql) -> ColumnView:
-    entry_type = entry.type
-    match entry_type:
+    studytable_name = entry.studytables[0].name if len(entry.studytables) == 1 else None
+    match entry.type:
         case 'ordinal' | 'categorical' | 'index':
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
-            if entry_type == 'index':
+            if entry.type == 'index':
                 return IndexColumnView(
                     name=entry.name,
                     title=entry.title,
@@ -146,7 +139,8 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 return OrdinalColumnView(
                     name=entry.name,
                     prompt=entry.prompt,
-                    type=entry_type,
+                    type=entry.type,
+                    studytable_name=studytable_name,
                     codes=to_codemapview(entry.codemap)
                 )
 
@@ -154,15 +148,59 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
             return SimpleColumnView(
                 name=entry.name,
                 prompt=entry.prompt,
-                type=entry_type,
+                studytable_name=studytable_name,
+                type=entry.type,
             )
 
         case _:
-            raise Exception("Error: unknown column type {}".format(entry_type))
+            raise Exception("Error: unknown column type {}".format(entry.type))
 
 def to_studytableview(entry: StudyTableSql) -> StudyTableView:
     return StudyTableView(
         name=entry.name,
         columns=tuple(to_columnview(i) for i in entry.columns),
+    )
+
+def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
+    match entry.type:
+        case "question":
+            return QuestionSrcLink(
+                source_column_name=entry.source_column_name,
+                source_value_map=entry.source_value_map,
+            )
+        case "constant":
+            return ConstantSrcLink(
+                constant_value=entry.constant_value,
+            )
+        case _:
+            raise Exception("Error: cannot link from type {}".format(entry.type))
+
+def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
+    match entry.type:
+        case "ordinal" | "categorical" | "index":
+            if not entry.codemap:
+                raise Exception("Error: ordinal column {} missing codemap".format(entry.name))
+
+            codemap = CodemapRaw.parse_obj({ 'values': entry.codemap.values })
+
+            return OrdinalDstLink(
+                linked_name=entry.name,
+                value_from_tag={ i.tag: i.value for i in codemap.values },
+            )
+        case "real" | "integer" | "text":
+            return SimpleDstLink(
+                linked_name=entry.name,
+                type=entry.type,
+            )
+        case _:
+            raise Exception("Error: cannot link to type {}".format(entry.type))
+
+def to_linkers(entry: InstrumentEntrySql) -> t.Tuple[LinkerSpec, ...]:
+    return tuple(
+        LinkerSpec(
+            src=to_srcconnectionview(i),
+            dst=to_dstconnectionview(i.column_entry),
+        ) for i in entry.items
+            if i.source_column_name is not None and i.column_entry is not None
     )
 
