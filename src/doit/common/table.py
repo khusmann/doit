@@ -119,6 +119,10 @@ class TableRowView(t.Generic[ColumnIdT]):
             )
         )
 
+    @classmethod
+    def from_pair(cls, id: ColumnIdT, tv: TableValue):
+        return cls({ id: tv })
+
 ### TableData
 
 @dataclass(frozen=True)
