@@ -36,11 +36,8 @@ class AppSettings(BaseSettings):
 
     sanitizer_repo_dir = Path("./build/unsafe/sanitizers")
 
-    def sanitizer_workdir(self, instrument_id: str) -> Path:
+    def sanitizer_dir_from_instrument_name(self, instrument_id: str) -> Path:
         return self.sanitizer_repo_dir / instrument_id
-
-    def sanitizer_file(self, instrument_id: str, sanitizer_id: str) -> Path:
-        return ((self.sanitizer_workdir(instrument_id) / sanitizer_id).with_suffix(".csv"))
 
     #def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
     #    return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]

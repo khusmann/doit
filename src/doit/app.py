@@ -2,12 +2,18 @@ import typing as t
 from pathlib import Path
 from datetime import datetime, timezone
 
+from .common.table import Some
+from .sanitizer.model import SanitizerUpdate
+
+from .unsanitizedtable.model import UnsanitizedTable
+
 from .remote.fetch import (
     fetch_blob,
     get_listing,
 )
 
 from .remote.blob import (
+    load_blob,
     write_blob,
     read_blob_info,
     read_blob,
@@ -15,7 +21,6 @@ from .remote.blob import (
 
 from .remote.model import (
     Blob,
-    BlobInfo,
     LocalTableListing,
     RemoteTableListing,
 )
@@ -38,7 +43,7 @@ def fetch_source(
     progress_callback: t.Callable[[int], None],
     blob_from_instrument_name: t.Callable[[str], Path],
     blob_bkup_filename: t.Callable[[str, datetime], Path],
-) -> t.Optional[BlobInfo]:
+) -> UnsanitizedTable:
 
     info = read_blob_info(blob_from_instrument_name(instrument_name))
 
@@ -59,9 +64,8 @@ def fetch_source(
 
     if info.source_info == new_blob.info.source_info:
         bkup_filename.unlink()
-        return None
-    else:
-        return new_blob.info
+
+    return load_blob(new_blob)
 
 def load_unsanitizedtable(
     instrument_name: str,
@@ -95,6 +99,38 @@ def get_local_source_listing(
             title=load_source_info(source, blob_from_instrument_name).title,
         ) for source in sources
     )
+
+def load_sanitizers(
+    instrument_name: str,
+    sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
+):
+    from .sanitizer.io import load_sanitizer_csv
+    return {
+        i.stem: load_sanitizer_csv(i.read_text())
+            for i in sanitizer_dir_from_instrument_name(instrument_name).glob("*.csv")
+    }
+
+### TODO: Messy; this should go into sanitizers
+def update_sanitizers(
+    instrument_name: str,
+    sanitizer_updates: t.Mapping[str, SanitizerUpdate],
+    sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
+):
+    import csv
+    workdir = sanitizer_dir_from_instrument_name(instrument_name)
+    workdir.mkdir(parents=True, exist_ok=True)
+    for name, update in sanitizer_updates.items():
+        sanitizer_path = (workdir / name).with_suffix(".csv")
+        if sanitizer_path.exists():
+            raise Exception("TODO: Implement appending to sanitizers")
+        else:
+            with open(sanitizer_path, "w") as f:
+                writer = csv.writer(f)
+                header = tuple("({})".format(i.unsafe_name) for i in update.key_col_ids) + tuple("{}".format(i.unsafe_name) for i in update.key_col_ids)
+                writer.writerow(header)
+                for row in update.values:
+                    writer.writerow((i.value if isinstance(i, Some) else "" for i in row.values()))
+
 
 def new_sanitizedtable_repo(
     sanitized_repo_name: Path,

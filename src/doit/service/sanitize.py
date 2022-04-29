@@ -5,12 +5,14 @@ from ..common.table import (
     TableRowView,
     Omitted,
     ErrorValue,
+    Some,
 )
 
 from ..sanitizer.model import (
     Sanitizer,
     LookupSanitizer,
     IdentitySanitizer,
+    SanitizerUpdate,
 )
 
 from ..unsanitizedtable.model import (
@@ -30,9 +32,47 @@ from ..sanitizedtable.model import (
     SanitizedTableRowView,
 )
 
-#def missing_sanitizer_rows(sanitizer: Sanitizer, table: UnsanitizedTable):
-#    subset_rows = (row.subset(sanitizer.key_col_ids) for row in table.iter_rows())
-#    return tuple(subset_row for subset_row in subset_rows if subset_row.hash() not in sanitizer.map)
+### TODO: Messy; redo
+
+def missing_sanitizer_rows(
+    table: UnsanitizedTable,
+    key_col_ids: t.Tuple[UnsanitizedColumnId, ...],
+    sanitizer_map: t.Mapping[UnsanitizedTableRowView, SanitizedTableRowView]
+):
+    subset_rows = frozenset(row.subset(key_col_ids) for row in table.data.rows)
+    return tuple(subset_row for subset_row in subset_rows if subset_row not in sanitizer_map and any(isinstance(i, Some) for i in subset_row.values()))
+
+
+def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, LookupSanitizer]):
+    unsafe_columns = frozenset(c.id for c in table.schema if not c.is_safe)
+    sanitized_columns = frozenset(
+        c
+            for s in sanitizers.values()
+                for c in s.key_col_ids
+    )
+
+    missing_columns = unsafe_columns - sanitized_columns
+
+    return {
+        name: SanitizerUpdate(
+            key_col_ids=sanitizer.key_col_ids,
+            values=missing_sanitizer_rows(
+                table,
+                sanitizer.key_col_ids,
+                sanitizer.map,
+            )
+        ) for name, sanitizer in sanitizers.items()
+    } | {
+        c.unsafe_name: SanitizerUpdate(
+            key_col_ids=(c,),
+            values=missing_sanitizer_rows(
+                table,
+                (c,),
+                {},
+            )
+        ) for c in missing_columns
+    }
+
 
 def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> SanitizedTableRowView:
     row_subset = row.subset(sanitizer.key_col_ids) # TODO: Only subset in the case of LookupSanitizer

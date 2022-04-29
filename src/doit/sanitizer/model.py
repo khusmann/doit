@@ -22,7 +22,13 @@ class IdentitySanitizer(t.NamedTuple):
     def new_col_ids(self):
         return tuple(SanitizedColumnId(i.unsafe_name) for i in self.key_col_ids)
 
+### TODO better sanitizer management.
+
 Sanitizer = LookupSanitizer | IdentitySanitizer
+
+class SanitizerUpdate(t.NamedTuple):
+    key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
+    values: t.Tuple[UnsanitizedTableRowView, ...]
 
 # TODO
 # class MultiselectSanitizer:

@@ -38,4 +38,4 @@ class BlobInfo(BaseModel):
 
 class Blob(t.NamedTuple):
     info: BlobInfo
-    data: t.Mapping[str, bytes]
+    lazydata: t.Mapping[str, t.Callable[[], bytes]]

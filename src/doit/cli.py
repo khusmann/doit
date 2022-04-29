@@ -101,28 +101,41 @@ def run_cli():
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
 def fetch(instrument_name: str | None):
     """Fetch data from sources"""
+    from .service.sanitize import update_tablesanitizers
     click.secho()
+
     if instrument_name:
-        progress = progress_callback()
-        app.fetch_source(
-            instrument_name,
-            progress,
-            defaults.blob_from_instrument_name,
-            defaults.blob_bkup_filename,
-        )
+        items = (instrument_name,)
     else:
         listing = app.get_local_source_listing(
             defaults.source_dir,
             defaults.blob_from_instrument_name
         )
-        for name, title in tqdm(listing):
-            progress = progress_callback(leave=False, desc=title)
-            app.fetch_source(
-                name,
-                progress,
-                defaults.blob_from_instrument_name,
-                defaults.blob_bkup_filename,
-            )
+        items = tuple(l.name for l in listing)
+
+    for name in tqdm(items):
+        progress = progress_callback(leave=False, desc=name)
+
+        table = app.fetch_source(
+            name,
+            progress,
+            defaults.blob_from_instrument_name,
+            defaults.blob_bkup_filename,
+        )
+
+        sanitizers = app.load_sanitizers(
+            name,
+            defaults.sanitizer_dir_from_instrument_name,
+        )
+
+        updates = update_tablesanitizers(table, sanitizers)
+
+        app.update_sanitizers(
+            name,
+            updates,
+            defaults.sanitizer_dir_from_instrument_name,
+        )
+
     click.secho()
 
 @cli.command()
@@ -146,8 +159,13 @@ def sanitize():
             entry.name,
             defaults.blob_from_instrument_name
         )
-        # TODO: Load sanitizers
-        sanitized = sanitize_table(unsanitized, [])
+
+        sanitizers = app.load_sanitizers(
+            entry.name,
+            defaults.sanitizer_dir_from_instrument_name,
+        )
+
+        sanitized = sanitize_table(unsanitized, tuple(sanitizers.values()))
         repo.write_table(sanitized, entry.name)
     click.secho()
 

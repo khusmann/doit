@@ -59,9 +59,9 @@ def fetch_qualtrics_blob(remote_id: str, progress_callback: t.Callable[[int], No
 
     return Blob(
         info=info,
-        data={
-            "schema.json": table_schema.encode('utf-8'),
-            "data.json": table_data.encode('utf-8'),
+        lazydata={
+            "schema.json": lambda: table_schema.encode('utf-8'),
+            "data.json": lambda: table_data.encode('utf-8'),
         }
     )
 
