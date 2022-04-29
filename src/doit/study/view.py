@@ -161,6 +161,7 @@ class LinkerSpec(t.NamedTuple):
 
 class InstrumentLinkerSpec(t.NamedTuple):
     studytable_name: str
+    instrument_name: str
     linker_specs: t.Tuple[LinkerSpec, ...]
 
 GroupMeasureNodeView.update_forward_refs()

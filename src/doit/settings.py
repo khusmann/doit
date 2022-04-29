@@ -72,11 +72,15 @@ class AppSettings(BaseSettings):
     study_repo_dir = Path("./build/safe/linked")
 
     @property
-    def everything_database_filename(self):
+    def study_repo_filename(self):
         return "{}-everything.db".format(self.output_prefix)
 
-    def everything_database_path(self):
-        return self.study_repo_dir / self.everything_database_filename
+    @property
+    def study_repo_path(self):
+        return self.study_repo_dir / self.study_repo_filename
+
+    def study_repo_bkup_path(self, old_date: datetime) -> Path:
+        return self.study_repo_path.with_suffix(".{}{}".format(int(old_date.timestamp()), self.study_repo_path.suffix))
 
     ###
 

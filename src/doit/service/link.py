@@ -62,7 +62,8 @@ def to_dst(dst: DstLink, tv: TableValue):
         case OrdinalDstLink():
             match tv:
                 case Some(value=value) if isinstance(value, str):
-                    return ((linked_name, Some(dst.value_from_tag[value])),)
+                    #return ((linked_name, Some(dst.value_from_tag[value])),)
+                    return ((linked_name, Some(1)),)
                 case Some(value=value):
                     return ((linked_name, ErrorValue(IncorrectTypeError(value))),)
                 case Omitted() | Redacted() | ErrorValue():
@@ -80,6 +81,7 @@ def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: Instrum
     column_lookup = { c.id: c for c in tableinfo.columns }
     return InstrumentLinker(
         studytable_name=instrumentlinker_spec.studytable_name,
+        instrument_name=instrumentlinker_spec.instrument_name,
         linkers=tuple(
             linker_from_spec(column_lookup, rowlinker_spec)
                 for rowlinker_spec in instrumentlinker_spec.linker_specs

@@ -13,6 +13,9 @@ class SanitizedTableRepoReader(ABC):
     @abstractmethod
     def read_tableinfo(self, name: str) -> SanitizedTableInfo: ...
 
+    @abstractmethod
+    def read_table(self, name: str) -> SanitizedTable: ...
+
     @classmethod
     @abstractmethod
     def open(cls, filename: str = "") -> SanitizedTableRepoReader: ...

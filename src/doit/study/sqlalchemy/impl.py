@@ -128,9 +128,11 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         datatable_metadata = MetaData()
         for entry in session.get_all(StudyTableSql):
             table = setup_datatable(datatable_metadata, entry)
-            table.create(engine)
 
         session.commit()
+
+        for table in datatable_metadata.tables.values():
+            table.create(engine)
         
         return cls(engine, datatable_metadata)
         
@@ -160,10 +162,12 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
             instrument.studytable
         )
 
-    def query_instrumentlinkerspec(self, instrument_name: str):
+    def query_instrumentlinkerspecs(self):
         session = SessionWrapper(self.engine)
-        return to_instrumentlinkerspec(
-            session.get_by_name(InstrumentEntrySql, instrument_name)
+        entries = session.get_all(InstrumentEntrySql)
+        return tuple(
+            to_instrumentlinkerspec(i) for i in entries
+                if i.studytable is not None
         )
     
     def query_column(self, column_name: str):

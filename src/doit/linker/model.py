@@ -16,4 +16,5 @@ class Linker(t.NamedTuple):
 
 class InstrumentLinker(t.NamedTuple):
     studytable_name: str
+    instrument_name: str
     linkers: t.Tuple[Linker, ...]

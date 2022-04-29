@@ -154,6 +154,39 @@ def sanitize():
 @cli.command()
 def link():
     """Link study"""
+    from .service.link import link_tableinfo, link_tabledata
+    
+    sanitized_repo = app.open_sanitizedtable_repo(
+        defaults.sanitized_repo_path,
+    )
+
+    study_spec = app.load_study_spec(
+        defaults.config_file,
+        defaults.instrument_dir,
+        defaults.measure_dir,
+    )
+
+    linked_repo = app.new_study_repo(
+        study_spec,
+        defaults.study_repo_path,
+        defaults.study_repo_bkup_path,
+    )
+
+    instrumentlinker_specs = linked_repo.query_instrumentlinkerspecs()
+
+    sanitizedtableinfos = tuple(
+        sanitized_repo.read_tableinfo(i.instrument_name) for i in instrumentlinker_specs
+    ) 
+
+    linkers = tuple(
+        link_tableinfo(info, spec) for info, spec in zip(sanitizedtableinfos, instrumentlinker_specs)
+    )
+
+    for linker in tqdm(linkers):
+        sanitized_table = sanitized_repo.read_table(linker.instrument_name)
+        linked_table = link_tabledata(sanitized_table.data, linker)
+        print(linked_table.column_ids)
+
     pass
 
 @cli.command()

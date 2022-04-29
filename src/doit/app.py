@@ -98,12 +98,30 @@ def get_local_source_listing(
 
 def new_sanitizedtable_repo(
     sanitized_repo_name: Path,
-    sanitized_repo_bkup_path: t.Callable[[datetime], Path]
+    sanitized_repo_bkup_path: t.Callable[[datetime], Path],
 ):
     if sanitized_repo_name.exists():
         sanitized_repo_name.rename(sanitized_repo_bkup_path(datetime.now(timezone.utc)))
     from .sanitizedtable.sqlalchemy.impl import SqlAlchemyRepo
     return SqlAlchemyRepo.new(str(sanitized_repo_name))
+
+def open_sanitizedtable_repo(
+    sanitized_repo_name: Path,
+):
+    if not sanitized_repo_name.exists():
+        raise Exception("Error: {} does not exist".format(sanitized_repo_name))
+    from .sanitizedtable.sqlalchemy.impl import SqlAlchemyRepo
+    return SqlAlchemyRepo.open(str(sanitized_repo_name))
+
+def new_study_repo(
+    study_spec: StudySpec,
+    study_repo_name: Path,
+    study_repo_bkup_path: t.Callable[[datetime], Path],
+):
+    if study_repo_name.exists():
+        study_repo_name.rename(study_repo_bkup_path(datetime.now(timezone.utc)))
+    from .study.sqlalchemy.impl import SqlAlchemyRepo
+    return SqlAlchemyRepo.new(study_spec, str(study_repo_name))
 
 def load_study_spec(
     config_file: Path,

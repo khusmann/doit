@@ -1,4 +1,5 @@
 from __future__ import annotations
+import typing as t
 from abc import ABC, abstractmethod
 
 from .spec import StudySpec
@@ -7,11 +8,13 @@ from .view import (
     InstrumentView,
     MeasureView,
     ColumnView,
-    StudyTableView,
     InstrumentLinkerSpec,
 )
 
 class StudyRepoWriter(ABC):
+
+    @abstractmethod
+    def query_instrumentlinkerspecs(self) -> t.Tuple[InstrumentLinkerSpec, ...]: ...
 
     @abstractmethod
     def write_table(self, table: str): ... # TODO Change to type LinkedTable
@@ -21,12 +24,6 @@ class StudyRepoWriter(ABC):
     def new(cls, spec: StudySpec, filename: str = "") -> StudyRepoWriter: ...
 
 class StudyRepoReader(ABC):
-
-    @abstractmethod
-    def query_studytable_by_instrument(self, instrument_name: str) -> StudyTableView: ...
-
-    @abstractmethod
-    def query_instrumentlinkerspec(self, instrument_name: str) -> InstrumentLinkerSpec: ...
 
     @abstractmethod
     def query_instrument(self, instrument_name: str) -> InstrumentView: ...

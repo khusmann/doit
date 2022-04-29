@@ -155,8 +155,9 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 type=entry.type.value,
             )
 
-        case _:
-            raise Exception("Error: unknown column type {}".format(entry.type))
+        case ColumnEntryType.GROUP:
+            raise Exception("Error: Group columns cannot be returned as ColumnViews")
+
 
 def to_studytableview(entry: StudyTableSql) -> StudyTableView:
     return StudyTableView(
@@ -180,7 +181,7 @@ def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
 
 def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
     match entry.type:
-        case "ordinal" | "categorical" | "index":
+        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.INDEX:
             if not entry.codemap:
                 raise Exception("Error: ordinal column {} missing codemap".format(entry.name))
 
@@ -189,18 +190,23 @@ def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
             return OrdinalDstLink(
                 linked_name=entry.name,
                 value_from_tag={ i.tag: i.value for i in codemap.values },
+                type=entry.type.value,
             )
-        case "real" | "integer" | "text":
+        case ColumnEntryType.REAL | ColumnEntryType.INTEGER | ColumnEntryType.TEXT:
             return SimpleDstLink(
                 linked_name=entry.name,
-                type=entry.type,
+                type=entry.type.value,
             )
-        case _:
-            raise Exception("Error: cannot link to type {}".format(entry.type))
+        case ColumnEntryType.GROUP:
+            raise Exception("Error: Group column types cannot be linked!")
 
 def to_instrumentlinkerspec(entry: InstrumentEntrySql):
+    studytable = entry.studytable
+    if studytable is None:
+        raise Exception("Error: Instrument entry has no StudyTable")
     return InstrumentLinkerSpec(
-        studytable_name=entry.name,
+        studytable_name=studytable.name,
+        instrument_name=entry.name,
         linker_specs=tuple(
             LinkerSpec(
                 src=to_srcconnectionview(i),
