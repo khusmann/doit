@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 from .spec import StudySpec
 
+from .model import LinkedTable
+
 from .view import (
     InstrumentView,
     MeasureView,
@@ -17,7 +19,7 @@ class StudyRepoWriter(ABC):
     def query_instrumentlinkerspecs(self) -> t.Tuple[InstrumentLinkerSpec, ...]: ...
 
     @abstractmethod
-    def write_table(self, table: str): ... # TODO Change to type LinkedTable
+    def write_table(self, table: LinkedTable): ...
 
     @classmethod
     @abstractmethod

@@ -170,7 +170,7 @@ def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
         case "question":
             return QuestionSrcLink(
                 source_column_name=entry.source_column_name,
-                source_value_map=entry.source_value_map,
+                source_value_map=entry.source_value_map or {},
             )
         case "constant":
             return ConstantSrcLink(
@@ -212,6 +212,7 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
                 src=to_srcconnectionview(i),
                 dst=to_dstconnectionview(i.column_entry),
             ) for i in entry.items
-                if i.source_column_name is not None and i.column_entry is not None
+                if i.column_entry is not None and
+                    (i.type == "constant" or i.source_column_name is not None)
         ),
     )

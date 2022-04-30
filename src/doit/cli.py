@@ -172,7 +172,7 @@ def sanitize():
 @cli.command()
 def link():
     """Link study"""
-    from .service.link import link_tableinfo, link_tabledata
+    from .service.link import link_tableinfo, link_table
     
     sanitized_repo = app.open_sanitizedtable_repo(
         defaults.sanitized_repo_path,
@@ -202,10 +202,8 @@ def link():
 
     for linker in tqdm(linkers):
         sanitized_table = sanitized_repo.read_table(linker.instrument_name)
-        linked_table = link_tabledata(sanitized_table.data, linker)
-        print(linked_table.column_ids)
-
-    pass
+        linked_table = link_table(sanitized_table.data, linker)
+        linked_repo.write_table(linked_table)
 
 @cli.command()
 def debug():

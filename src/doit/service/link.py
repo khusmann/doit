@@ -41,6 +41,7 @@ from ..sanitizedtable.model import (
 from ..study.model import (
     LinkedTableRowView,
     LinkedTableData,
+    LinkedTable,
     LinkedColumnId,
 )
 
@@ -84,7 +85,7 @@ def to_dst(dst: DstLink, tv: TableValue):
                     int_value = dst.value_from_tag.get(value)
                     if int_value is None:
                         return LinkedTableRowView({ linked_name: ErrorValue(MissingCode(value, dst.value_from_tag)) })
-                    return LinkedTableRowView({ linked_name: Some(dst.value_from_tag[value]) })
+                    return LinkedTableRowView({ linked_name: Some(int_value) })
                 case Some(value=value):
                     return LinkedTableRowView({ linked_name: ErrorValue(IncorrectType(value)) })
                 case Omitted() | Redacted() | ErrorValue():
@@ -109,7 +110,7 @@ def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: Instrum
         ),
     )
 
-def link_tabledata(table: SanitizedTableData, instrument_linker: InstrumentLinker) -> LinkedTableData:
+def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -> LinkedTable:
     dst_column_ids = tuple(
         i
             for row_linker in instrument_linker.linkers
@@ -122,7 +123,10 @@ def link_tabledata(table: SanitizedTableData, instrument_linker: InstrumentLinke
         ) for row in table.rows
     )
 
-    return LinkedTableData(
-        column_ids=dst_column_ids,
-        rows=rows,
+    return LinkedTable(
+        studytable_name=instrument_linker.studytable_name,
+        data=LinkedTableData(
+            column_ids=dst_column_ids,
+            rows=rows,
+        )
     )

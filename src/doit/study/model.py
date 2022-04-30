@@ -13,5 +13,6 @@ class LinkedColumnId(t.NamedTuple):
 LinkedTableData = TableData[LinkedColumnId]
 LinkedTableRowView = TableRowView[LinkedColumnId]
 
-
-### TODO: StudyTable (a requested subest)
+class LinkedTable(t.NamedTuple):
+    studytable_name: str
+    data: LinkedTableData

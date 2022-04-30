@@ -4,7 +4,7 @@ from sqlalchemy import (
     select,
     insert,
     Table,
-    MetaData
+    MetaData,
 )
 
 from sqlalchemy.orm import (
@@ -12,7 +12,7 @@ from sqlalchemy.orm import (
     backref,
 )
 
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, ResultProxy
 
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -55,7 +55,7 @@ class SessionWrapper:
             select(type) # type: ignore
         ).scalars().all()
 
-    def get_rows(self, table: Table) -> t.List[t.Any]:
+    def get_rows(self, table: Table) -> ResultProxy:
         return self.impl.execute( # type: ignore
             select(table.columns)
         ).all()
@@ -66,7 +66,7 @@ class SessionWrapper:
     def commit(self):
         self.impl.commit()
 
-    def insert_rows(self, table: Table, values: t.Sequence[t.Sequence[t.Any]]):
+    def insert_rows(self, table: Table, values: t.Sequence[t.Mapping[str, t.Any]]):
         self.impl.execute( # type: ignore
             insert(table).values(values)
         )        

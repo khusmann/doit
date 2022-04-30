@@ -2,6 +2,8 @@ from __future__ import annotations
 import typing as t
 import json
 
+from sqlalchemy.engine import ResultProxy
+
 from ...common.table import (
     Omitted,
     Some,
@@ -32,19 +34,19 @@ from ..model import (
 
 from pydantic import parse_obj_as
 
-def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: t.Sequence[t.Any]):
+def tabledata_from_sql(column_names: t.Sequence[SanitizedColumnInfo], rows: ResultProxy):
     return SanitizedTableData(
-            column_ids=tuple(c.id for c in columns),
+            column_ids=tuple(c.id for c in column_names),
             rows=tuple(
                 TableRowView({
-                    c.id: Some(v) if v else Omitted() for c, v in zip(columns, row)
+                    c.id: Some(row[c.id.name]) if row[c.id.name] else Omitted() for c in column_names
                 }) for row in rows
             )
         )
 
 def render_tabledata(table: SanitizedTable):
     return [
-        tuple(render_value(c, row.get(c.id)) for c in table.info.columns)
+        { c.id.name: render_value(c, row.get(c.id)) for c in table.info.columns }
             for row in table.data.rows
     ]
 

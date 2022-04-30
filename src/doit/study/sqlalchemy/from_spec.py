@@ -1,4 +1,13 @@
 import typing as t
+
+from ...common.table import (
+    Some,
+    Omitted,
+    Redacted,
+    ErrorValue,
+    TableValue,
+)
+
 from .sqlmodel import (
     CodemapSql,
     ColumnEntryType,
@@ -24,6 +33,19 @@ from ..spec import (
     MultiselectItemSpec,
     MeasureItemGroupSpec,
 )
+
+def sql_from_tablevalue(tv: TableValue):
+    match tv:
+        case Some(value=value):
+            return value
+        case Omitted():
+            return None
+        case Redacted():
+            print("Encountered redacted value")
+            return None 
+        case ErrorValue():
+            print("Encountered error value: {}".format(tv))
+            return None
 
 def sql_from_codemap_spec(spec: CodeMapSpec, measure_name: str, codemap_name: str):
     name = ".".join((measure_name, codemap_name))
@@ -126,9 +148,9 @@ class AddInstrumentContext(t.NamedTuple):
                     return [InstrumentNodeSql(
                         prompt=spec.prompt,
                         source_column_name=spec.remote_id,
-                        source_value_map={},
+                        source_value_map=spec.map,
                         type=spec.type,
-                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
+                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id),
                     )]
                 case ConstantInstrumentItemSpec():
                     return [InstrumentNodeSql(

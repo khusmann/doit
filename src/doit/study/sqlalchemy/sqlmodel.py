@@ -119,6 +119,7 @@ def setup_datatable(metadata: MetaData, table: StudyTableSql):
             Column(
                 i.name,
                 datatablecolumn_from_columnentrytype(i.type),
+                primary_key=(i.type == ColumnEntryType.INDEX),
             ) for i in table.columns
         ]
     )
