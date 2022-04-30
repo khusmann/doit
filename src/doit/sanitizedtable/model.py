@@ -3,16 +3,29 @@ import typing as t
 from ..common.table import (
     TableData,
     TableRowView,
+    OrdinalValue,
+    OrdinalLabel,
 )
 
 class SanitizedColumnId(t.NamedTuple):
     name: str
 
-class SanitizedColumnInfo(t.NamedTuple):
+class SanitizedTextColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
     sanitizer_checksum: t.Optional[str]
-    type: t.Literal['ordinal', 'multiselect', 'text']
+
+class SanitizedOrdinalColumnInfo(t.NamedTuple):
+    id: SanitizedColumnId
+    prompt: str
+    codes: t.Mapping[OrdinalValue, OrdinalLabel]
+
+class SanitizedMultiselectColumnInfo(t.NamedTuple):
+    id: SanitizedColumnId
+    prompt: str
+    codes: t.Mapping[OrdinalValue, OrdinalLabel]
+
+SanitizedColumnInfo = SanitizedTextColumnInfo | SanitizedOrdinalColumnInfo | SanitizedMultiselectColumnInfo
 
 class SanitizedTableInfo(t.NamedTuple):
     data_checksum: str

@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     MetaData,
     Table,
+    JSON,
 )
 
 from sqlalchemy.orm import (
@@ -56,3 +57,4 @@ class ColumnEntrySql(Base):
     type = Column(String, nullable=False)
     prompt = Column(String)
     sanitizer_checksum = Column(String)
+    codes = Column(JSON)

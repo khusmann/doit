@@ -203,7 +203,7 @@ def link():
     for linker in tqdm(linkers):
         sanitized_table = sanitized_repo.read_table(linker.instrument_name)
         linked_table = link_tabledata(sanitized_table.data, linker)
-        print(linked_table.rows)
+        print(linked_table.column_ids)
 
     pass
 

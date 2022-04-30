@@ -18,8 +18,10 @@ from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
     UnsanitizedColumnInfo,
     UnsanitizedMultiselectColumnInfo,
+    UnsanitizedOrdinalColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableRowView,
+    UnsanitizedTextColumnInfo,
 )
 
 from ..sanitizedtable.model import (
@@ -29,6 +31,9 @@ from ..sanitizedtable.model import (
     SanitizedColumnInfo,
     SanitizedTableData,
     SanitizedTableRowView,
+    SanitizedTextColumnInfo,
+    SanitizedOrdinalColumnInfo,
+    SanitizedMultiselectColumnInfo,
 )
 
 def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, LookupSanitizer]):
@@ -86,26 +91,40 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> Sanitize
                 { new: row_subset.get(old) for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids) } 
             )
 
+def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo:
+    id = SanitizedColumnId(column_info.id.unsafe_name)
+    match column_info:
+        case UnsanitizedTextColumnInfo():
+            return SanitizedTextColumnInfo(
+                id=id,
+                prompt=column_info.prompt,
+                sanitizer_checksum=None,
+            )
+        case UnsanitizedOrdinalColumnInfo():
+            return SanitizedOrdinalColumnInfo(
+                id=id,
+                prompt=column_info.prompt,
+                codes=column_info.codes,
+            )
+        case UnsanitizedMultiselectColumnInfo():
+            return SanitizedMultiselectColumnInfo(
+                id=id,
+                prompt=column_info.prompt,
+                codes=column_info.codes,
+            )
+
 def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedColumnInfo], sanitizer: Sanitizer) -> t.Tuple[SanitizedColumnInfo, ...]:
     match sanitizer:
         case LookupSanitizer():
             return tuple(
-                SanitizedColumnInfo(
+                SanitizedTextColumnInfo(
                     id=id,
                     prompt="; ".join(column_lookup[c].prompt for c in sanitizer.key_col_ids),
                     sanitizer_checksum=sanitizer.checksum,
-                    type='text',
                 ) for id in sanitizer.new_col_ids
             )
         case IdentitySanitizer():
-            return tuple(
-                SanitizedColumnInfo(
-                    id=SanitizedColumnId(column_lookup[id].id.unsafe_name),
-                    prompt=column_lookup[id].prompt,
-                    sanitizer_checksum=None,
-                    type='multiselect' if isinstance(id, UnsanitizedMultiselectColumnInfo) else 'text',
-                ) for id in sanitizer.key_col_ids
-            )
+            return tuple(bless_column_info(column_lookup[id]) for id in sanitizer.key_col_ids)
 
 def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitizer]) -> SanitizedTable:
 

@@ -9,6 +9,8 @@ from ...common.table import (
     Redacted,
     TableValue,
     TableRowView,
+    OrdinalLabel,
+    OrdinalValue,
 )
 
 from .sqlmodel import (
@@ -20,10 +22,15 @@ from .sqlmodel import (
 from ..model import (
     SanitizedColumnId,
     SanitizedColumnInfo,
+    SanitizedMultiselectColumnInfo,
+    SanitizedOrdinalColumnInfo,
     SanitizedTableInfo,
     SanitizedTable,
     SanitizedTableData,
+    SanitizedTextColumnInfo,
 )
+
+from pydantic import parse_obj_as
 
 def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: t.Sequence[t.Any]):
     return SanitizedTableData(
@@ -49,35 +56,57 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
         print("Encountered error value: {}".format(v))
         return None
 
-    if column.type == 'text':
-        match v:
-            case Some(value=value):
-                return str(value)
-            case Redacted():
-                return "__REDACTED__"
+    match column:
+        case SanitizedTextColumnInfo():
+            match v:
+                case Some(value=value):
+                    return str(value)
+                case Redacted():
+                    return "__REDACTED__"
+        case SanitizedOrdinalColumnInfo():
+            match v:
+                case Some(value=value):
+                    return int(value)
+                case Redacted():
+                    raise Exception("Error: Unexpected redacted value in a non-text column")
+        case SanitizedMultiselectColumnInfo():
+            match v:
+                case Some(value=value):
+                    return json.dumps(v.value)
+                case Redacted():
+                    raise Exception("Error: Unexpected redacted value in a non-text column")
 
-    if isinstance(v, Redacted):
-        print("Unexpected redacted value in a non-text column")
-        return None
+def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
+    match info:
+        case SanitizedTextColumnInfo():
+            return ColumnEntrySql(
+                name=info.id.name,
+                prompt=info.prompt,
+                type="text",
+                sanitizer_checksum=info.sanitizer_checksum,
+            )
+        case SanitizedOrdinalColumnInfo():
+            return ColumnEntrySql(
+                name=info.id.name,
+                prompt=info.prompt,
+                type="ordinal",
+                codes=info.codes,
+            )
+        case SanitizedMultiselectColumnInfo():
+            return ColumnEntrySql(
+                name=info.id.name,
+                prompt=info.prompt,
+                type="multiselect",
+                codes=info.codes,
+            )
 
-    match column.type:
-        case 'ordinal':
-            return int(v.value)
-        case 'multiselect':
-            return json.dumps(v.value)
 
 def sql_from_tableinfo(info: SanitizedTableInfo, name: str) -> TableEntrySql:
     return TableEntrySql(
         name=name,
         data_checksum=info.data_checksum,
         schema_checksum=info.schema_checksum,
-        columns=[
-            ColumnEntrySql(
-                name=column.id.name,
-                type=column.type,
-                prompt=column.prompt,
-            ) for column in info.columns
-        ]
+        columns=[ sql_from_columninfo(column) for column in info.columns ],
     )
 
 def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
@@ -90,10 +119,25 @@ def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
     )
 
 def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
-    return SanitizedColumnInfo(
-        id=SanitizedColumnId(entry.name),
-        prompt=entry.prompt,
-        sanitizer_checksum=entry.sanitizer_checksum,
-        type=entry.type, # type: ignore TODO: handle different SanitizedColumnInfo types
-    )
+    match entry.type:
+        case "text":
+            return SanitizedTextColumnInfo(
+                id=SanitizedColumnId(entry.name),
+                prompt=entry.prompt,
+                sanitizer_checksum=entry.sanitizer_checksum,
+            )
+        case "ordinal":
+            return SanitizedOrdinalColumnInfo(
+                id=SanitizedColumnId(entry.name),
+                prompt=entry.prompt,
+                codes=parse_obj_as(t.Mapping[OrdinalValue, OrdinalLabel], entry.codes),
+            )
+        case "multiselect":
+            return SanitizedOrdinalColumnInfo(
+                id=SanitizedColumnId(entry.name),
+                prompt=entry.prompt,
+                codes=parse_obj_as(t.Mapping[OrdinalValue, OrdinalLabel], entry.codes),
+            )
+        case _:
+            raise Exception("Error: TODO: Add enum for column type")
 
