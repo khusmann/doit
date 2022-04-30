@@ -109,6 +109,9 @@ class TableRowView(t.Generic[ColumnIdT]):
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT]:
         return TableRowView({ k: self.get(k) for k in keys })
 
+    def has_some(self):
+        return any(isinstance(i, Some) for i in self._map.values())
+
     @classmethod
     def combine_views(cls, *views: TableRowView[ColumnIdT]) -> TableRowView[ColumnIdT]:
         return TableRowView(
@@ -128,7 +131,13 @@ class TableRowView(t.Generic[ColumnIdT]):
 @dataclass(frozen=True)
 class TableData(t.Generic[ColumnIdT]):
     column_ids: t.Tuple[ColumnIdT, ...]
-    rows: t.Tuple[TableRowView[ColumnIdT], ...] # rows x columns
+    rows: t.Tuple[TableRowView[ColumnIdT], ...]
+
+    def subset(self, keys: t.Collection[ColumnIdT]):
+        return TableData(
+            column_ids=self.column_ids,
+            rows=tuple(row.subset(keys) for row in self.rows)
+        )
 
     def __repr__(self):
         result = " | ".join(repr(c) for c in self.column_ids) + "\n"

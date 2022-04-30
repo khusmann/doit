@@ -15,8 +15,8 @@ from ..unsanitizedtable.io.qualtrics import (
 def load_blob(blob: Blob):
     match blob.info.source_info:
         case QualtricsSourceInfo():
-            schema = blob.data['schema.json']()
-            data = blob.data['data.json']()
+            schema = blob.lazydata['schema.json']()
+            data = blob.lazydata['data.json']()
             return load_unsanitizedtable_qualtrics(schema.decode('utf-8'), data.decode('utf-8'))
 
 def extract_member_data_fn(tf: tarfile.TarFile, member: tarfile.TarInfo):
@@ -36,7 +36,7 @@ def blob_from_tar(tf: tarfile.TarFile) -> Blob:
     info = BlobInfo.parse_raw(info_data.read(), encoding="utf8")
     return Blob(
         info=info,
-        data={
+        lazydata={
             m.name: extract_member_data_fn(tf, m) for m in tf.getmembers() if m.name != "info.json"
         }
     )
@@ -60,7 +60,7 @@ def write_blob(blob: Blob, tarfilename: str | Path):
     tarfilename.parent.mkdir(exist_ok=True, parents=True)
     
     with tarfile.open(tarfilename, 'w:gz') as tf:
-        blob_entries = (*blob.data.items(), ("info.json", lambda: blob.info.json().encode('utf-8')))
+        blob_entries = (*blob.lazydata.items(), ("info.json", lambda: blob.info.json().encode('utf-8')))
         for filename, lazycontent in blob_entries:
             content = lazycontent()
             ifo = tarfile.TarInfo(filename)

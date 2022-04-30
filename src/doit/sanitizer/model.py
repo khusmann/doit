@@ -12,6 +12,7 @@ from ..sanitizedtable.model import (
 
 class LookupSanitizer(t.NamedTuple):
     map: t.Mapping[UnsanitizedTableRowView, SanitizedTableRowView]
+    header: t.Tuple[UnsanitizedColumnId | SanitizedColumnId, ...]
     key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
     checksum: str
@@ -27,8 +28,9 @@ class IdentitySanitizer(t.NamedTuple):
 Sanitizer = LookupSanitizer | IdentitySanitizer
 
 class SanitizerUpdate(t.NamedTuple):
-    key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
-    values: t.Tuple[UnsanitizedTableRowView, ...]
+    new: bool
+    header: t.Tuple[UnsanitizedColumnId | SanitizedColumnId, ...]
+    rows: t.Tuple[UnsanitizedTableRowView, ...]
 
 # TODO
 # class MultiselectSanitizer:

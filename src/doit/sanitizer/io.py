@@ -1,12 +1,15 @@
 import csv
 import re
 import hashlib
+import io
 
 from ..common.table import (
+    Omitted,
     Some,
     DuplicateHeaderError,
     EmptyHeaderError,
     EmptySanitizerKeyError,
+    TableValue,
     omitted_if_empty,
     redacted_if_empty,
     TableRowView,
@@ -23,6 +26,7 @@ from ..sanitizedtable.model import (
 from .model import (
     SanitizedColumnId,
     LookupSanitizer,
+    SanitizerUpdate,
 )
 
 def is_header_safe(header: str):
@@ -31,33 +35,64 @@ def is_header_safe(header: str):
 def rename_unsafe_header(header: str):
     return header[1: -1]
 
-def load_sanitizer_csv(csv_text: str) -> LookupSanitizer:
-    reader = csv.reader(csv_text.splitlines())
+def to_csv_header(cid: SanitizedColumnId | UnsanitizedColumnId):
+    match cid:
+        case SanitizedColumnId():
+            return cid.name
+        case UnsanitizedColumnId():
+            return "({})".format(cid.unsafe_name)
 
-    header = tuple(next(reader))
+def to_csv_value(tv: TableValue):
+    match tv:
+        case Some(value=value) if isinstance(value, str):
+            return value
+        case Omitted():
+            return ""
+        case _:
+            raise Exception("Error: cannot convert {} to csv value".format(tv))
+            
+def write_sanitizer_update(f: io.TextIOBase, update: SanitizerUpdate, new: bool):
+    writer = csv.writer(f)
+
+    if new:
+        writer.writerow((to_csv_header(cid) for cid in update.header))
+
+    writer.writerows((
+        (
+            to_csv_value(row.get(cid)) if isinstance(cid, UnsanitizedColumnId) else ""
+                for cid in update.header
+        ) for row in update.rows
+    ))
+
+def load_sanitizer_csv(csv_text: str) -> LookupSanitizer:
+    reader = csv.reader(io.StringIO(csv_text, newline=''))
+
+    header_str = tuple(next(reader))
 
     lines = tuple(reader)
 
-    if not all(header):
-        raise EmptyHeaderError(header)
+    if not all(header_str):
+        raise EmptyHeaderError(header_str)
 
-    if len(set(header)) != len(header):
-        raise DuplicateHeaderError(header)
+    if len(set(header_str)) != len(header_str):
+        raise DuplicateHeaderError(header_str)
 
-    key_col_names = {c: UnsanitizedColumnId(rename_unsafe_header(c)) for c in header if not is_header_safe(c)}
-    new_col_names = {c: SanitizedColumnId(c) for c in header if c not in key_col_names}
+    header = tuple(
+        SanitizedColumnId(c) if is_header_safe(c) else UnsanitizedColumnId(rename_unsafe_header(c))
+            for c in header_str
+    )
 
     keys = tuple(
         TableRowView({
-            key_col_names[c]: omitted_if_empty(v)
-                for c, v in zip(header, row) if c in key_col_names
+            c: omitted_if_empty(v)
+                for c, v in zip(header, row) if isinstance(c, UnsanitizedColumnId)
         }) for row in lines
     )
 
     values = tuple(
         TableRowView({
-            new_col_names[c]: redacted_if_empty(v)
-                for c, v in zip(header, row)if c in new_col_names
+            c: redacted_if_empty(v)
+                for c, v in zip(header, row)if isinstance(c, SanitizedColumnId)
         }) for row in lines
     )
 
@@ -69,7 +104,8 @@ def load_sanitizer_csv(csv_text: str) -> LookupSanitizer:
 
     return LookupSanitizer(
         map=dict(zip(keys, values)),
-        key_col_ids=tuple(key_col_names.values()),
-        new_col_ids=tuple(new_col_names.values()),
+        header=header,
+        key_col_ids=tuple(c for c in header if isinstance(c, UnsanitizedColumnId)),
+        new_col_ids=tuple(c for c in header if isinstance(c, SanitizedColumnId)),
         checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
     )

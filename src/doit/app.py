@@ -2,7 +2,6 @@ import typing as t
 from pathlib import Path
 from datetime import datetime, timezone
 
-from .common.table import Some
 from .sanitizer.model import SanitizerUpdate
 
 from .unsanitizedtable.model import UnsanitizedTable
@@ -110,27 +109,28 @@ def load_sanitizers(
             for i in sanitizer_dir_from_instrument_name(instrument_name).glob("*.csv")
     }
 
-### TODO: Messy; this should go into sanitizers
 def update_sanitizers(
     instrument_name: str,
     sanitizer_updates: t.Mapping[str, SanitizerUpdate],
     sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
 ):
-    import csv
+    from .sanitizer.io import write_sanitizer_update
+
     workdir = sanitizer_dir_from_instrument_name(instrument_name)
     workdir.mkdir(parents=True, exist_ok=True)
+
     for name, update in sanitizer_updates.items():
         sanitizer_path = (workdir / name).with_suffix(".csv")
-        if sanitizer_path.exists():
-            raise Exception("TODO: Implement appending to sanitizers")
+        if update.new:
+            if sanitizer_path.exists():
+                raise Exception("Error: attempting to create new sanitizer but {} already exists".format(sanitizer_path))
+            with open(sanitizer_path, "w", newline='') as f:
+                write_sanitizer_update(f, update, True)
         else:
-            with open(sanitizer_path, "w") as f:
-                writer = csv.writer(f)
-                header = tuple("({})".format(i.unsafe_name) for i in update.key_col_ids) + tuple("{}".format(i.unsafe_name) for i in update.key_col_ids)
-                writer.writerow(header)
-                for row in update.values:
-                    writer.writerow((i.value if isinstance(i, Some) else "" for i in row.values()))
-
+            if not sanitizer_path.exists():
+                raise Exception("Error: attempting to update sanitizer but {} does not exist".format(sanitizer_path))
+            with open(sanitizer_path, "a", newline='') as f:
+                write_sanitizer_update(f, update, False)
 
 def new_sanitizedtable_repo(
     sanitized_repo_name: Path,

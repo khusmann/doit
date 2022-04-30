@@ -5,7 +5,6 @@ from ..common.table import (
     TableRowView,
     Omitted,
     ErrorValue,
-    Some,
 )
 
 from ..sanitizer.model import (
@@ -32,17 +31,6 @@ from ..sanitizedtable.model import (
     SanitizedTableRowView,
 )
 
-### TODO: Messy; redo
-
-def missing_sanitizer_rows(
-    table: UnsanitizedTable,
-    key_col_ids: t.Tuple[UnsanitizedColumnId, ...],
-    sanitizer_map: t.Mapping[UnsanitizedTableRowView, SanitizedTableRowView]
-):
-    subset_rows = frozenset(row.subset(key_col_ids) for row in table.data.rows)
-    return tuple(subset_row for subset_row in subset_rows if subset_row not in sanitizer_map and any(isinstance(i, Some) for i in subset_row.values()))
-
-
 def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, LookupSanitizer]):
     unsafe_columns = frozenset(c.id for c in table.schema if not c.is_safe)
     sanitized_columns = frozenset(
@@ -53,25 +41,26 @@ def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, L
 
     missing_columns = unsafe_columns - sanitized_columns
 
-    return {
-        name: SanitizerUpdate(
-            key_col_ids=sanitizer.key_col_ids,
-            values=missing_sanitizer_rows(
-                table,
-                sanitizer.key_col_ids,
-                sanitizer.map,
-            )
-        ) for name, sanitizer in sanitizers.items()
-    } | {
+    missing_columns_updates = {
         c.unsafe_name: SanitizerUpdate(
-            key_col_ids=(c,),
-            values=missing_sanitizer_rows(
-                table,
-                (c,),
-                {},
-            )
+            new=True,
+            header=(c, SanitizedColumnId(c.unsafe_name)),
+            rows=tuple({ row for row in table.data.subset([c]).rows if row.has_some() }),
         ) for c in missing_columns
     }
+
+    missing_rows_updates = {
+        name: SanitizerUpdate(
+            new=False,
+            header=sanitizer.header,
+            rows=tuple(
+                row for row in frozenset(table.data.subset(sanitizer.key_col_ids).rows)
+                    if row not in sanitizer.map and row.has_some()
+            )
+        ) for name, sanitizer in sanitizers.items()
+    }
+
+    return missing_columns_updates | missing_rows_updates
 
 
 def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> SanitizedTableRowView:

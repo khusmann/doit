@@ -63,13 +63,14 @@ def to_dst(dst: DstLink, tv: TableValue):
             match tv:
                 case Some(value=value) if isinstance(value, str):
                     #return ((linked_name, Some(dst.value_from_tag[value])),)
-                    return ((linked_name, Some(1)),)
+                    #return LinkedTableRowView({ linked_name: Some(dst.value_from_tag[value]) })
+                    return LinkedTableRowView({ linked_name: Some(1) })
                 case Some(value=value):
-                    return ((linked_name, ErrorValue(IncorrectTypeError(value))),)
+                    return LinkedTableRowView({ linked_name: ErrorValue(IncorrectTypeError(value)) })
                 case Omitted() | Redacted() | ErrorValue():
-                    return ((linked_name, tv),)
+                    return LinkedTableRowView({ linked_name: tv })
         case SimpleDstLink():
-            return ((linked_name, tv),)
+            return LinkedTableRowView({ linked_name: tv })
 
 def linker_from_spec(column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo], spec: LinkerSpec):
     return Linker(
@@ -96,11 +97,9 @@ def link_tabledata(table: SanitizedTableData, instrument_linker: InstrumentLinke
     )
 
     rows = tuple(
-        LinkedTableRowView(dict(
-            i
-                for row_linker in instrument_linker.linkers
-                    for i in row_linker.link_fn(row) 
-        )) for row in table.rows
+        LinkedTableRowView.combine_views(
+            *(linker.link_fn(row) for linker in instrument_linker.linkers)
+        ) for row in table.rows
     )
 
     return LinkedTableData(
