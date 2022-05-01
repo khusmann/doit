@@ -3,8 +3,6 @@ import typing as t
 from ..common.table import (
     TableData,
     TableRowView,
-    OrdinalValue,
-    OrdinalLabel,
 )
 
 class SanitizedColumnId(t.NamedTuple):
@@ -18,12 +16,12 @@ class SanitizedTextColumnInfo(t.NamedTuple):
 class SanitizedOrdinalColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
-    codes: t.Mapping[OrdinalValue, OrdinalLabel]
+    codes: t.Mapping[int, str]
 
 class SanitizedMultiselectColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
-    codes: t.Mapping[OrdinalValue, OrdinalLabel]
+    codes: t.Mapping[int, str]
 
 SanitizedColumnInfo = SanitizedTextColumnInfo | SanitizedOrdinalColumnInfo | SanitizedMultiselectColumnInfo
 

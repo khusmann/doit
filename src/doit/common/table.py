@@ -3,6 +3,8 @@ import typing as t
 import traceback
 from dataclasses import dataclass
 
+from functools import reduce
+
 ### Value types
 
 OrdinalValue = t.NewType('OrdinalValue', int)
@@ -32,6 +34,9 @@ ColumnIdP = t.TypeVar('ColumnIdP')
 
 class Some(t.NamedTuple):
     value: t.Any
+
+class Multi(t.NamedTuple):
+    values: t.Tuple[t.Any, ...]
 
 class Omitted(t.NamedTuple):
     pass
@@ -73,13 +78,59 @@ class ErrorValue:
     def print_traceback(self):
         print("".join(traceback.format_list(self.stack)))
 
-TableValue = Some | Omitted | Redacted | ErrorValue
+TableValue = Some | Multi | Omitted | Redacted | ErrorValue
 
 def omitted_if_empty(value: t.Optional[t.Any]) -> TableValue:
     return Some(value) if value else Omitted()
 
 def redacted_if_empty(value: t.Optional[t.Any]) -> TableValue:
     return Some(value) if value else Redacted()
+
+def tv_combine(tv1: TableValue, tv2: TableValue) -> TableValue:
+    if isinstance(tv1, ErrorValue):
+        return tv1 
+    if isinstance(tv2, ErrorValue):
+        return tv2
+    if isinstance(tv1, Redacted | Omitted):
+        return ErrorValue(IncorrectType(tv1))
+    if isinstance(tv2, Redacted | Omitted):
+        return ErrorValue(IncorrectType(tv2))
+    match tv1:
+        case Some(value=v1):
+            match tv2:
+                case Some(value=v2):
+                    return Multi((v1, v2))
+                case Multi(values=v2s):
+                    return Multi((v1, *v2s))
+        case Multi(values=v1s):
+            match tv2:
+                case Some(value=v2):
+                    return Multi((*v1s, v2))
+                case Multi(values=v2s):
+                    return Multi((*v1s, *v2s))
+
+def tv_bind(
+    tv: TableValue,
+    fn: t.Callable[[T], TableValue],
+    type: t.Type[T],
+) -> TableValue:
+    match tv:
+        case Multi(values=values) if all(isinstance(i, type) for i in values):
+            return reduce(tv_combine, (fn(i) for i in values))
+        case Multi(values=values):
+            return ErrorValue(IncorrectType(values))
+        case Some(value=value) if isinstance(value, type):
+            return fn(value)
+        case Some(value=value):
+            return ErrorValue(IncorrectType(value))
+        case Redacted() | Omitted() | ErrorValue():
+            return tv
+
+def tv_lookup(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
+    return tv_bind(tv, lambda v: Some(m[v]) if v in m else ErrorValue(MissingCode(v, m)), type)
+
+def tv_lookup_with_default(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
+    return tv_bind(tv, lambda v: Some(m.get(v, v)), type)
 
 ### TableRowView
 

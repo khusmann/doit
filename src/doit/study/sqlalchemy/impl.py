@@ -4,9 +4,6 @@ import typing as t
 from sqlalchemy import (
     create_engine,
     MetaData,
-    select,
-    insert,
-    update,
 )
 
 from sqlalchemy.engine import Engine
@@ -34,7 +31,7 @@ from .from_spec import (
     AddMeasureContext,
     sql_from_codemap_spec,
     sql_from_index_column_spec,
-    sql_from_tablevalue,
+    sql_from_linkedtabledata,
 )
 
 from .to_view import (
@@ -142,31 +139,12 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         
         return cls(engine, datatable_metadata)
         
-    def write_table(self, table: LinkedTable):
-
+    def write_table(self, linked_table: LinkedTable):
         session = SessionWrapper(self.engine)
-        curr_table = self.datatable_metadata.tables[table.studytable_name]
 
-        for row in table.data.rows:
-            # TODO: fix _map
-            sql_row = { id.linked_name: sql_from_tablevalue(tv) for id, tv in row._map.items() } # type: ignore
-            index_params = [k == sql_row[k.name] for k in curr_table.primary_key]
-            
-            exists = session.impl.execute( # type:ignore
-                select(curr_table.columns).where(*index_params)
-            ).one_or_none()
+        sql_table = self.datatable_metadata.tables[linked_table.studytable_name]
 
-            if exists:
-                session.impl.execute( # type:ignore
-                    update(curr_table)
-                        .where(*index_params)
-                        .values(sql_row)
-                )
-            else:
-                session.impl.execute( # type: ignore
-                    insert(curr_table)
-                        .values(sql_row)
-                )
+        session.upsert_rows(sql_table, sql_from_linkedtabledata(linked_table.data))
 
         session.commit()
 

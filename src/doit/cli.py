@@ -200,10 +200,14 @@ def link():
         link_tableinfo(info, spec) for info, spec in zip(sanitizedtableinfos, instrumentlinker_specs)
     )
 
+    click.secho()
+
     for linker in tqdm(linkers):
         sanitized_table = sanitized_repo.read_table(linker.instrument_name)
         linked_table = link_table(sanitized_table.data, linker)
         linked_repo.write_table(linked_table)
+    
+    click.secho()
 
 @cli.command()
 def debug():

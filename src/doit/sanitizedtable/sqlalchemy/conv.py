@@ -7,12 +7,11 @@ from sqlalchemy.engine import ResultProxy
 from ...common.table import (
     Omitted,
     Some,
+    Multi,
     ErrorValue,
     Redacted,
     TableValue,
     TableRowView,
-    OrdinalLabel,
-    OrdinalValue,
 )
 
 from .sqlmodel import (
@@ -34,12 +33,24 @@ from ..model import (
 
 from pydantic import parse_obj_as
 
-def tabledata_from_sql(column_names: t.Sequence[SanitizedColumnInfo], rows: ResultProxy):
+def tablevalue_from_sql(column: SanitizedColumnInfo, value: t.Any):
+    if value is None:
+        return Omitted()
+
+    if isinstance(column, SanitizedMultiselectColumnInfo):
+        if not isinstance(value, t.List):
+            raise Exception("Error: multiselect values should be lists {}".format(value))
+        value = t.cast(t.List[t.Any], value)
+        return Multi(tuple(int(i) for i in value))
+
+    return Some(value)
+
+def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: ResultProxy):
     return SanitizedTableData(
-            column_ids=tuple(c.id for c in column_names),
+            column_ids=tuple(c.id for c in columns),
             rows=tuple(
                 TableRowView({
-                    c.id: Some(row[c.id.name]) if row[c.id.name] else Omitted() for c in column_names
+                    c.id: tablevalue_from_sql(c, row[c.id.name]) for c in columns
                 }) for row in rows
             )
         )
@@ -51,9 +62,6 @@ def render_tabledata(table: SanitizedTable):
     ]
 
 def render_value(column: SanitizedColumnInfo, v: TableValue):
-    if isinstance(v, Omitted):
-        return None
-
     if isinstance(v, ErrorValue):
         print("Encountered error value: {}".format(v))
         return None
@@ -65,18 +73,28 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
                     return str(value)
                 case Redacted():
                     return "__REDACTED__"
+                case Omitted():
+                    return None
+                case _:
+                    raise Exception("Error: Unexpected value in text column {}".format(v))
+
         case SanitizedOrdinalColumnInfo():
             match v:
                 case Some(value=value):
                     return int(value)
-                case Redacted():
-                    raise Exception("Error: Unexpected redacted value in a non-text column")
+                case Omitted():
+                    return None
+                case _:
+                    raise Exception("Error: Unexpected value in ordinal column {}".format(v))
+
         case SanitizedMultiselectColumnInfo():
             match v:
-                case Some(value=value):
-                    return json.dumps(v.value)
-                case Redacted():
-                    raise Exception("Error: Unexpected redacted value in a non-text column")
+                case Multi(values=values):
+                    return json.dumps(values)
+                case Omitted():
+                    return None
+                case _:
+                    raise Exception("Error: Unexpected value in multiselect column {}".format(v))
 
 def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
     match info:
@@ -132,13 +150,13 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
             return SanitizedOrdinalColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
-                codes=parse_obj_as(t.Mapping[OrdinalValue, OrdinalLabel], entry.codes),
+                codes=parse_obj_as(t.Mapping[int, str], entry.codes),
             )
         case "multiselect":
             return SanitizedMultiselectColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
-                codes=parse_obj_as(t.Mapping[OrdinalValue, OrdinalLabel], entry.codes),
+                codes=parse_obj_as(t.Mapping[int, str], entry.codes),
             )
         case _:
             raise Exception("Error: TODO: Add enum for column type")

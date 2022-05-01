@@ -1,7 +1,10 @@
 import typing as t
 
+from doit.study.model import LinkedTableData
+
 from ...common.table import (
     Some,
+    Multi,
     Omitted,
     Redacted,
     ErrorValue,
@@ -37,6 +40,8 @@ def sql_from_tablevalue(tv: TableValue):
     match tv:
         case Some(value=value):
             return value
+        case Multi(values=values):
+            return values
         case Omitted():
             return None
         case Redacted():
@@ -45,6 +50,12 @@ def sql_from_tablevalue(tv: TableValue):
         case ErrorValue():
             print("Encountered error value: {}".format(tv))
             return None
+
+def sql_from_linkedtabledata(linked_table: LinkedTableData):
+    return tuple(
+        { id.linked_name: sql_from_tablevalue(row.get(id)) for id in row.column_ids() }
+            for row in linked_table.rows
+    )
 
 def sql_from_codemap_spec(spec: CodeMapSpec, measure_name: str, codemap_name: str):
     name = ".".join((measure_name, codemap_name))

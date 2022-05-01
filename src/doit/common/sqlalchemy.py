@@ -3,6 +3,7 @@ import typing as t
 from sqlalchemy import (
     select,
     insert,
+    update,
     Table,
     MetaData,
 )
@@ -69,5 +70,40 @@ class SessionWrapper:
     def insert_rows(self, table: Table, values: t.Sequence[t.Mapping[str, t.Any]]):
         self.impl.execute( # type: ignore
             insert(table).values(values)
-        )        
+        )
+
+    def upsert_rows(self, table: Table, rows: t.Sequence[t.Mapping[str, t.Any]]):
+        for row in rows:
+            index_filter = [k == row[k.name] for k in table.primary_key]
+            
+            exists: ResultProxy | None = self.impl.execute( # type:ignore
+                select(table.columns).where(*index_filter)
+            ).first()
+
+            if exists:
+                self.impl.execute( # type:ignore
+                    update(table)
+                        .where(*index_filter)
+                        .values(row)
+                )
+            else:
+                # TODO: test this... (insure we don't overwrite existing values...)
+                non_null_value_filter = [ # type: ignore
+                    c != None # type: ignore
+                        for c in table.columns
+                            if c.name in row and not c.primary_key
+                ]
+
+                has_values : ResultProxy | None = self.impl.execute( # type:ignore
+                    select(table.columns).where(*index_filter, *non_null_value_filter)
+                ).first() 
+
+                if has_values:
+                    raise Exception("Error: Values already exist in row. {}".format(has_values))
+
+                self.impl.execute( # type: ignore
+                    insert(table)
+                        .values(row)
+                )
+
 
