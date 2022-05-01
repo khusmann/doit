@@ -135,7 +135,7 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 codes=parse_obj_as(t.Mapping[OrdinalValue, OrdinalLabel], entry.codes),
             )
         case "multiselect":
-            return SanitizedOrdinalColumnInfo(
+            return SanitizedMultiselectColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 codes=parse_obj_as(t.Mapping[OrdinalValue, OrdinalLabel], entry.codes),

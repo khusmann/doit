@@ -144,7 +144,7 @@ SrcLink = t.Union[
 
 class OrdinalDstLink(ImmutableBaseModel):
     linked_name: str
-    value_from_tag: t.Mapping[str, int] 
+    value_from_tag: t.Mapping[str, int]
 
 class SimpleDstLink(ImmutableBaseModel):
     linked_name: str

@@ -44,7 +44,7 @@ RelativeCodeMapName = t.NewType('RelativeCodeMapName', str)
 class OrdinalMeasureItemSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: str
-    type: t.Literal['ordinal', 'categorical']
+    type: t.Literal['ordinal', 'categorical', 'multiselect']
     codes: RelativeCodeMapName
 
 class SimpleMeasureItemSpec(ImmutableBaseModel):
@@ -58,23 +58,11 @@ class MeasureItemGroupSpec(ImmutableBaseModel):
     type: t.Literal['group']
     items: t.Tuple[MeasureNodeSpec, ...]
 
-class MultiselectItemSpec(ImmutableBaseModel):
-    id: RelativeMeasureNodeName
-    prompt: t.Optional[str]
-    type: t.Literal['multiselect']
-    items: t.Tuple[MultiselectItemSpec.Child, ...]
-
-    class Child(ImmutableBaseModel):
-        id: RelativeMeasureNodeName
-        prompt: str
-        type: t.Literal['bool'] = 'bool'
-
 MeasureNodeSpec = t.Annotated[
     t.Union[
         MeasureItemGroupSpec,
         OrdinalMeasureItemSpec,
         SimpleMeasureItemSpec,
-        MultiselectItemSpec,
     ], Field(discriminator='type')
 ]
 
@@ -140,6 +128,5 @@ class StudySpec(t.NamedTuple):
     
 
 MeasureItemGroupSpec.update_forward_refs()
-MultiselectItemSpec.update_forward_refs()
 CodeMapSpec.update_forward_refs()
 InstrumentItemGroupSpec.update_forward_refs()

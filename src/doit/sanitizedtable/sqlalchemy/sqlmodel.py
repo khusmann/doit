@@ -21,7 +21,7 @@ Base = declarative_base()
 
 COLUMN_TYPE_LOOKUP = {
     'ordinal': Integer,
-    'multiselect': String,
+    'multiselect': JSON,
     'text': String,
 }
 

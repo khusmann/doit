@@ -9,6 +9,7 @@ from ..common.table import (
     TableValue,
     Some,
     OrdinalValue,
+    OrdinalLabel,
 )
 
 from ..linker.model import (
@@ -45,6 +46,18 @@ from ..study.model import (
     LinkedColumnId,
 )
 
+T = t.TypeVar('T')
+
+def is_multivalue(value: t.Any, type: t.Type[T]) -> t.TypeGuard[t.Sequence[T]]:
+    if isinstance(value, str):
+        return False
+    try:
+        iter(value)
+    except:
+        return False
+    return all(isinstance(i, type) for i in value)
+    
+
 def from_src(
     column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo],
     src: SrcLink,
@@ -72,7 +85,26 @@ def from_src(
                         case _:
                             return tv
                 case SanitizedMultiselectColumnInfo():
-                    raise Exception("Error: multiselect not implenented yet")
+                    tv = row.get(src_name)
+                    match tv:
+                        case Some(value=value) if is_multivalue(value, str):
+                            try:
+                                int_value = tuple(int(i) for i in value)
+                            except ValueError:
+                                return ErrorValue(IncorrectType(value))
+
+                            label_value = tuple(column_info.codes.get(OrdinalValue(i)) for i in int_value)
+                            
+                            if any(i is None for i in label_value):
+                                return ErrorValue(MissingCode(value, column_info.codes))
+
+                            label_value = t.cast(t.Sequence[OrdinalLabel], label_value) # TODO don't cast
+
+                            return Some(tuple(src.source_value_map.get(i, i) for i in label_value))
+                        case Some(value=value):
+                            return ErrorValue(IncorrectType(value))
+                        case _:
+                            return tv
         case ConstantSrcLink():
             return Some(src.constant_value)
 
@@ -81,6 +113,11 @@ def to_dst(dst: DstLink, tv: TableValue):
     match dst:
         case OrdinalDstLink():
             match tv:
+                case Some(value=value) if is_multivalue(value, str):
+                    multiint_value = tuple(dst.value_from_tag.get(i) for i in value)
+                    if any(i is None for i in multiint_value):
+                        return LinkedTableRowView({ linked_name: ErrorValue(MissingCode(value, dst.value_from_tag)) })
+                    return LinkedTableRowView({ linked_name: Some(multiint_value) })
                 case Some(value=value) if isinstance(value, str):
                     int_value = dst.value_from_tag.get(value)
                     if int_value is None:

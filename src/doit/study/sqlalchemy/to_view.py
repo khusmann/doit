@@ -58,7 +58,7 @@ def to_codemapview(entry: CodemapSql) -> CodemapView:
 
 def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
     match entry.type:
-        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL:
+        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.MULTISELECT:
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
@@ -125,7 +125,7 @@ def to_instrumentview(entry: InstrumentEntrySql):
 def to_columnview(entry: ColumnEntrySql) -> ColumnView:
     studytable_name = entry.studytables[0].name if len(entry.studytables) == 1 else None
     match entry.type:
-        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL:
+        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.MULTISELECT:
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
@@ -181,7 +181,7 @@ def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
 
 def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
     match entry.type:
-        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.INDEX:
+        case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.INDEX | ColumnEntryType.MULTISELECT:
             if not entry.codemap:
                 raise Exception("Error: ordinal column {} missing codemap".format(entry.name))
 

@@ -52,6 +52,7 @@ class ColumnEntryType(enum.Enum):
     INTEGER = 'integer'
     GROUP = 'group'
     INDEX = 'index'
+    MULTISELECT = 'multiselect'
 
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries__"
@@ -104,6 +105,8 @@ def datatablecolumn_from_columnentrytype(type: ColumnEntryType):
             ColumnEntryType.ORDINAL
         ):
             return Integer
+        case ColumnEntryType.MULTISELECT:
+            return JSON(none_as_null=True)
         case ColumnEntryType.TEXT:
             return String
         case ColumnEntryType.REAL:

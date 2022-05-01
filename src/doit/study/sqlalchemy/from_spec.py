@@ -30,7 +30,6 @@ from ..spec import (
     QuestionInstrumentItemSpec,
     RelativeCodeMapName,
     SimpleMeasureItemSpec,
-    MultiselectItemSpec,
     MeasureItemGroupSpec,
 )
 
@@ -80,7 +79,7 @@ def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
         case 'text':
             return ColumnEntryType.TEXT
         case 'multiselect':
-            raise Exception("Error: multiselect not implemented yet")
+            return ColumnEntryType.MULTISELECT
 
 class AddMeasureContext(t.NamedTuple):
     get_codemap_by_relname: t.Callable[[RelativeCodeMapName], CodemapSql]
@@ -113,8 +112,6 @@ class AddMeasureContext(t.NamedTuple):
                             prompt=spec.prompt,
                             type=sql_columnentrytype(spec),
                         )]
-                    case MultiselectItemSpec():
-                        raise Exception("Error: MultiselectItemSpec not implemented")
                     case MeasureItemGroupSpec():
                         items=self.sql_from_measurenode_spec(spec.items, name)
                         return [ColumnEntrySql(
