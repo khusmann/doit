@@ -43,16 +43,6 @@ from ..study.model import (
     LinkedColumnId,
 )
 
-T = t.TypeVar('T')
-
-def from_question(column_info: SanitizedColumnInfo, tv: TableValue, source_value_map: t.Mapping[str, str]):
-    match column_info:
-        case SanitizedTextColumnInfo():
-            return tv_lookup_with_default(tv, source_value_map, str)
-        case SanitizedOrdinalColumnInfo() | SanitizedMultiselectColumnInfo():
-            label = tv_lookup(tv, column_info.codes, int)
-            return tv_lookup_with_default(label, source_value_map, str)
-
 def from_src(
     column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo],
     src: SrcLink,
@@ -66,23 +56,31 @@ def from_src(
             if not column_info:
                 raise Exception("Error: cannot find column in instrument source table ({})".format(src.source_column_name))
 
-            return from_question(column_info, row.get(src_name), src.source_value_map)
+            tv = row.get(src_name)
+
+            match column_info:
+                case SanitizedTextColumnInfo():
+                    return tv_lookup_with_default(tv, src.source_value_map, str)
+                case SanitizedOrdinalColumnInfo() | SanitizedMultiselectColumnInfo():
+                    label = tv_lookup(tv, column_info.codes, int)
+                    return tv_lookup_with_default(label, src.source_value_map, str)
+
 
         case ConstantSrcLink():
             return Some(src.constant_value)
 
 def to_dst(dst: DstLink, tv: TableValue):
-    linked_name = LinkedColumnId(dst.linked_name)
     match dst:
         case OrdinalDstLink():
-            return LinkedTableRowView({ linked_name: tv_lookup(tv, dst.value_from_tag, str) })
+            return tv_lookup(tv, dst.value_from_tag, str)
         case SimpleDstLink():
-            return LinkedTableRowView({ linked_name: tv })
+            return tv
 
 def linker_from_spec(column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo], spec: LinkerSpec):
+    linked_name = LinkedColumnId(spec.dst.linked_name)
     return Linker(
-        dst_col_ids=(LinkedColumnId(spec.dst.linked_name),),
-        link_fn=lambda row: to_dst(spec.dst, from_src(column_lookup, spec.src, row)),
+        dst_col_ids=(linked_name,),
+        link_fn=lambda row: LinkedTableRowView({ linked_name: to_dst(spec.dst, from_src(column_lookup, spec.src, row))}),
     )
 
 def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:
