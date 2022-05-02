@@ -89,7 +89,10 @@ def to_tv(value: t.Optional[t.Any], none_value: TableValue):
             return Some(value)
         case abc.Sequence():
             value = t.cast(t.Sequence[t.Any], value)
-            return Multi(tuple(value))
+            if len(value) == 0:
+                return none_value
+            else:
+                return Multi(tuple(value))
         case _:
             return Some(value)        
 

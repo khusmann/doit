@@ -16,7 +16,6 @@ from ..sanitizer.model import (
 from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
     UnsanitizedColumnInfo,
-    UnsanitizedMultiselectColumnInfo,
     UnsanitizedOrdinalColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableRowView,
@@ -32,7 +31,6 @@ from ..sanitizedtable.model import (
     SanitizedTableRowView,
     SanitizedTextColumnInfo,
     SanitizedOrdinalColumnInfo,
-    SanitizedMultiselectColumnInfo,
 )
 
 def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, LookupSanitizer]):
@@ -106,12 +104,7 @@ def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo
                 id=id,
                 prompt=column_info.prompt,
                 codes=column_info.codes,
-            )
-        case UnsanitizedMultiselectColumnInfo():
-            return SanitizedMultiselectColumnInfo(
-                id=id,
-                prompt=column_info.prompt,
-                codes=column_info.codes,
+                value_type=column_info.value_type,
             )
 
 def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedColumnInfo], sanitizer: Sanitizer) -> t.Tuple[SanitizedColumnInfo, ...]:

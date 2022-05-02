@@ -8,13 +8,13 @@ from doit.common.table import (
     Omitted,
     TableRowView,
     to_tv,
+    tv_bind,
     Some,
     OrdinalValue,
     OrdinalLabel,
 )
 
 from ..model import (
-    UnsanitizedMultiselectColumnInfo,
     UnsanitizedColumnId,
     UnsanitizedColumnInfo,
     UnsanitizedOrdinalColumnInfo,
@@ -125,24 +125,28 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 id=id,
                 prompt=prompt,
                 is_safe=False,
+                value_type='text',
             )
         case QualtricsNumericQuestion(description=prompt):
             return UnsanitizedTextColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
+                value_type='text',
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):
-            return UnsanitizedMultiselectColumnInfo(
+            return UnsanitizedOrdinalColumnInfo(
                 id=id,
                 prompt=prompt,
-                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in items.oneOf }
+                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in items.oneOf },
+                value_type='multiselect',
             )
         case QualtricsOrdinalQuestion(description=prompt,oneOf=oneOf):
             return UnsanitizedOrdinalColumnInfo(
                 id=id,
                 prompt=prompt,
-                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in oneOf }
+                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in oneOf },
+                value_type='ordinal',
             )
         case QualtricsArrayQuestion(description=prompt):
             raise Exception("Not implemented: {}".format(value))
@@ -154,6 +158,7 @@ def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
             id=UnsanitizedColumnId('responseId'),
             prompt="Qualtrics response id",
             is_safe=True,
+            value_type='text',
         )
     )
     responses = (
@@ -167,6 +172,14 @@ def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
         tuple(c for _, c in qmapping)
     )
 
+def from_qualtrics_value(column: UnsanitizedColumnInfo, value: t.Any):
+    # TODO: encode missing values for unasked questions (due to branching, etc) as NotAsked() or something
+    match column:
+        case UnsanitizedTextColumnInfo():
+            return to_tv(value, Omitted())
+        case UnsanitizedOrdinalColumnInfo():
+            return tv_bind(to_tv(value, Omitted()), lambda x: Some(int(x)), str)
+
 def parse_qualtrics_data(
     schema_mapping: QualtricsSchemaMapping,
     qd: QualtricsData
@@ -175,7 +188,7 @@ def parse_qualtrics_data(
 
     rows = tuple(
         TableRowView(
-            (column.id, (Some(row.responseId)) if name == 'responseId' else to_tv(row.values.get(name), Omitted()))
+            (column.id, (Some(row.responseId)) if name == 'responseId' else from_qualtrics_value(column, row.values.get(name)))
                 for name, column in zip(*schema_mapping)
         ) for row in qd.responses
     )

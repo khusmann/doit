@@ -1,6 +1,5 @@
 from __future__ import annotations
 import typing as t
-from collections import abc
 
 from sqlalchemy.engine import ResultProxy
 
@@ -12,6 +11,7 @@ from ...common.table import (
     Redacted,
     TableValue,
     TableRowView,
+    to_tv,
 )
 
 from .sqlmodel import (
@@ -23,7 +23,6 @@ from .sqlmodel import (
 from ..model import (
     SanitizedColumnId,
     SanitizedColumnInfo,
-    SanitizedMultiselectColumnInfo,
     SanitizedOrdinalColumnInfo,
     SanitizedTableInfo,
     SanitizedTable,
@@ -33,24 +32,12 @@ from ..model import (
 
 from pydantic import parse_obj_as
 
-def tablevalue_from_sql(column: SanitizedColumnInfo, value: t.Any):
-    if value is None:
-        return Omitted()
-
-    if isinstance(column, SanitizedMultiselectColumnInfo):
-        if isinstance(value, str) or not isinstance(value, abc.Sequence):
-            raise Exception("Error: multiselect values should be sequences. Type found: {} value: {}".format(type(value), value))
-        value = t.cast(t.Sequence[t.Any], value)
-        return Multi(tuple(int(i) for i in value))
-
-    return Some(value)
-
 def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: ResultProxy):
     return SanitizedTableData(
             column_ids=tuple(c.id for c in columns),
             rows=tuple(
                 TableRowView(
-                    (c.id, tablevalue_from_sql(c, row[c.id.name])) for c in columns
+                    (c.id, to_tv(row[c.id.name], Omitted())) for c in columns
                 ) for row in rows
             )
         )
@@ -70,6 +57,8 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
         case SanitizedTextColumnInfo():
             match v:
                 case Some(value=value):
+                    if not isinstance(value, str):
+                        raise Exception("Error: expected string value type for {}, got {}".format(value, type(value)))
                     return str(value)
                 case Redacted():
                     return "__REDACTED__"
@@ -81,20 +70,18 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
         case SanitizedOrdinalColumnInfo():
             match v:
                 case Some(value=value):
-                    return int(value)
+                    if not isinstance(value, int):
+                        raise Exception("Error: expected int value type for {}, got {}".format(value, type(value)))
+                    return value
+                case Multi(values=values):
+                    if not all(isinstance(i, int) for i in values):
+                        raise Exception("Error: expected int value type for {}, got {}".format(values, tuple(type(i) for i in values)))
+
+                    return list(values)
                 case Omitted():
                     return None
                 case _:
                     raise Exception("Error: Unexpected value in ordinal column {}".format(v))
-
-        case SanitizedMultiselectColumnInfo():
-            match v:
-                case Multi(values=values):
-                    return values
-                case Omitted():
-                    return None
-                case _:
-                    raise Exception("Error: Unexpected value in multiselect column {}".format(v))
 
 def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
     match info:
@@ -102,24 +89,16 @@ def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
             return ColumnEntrySql(
                 name=info.id.name,
                 prompt=info.prompt,
-                type="text",
+                type=info.value_type,
                 sanitizer_checksum=info.sanitizer_checksum,
             )
         case SanitizedOrdinalColumnInfo():
             return ColumnEntrySql(
                 name=info.id.name,
                 prompt=info.prompt,
-                type="ordinal",
+                type=info.value_type,
                 codes=info.codes,
             )
-        case SanitizedMultiselectColumnInfo():
-            return ColumnEntrySql(
-                name=info.id.name,
-                prompt=info.prompt,
-                type="multiselect",
-                codes=info.codes,
-            )
-
 
 def sql_from_tableinfo(info: SanitizedTableInfo, name: str) -> TableEntrySql:
     return TableEntrySql(
@@ -145,18 +124,14 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 sanitizer_checksum=entry.sanitizer_checksum,
+                value_type=entry.type,
             )
-        case "ordinal":
+        case "ordinal" | "multiselect":
             return SanitizedOrdinalColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 codes=parse_obj_as(t.Mapping[int, str], entry.codes),
-            )
-        case "multiselect":
-            return SanitizedMultiselectColumnInfo(
-                id=SanitizedColumnId(entry.name),
-                prompt=entry.prompt,
-                codes=parse_obj_as(t.Mapping[int, str], entry.codes),
+                value_type=entry.type,
             )
         case _:
             raise Exception("Error: TODO: Add enum for column type")

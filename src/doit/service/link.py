@@ -28,7 +28,6 @@ from ..study.view import (
 from ..sanitizedtable.model import (
     SanitizedColumnId,
     SanitizedColumnInfo,
-    SanitizedMultiselectColumnInfo,
     SanitizedOrdinalColumnInfo,
     SanitizedTableData,
     SanitizedTableInfo,
@@ -61,7 +60,7 @@ def from_src(
             match column_info:
                 case SanitizedTextColumnInfo():
                     return tv_lookup_with_default(tv, src.source_value_map, str)
-                case SanitizedOrdinalColumnInfo() | SanitizedMultiselectColumnInfo():
+                case SanitizedOrdinalColumnInfo():
                     label = tv_lookup(tv, column_info.codes, int)
                     return tv_lookup_with_default(label, src.source_value_map, str)
 
