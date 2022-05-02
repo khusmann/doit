@@ -125,14 +125,12 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 id=id,
                 prompt=prompt,
                 is_safe=False,
-                value_type='text',
             )
         case QualtricsNumericQuestion(description=prompt):
             return UnsanitizedTextColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
-                value_type='text',
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):
             return UnsanitizedOrdinalColumnInfo(
@@ -158,7 +156,6 @@ def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
             id=UnsanitizedColumnId('responseId'),
             prompt="Qualtrics response id",
             is_safe=True,
-            value_type='text',
         )
     )
     responses = (

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing as t
+import enum
 from sqlalchemy import (
     Column,
     Integer,
@@ -8,6 +9,7 @@ from sqlalchemy import (
     MetaData,
     Table,
     JSON,
+    Enum,
 )
 
 from sqlalchemy.orm import (
@@ -19,11 +21,14 @@ from ...common.sqlalchemy import declarative_base
 
 Base = declarative_base()
 
-COLUMN_TYPE_LOOKUP = {
-    'ordinal': Integer,
-    'multiselect': JSON,
-    'text': String,
-}
+def datatablecolumn_from_columnentrytype(type: ColumnEntryType):
+    match type:
+        case ColumnEntryType.ORDINAL:
+            return Integer
+        case ColumnEntryType.MULTISELECT:
+            return JSON
+        case ColumnEntryType.TEXT:
+            return String
 
 def setup_datatable(metadata: MetaData, table: TableEntrySql) -> Table:
     return Table(
@@ -32,7 +37,7 @@ def setup_datatable(metadata: MetaData, table: TableEntrySql) -> Table:
         *[
             Column(
                 i.name,
-                COLUMN_TYPE_LOOKUP[i.type],
+                datatablecolumn_from_columnentrytype(i.type),
             ) for i in table.columns
         ]
     )
@@ -49,12 +54,17 @@ class TableEntrySql(Base):
         order_by="ColumnEntrySql.id",
     )
 
+class ColumnEntryType(enum.Enum):
+    ORDINAL = 'ordinal'
+    MULTISELECT = 'multiselect'
+    TEXT = 'text'
+
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries"
     id = Column(Integer, primary_key=True)
     parent_table_id = Column(Integer, ForeignKey(TableEntrySql.id), nullable=False)
     name = Column(String, nullable=False)
-    type = Column(String, nullable=False)
+    type = t.cast(Column[ColumnEntryType], Column(Enum(ColumnEntryType), nullable=False))
     prompt = Column(String)
     sanitizer_checksum = Column(String)
     codes = Column(JSON)

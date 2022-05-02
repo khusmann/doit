@@ -15,6 +15,7 @@ from ...common.table import (
 )
 
 from .sqlmodel import (
+    ColumnEntryType,
     TableEntrySql,
     ColumnEntrySql,
 )
@@ -83,20 +84,29 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
                 case _:
                     raise Exception("Error: Unexpected value in ordinal column {}".format(v))
 
+def sql_columnentrytype(info: SanitizedColumnInfo) -> ColumnEntryType:
+    match info.value_type:
+        case 'text':
+            return ColumnEntryType.TEXT
+        case 'multiselect':
+            return ColumnEntryType.MULTISELECT
+        case 'ordinal':
+            return ColumnEntryType.ORDINAL
+
 def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
     match info:
         case SanitizedTextColumnInfo():
             return ColumnEntrySql(
                 name=info.id.name,
                 prompt=info.prompt,
-                type=info.value_type,
+                type=sql_columnentrytype(info),
                 sanitizer_checksum=info.sanitizer_checksum,
             )
         case SanitizedOrdinalColumnInfo():
             return ColumnEntrySql(
                 name=info.id.name,
                 prompt=info.prompt,
-                type=info.value_type,
+                type=sql_columnentrytype(info),
                 codes=info.codes,
             )
 
@@ -119,20 +129,17 @@ def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
 
 def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
     match entry.type:
-        case "text":
+        case ColumnEntryType.TEXT:
             return SanitizedTextColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 sanitizer_checksum=entry.sanitizer_checksum,
-                value_type=entry.type,
+                value_type=entry.type.value,
             )
-        case "ordinal" | "multiselect":
+        case ColumnEntryType.ORDINAL | ColumnEntryType.MULTISELECT:
             return SanitizedOrdinalColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 codes=parse_obj_as(t.Mapping[int, str], entry.codes),
-                value_type=entry.type,
+                value_type=entry.type.value,
             )
-        case _:
-            raise Exception("Error: TODO: Add enum for column type")
-

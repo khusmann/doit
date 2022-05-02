@@ -4,6 +4,7 @@ from .sqlmodel import (
     ColumnEntryType,
     InstrumentEntrySql,
     InstrumentNodeSql,
+    InstrumentNodeType,
     MeasureEntrySql,
     StudyTableSql,
 )
@@ -87,19 +88,19 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
 
 def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
     match entry.type:
-        case 'question':
+        case InstrumentNodeType.QUESTION:
             return QuestionInstrumentNodeView(
                 prompt=entry.prompt,
                 source_column_name=entry.source_column_name,
-                map={},
+                map=entry.source_value_map or {},
                 column_info=to_columnview(entry.column_entry) if entry.column_entry else None,
             )
-        case 'constant':
+        case InstrumentNodeType.CONSTANT:
             return ConstantInstrumentNodeView(
                 constant_value=entry.constant_value,
                 column_info=to_columnview(entry.column_entry) if entry.column_entry else None,
             )
-        case 'group':
+        case InstrumentNodeType.GROUP:
             return GroupInstrumentNodeView(
                 title=entry.title,
                 prompt=entry.prompt,
@@ -107,8 +108,6 @@ def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
                     to_instrumentnodeview(i) for i in entry.items
                 )
             )
-        case _:
-            raise Exception("Error: Unknown instrument node type {}".format(entry.type))
 
 def to_instrumentview(entry: InstrumentEntrySql):
     return InstrumentView(
@@ -167,16 +166,16 @@ def to_studytableview(entry: StudyTableSql) -> StudyTableView:
 
 def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
     match entry.type:
-        case "question":
+        case InstrumentNodeType.QUESTION:
             return QuestionSrcLink(
                 source_column_name=entry.source_column_name,
                 source_value_map=entry.source_value_map or {},
             )
-        case "constant":
+        case InstrumentNodeType.CONSTANT:
             return ConstantSrcLink(
                 constant_value=entry.constant_value,
             )
-        case _:
+        case InstrumentNodeType.GROUP:
             raise Exception("Error: cannot link from type {}".format(entry.type))
 
 def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
@@ -213,6 +212,6 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
                 dst=to_dstconnectionview(i.column_entry),
             ) for i in entry.items
                 if i.column_entry is not None and
-                    (i.type == "constant" or i.source_column_name is not None)
+                    (i.type == InstrumentNodeType.CONSTANT or i.source_column_name is not None)
         ),
     )

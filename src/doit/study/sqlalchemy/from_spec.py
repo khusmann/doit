@@ -14,6 +14,7 @@ from ...common.table import (
 from .sqlmodel import (
     CodemapSql,
     ColumnEntryType,
+    InstrumentNodeType,
     MeasureEntrySql,
     ColumnEntrySql,
     InstrumentEntrySql,
@@ -137,6 +138,15 @@ class AddMeasureContext(t.NamedTuple):
                     for sql in inner(i)
         ]
 
+def sql_instrumentnodetype(spec: InstrumentNodeSpec) -> InstrumentNodeType:
+    match spec.type:
+        case 'question':
+            return InstrumentNodeType.QUESTION
+        case 'constant':
+            return InstrumentNodeType.CONSTANT
+        case 'group':
+            return InstrumentNodeType.GROUP
+
 class AddInstrumentContext(t.NamedTuple):
     get_column_by_name: t.Callable[[str], ColumnEntrySql]
 
@@ -157,13 +167,13 @@ class AddInstrumentContext(t.NamedTuple):
                         prompt=spec.prompt,
                         source_column_name=spec.remote_id,
                         source_value_map=spec.map,
-                        type=spec.type,
+                        type=sql_instrumentnodetype(spec),
                         column_entry=None if spec.id is None else self.get_column_by_name(spec.id),
                     )]
                 case ConstantInstrumentItemSpec():
                     return [InstrumentNodeSql(
                         constant_value=spec.value,
-                        type=spec.type,
+                        type=sql_instrumentnodetype(spec),
                         column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
                     )]
                 case InstrumentItemGroupSpec():
@@ -171,7 +181,7 @@ class AddInstrumentContext(t.NamedTuple):
                     return [InstrumentNodeSql(
                         title=spec.title,
                         prompt=spec.prompt,
-                        type=spec.type,
+                        type=sql_instrumentnodetype(spec),
                         items=items,
                     ), *items]
         return [

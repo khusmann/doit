@@ -173,6 +173,11 @@ class InstrumentEntrySql(Base):
         order_by="InstrumentNodeSql.id",
     )
 
+class InstrumentNodeType(enum.Enum):
+    QUESTION = 'question'
+    CONSTANT = 'constant'
+    GROUP = 'group'
+
 class InstrumentNodeSql(Base):
     __tablename__ = "__instrument_nodes__"
     id = Column(Integer, primary_key=True)
@@ -182,7 +187,7 @@ class InstrumentNodeSql(Base):
     source_column_name = Column(String)
     source_column_type = Column(String)
     source_prompt = Column(String)
-    type = Column(String, nullable=False)
+    type = t.cast(Column[InstrumentNodeType], Column(Enum(InstrumentNodeType), nullable=False))
 
     source_value_map = Column(JSON)
     title = Column(String)
