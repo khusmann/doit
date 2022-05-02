@@ -79,8 +79,8 @@ def to_dst(dst: DstLink, tv: TableValue):
 def linker_from_spec(column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo], spec: LinkerSpec):
     linked_name = LinkedColumnId(spec.dst.linked_name)
     return Linker(
-        dst_col_ids=(linked_name,),
-        link_fn=lambda row: LinkedTableRowView({ linked_name: to_dst(spec.dst, from_src(column_lookup, spec.src, row))}),
+        dst_col_id=linked_name,
+        link_fn=lambda row: ( linked_name, to_dst(spec.dst, from_src(column_lookup, spec.src, row)) ),
     )
 
 def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:
@@ -94,18 +94,14 @@ def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: Instrum
         ),
     )
 
-# TODO: Let link_fn just map from TableRowView -> TableValue
-
 def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -> LinkedTable:
     dst_column_ids = tuple(
-        i
-            for row_linker in instrument_linker.linkers
-                for i in row_linker.dst_col_ids
+        row_linker.dst_col_id for row_linker in instrument_linker.linkers
     )
 
     rows = tuple(
-        LinkedTableRowView.combine_views(
-            *(linker.link_fn(row) for linker in instrument_linker.linkers)
+        LinkedTableRowView(
+            linker.link_fn(row) for linker in instrument_linker.linkers
         ) for row in table.rows
     )
 

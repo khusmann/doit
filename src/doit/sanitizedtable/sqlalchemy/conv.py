@@ -1,6 +1,6 @@
 from __future__ import annotations
 import typing as t
-import json
+from collections import abc
 
 from sqlalchemy.engine import ResultProxy
 
@@ -38,9 +38,9 @@ def tablevalue_from_sql(column: SanitizedColumnInfo, value: t.Any):
         return Omitted()
 
     if isinstance(column, SanitizedMultiselectColumnInfo):
-        if not isinstance(value, t.List):
-            raise Exception("Error: multiselect values should be lists {}".format(value))
-        value = t.cast(t.List[t.Any], value)
+        if isinstance(value, str) or not isinstance(value, abc.Sequence):
+            raise Exception("Error: multiselect values should be sequences. Type found: {} value: {}".format(type(value), value))
+        value = t.cast(t.Sequence[t.Any], value)
         return Multi(tuple(int(i) for i in value))
 
     return Some(value)
@@ -49,9 +49,9 @@ def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: ResultPro
     return SanitizedTableData(
             column_ids=tuple(c.id for c in columns),
             rows=tuple(
-                TableRowView({
-                    c.id: tablevalue_from_sql(c, row[c.id.name]) for c in columns
-                }) for row in rows
+                TableRowView(
+                    (c.id, tablevalue_from_sql(c, row[c.id.name])) for c in columns
+                ) for row in rows
             )
         )
 
@@ -90,7 +90,7 @@ def render_value(column: SanitizedColumnInfo, v: TableValue):
         case SanitizedMultiselectColumnInfo():
             match v:
                 case Multi(values=values):
-                    return json.dumps(values)
+                    return values
                 case Omitted():
                     return None
                 case _:

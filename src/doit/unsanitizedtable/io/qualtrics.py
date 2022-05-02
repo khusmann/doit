@@ -5,8 +5,9 @@ import hashlib
 from pydantic import Field, BaseModel
 
 from doit.common.table import (
+    Omitted,
     TableRowView,
-    omitted_if_empty,
+    to_tv,
     Some,
     OrdinalValue,
     OrdinalLabel,
@@ -173,10 +174,10 @@ def parse_qualtrics_data(
 
 
     rows = tuple(
-        TableRowView({
-            column.id: (Some(row.responseId) if name == 'responseId' else omitted_if_empty(row.values.get(name)))
+        TableRowView(
+            (column.id, (Some(row.responseId)) if name == 'responseId' else to_tv(row.values.get(name), Omitted()))
                 for name, column in zip(*schema_mapping)
-        }) for row in qd.responses
+        ) for row in qd.responses
     )
 
     return UnsanitizedTableData(

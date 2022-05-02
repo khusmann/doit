@@ -5,18 +5,17 @@ import io
 
 from ..common.table import (
     Omitted,
+    Redacted,
     Some,
     DuplicateHeaderError,
     EmptyHeaderError,
     EmptySanitizerKeyError,
     TableValue,
-    omitted_if_empty,
-    redacted_if_empty,
-    TableRowView,
 )
 
 from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
+    UnsanitizedTableRowView,
 )
 
 from ..sanitizedtable.model import (
@@ -83,29 +82,27 @@ def load_sanitizer_csv(csv_text: str) -> LookupSanitizer:
     )
 
     keys = tuple(
-        TableRowView({
-            c: omitted_if_empty(v)
+        UnsanitizedTableRowView(
+            (c, Some(v) if v else Omitted())
                 for c, v in zip(header, row) if isinstance(c, UnsanitizedColumnId)
-        }) for row in lines
+        ) for row in lines
     )
 
     values = tuple(
-        TableRowView({
-            c: redacted_if_empty(v)
+        tuple(
+            (c, Some(v) if v else Redacted())
                 for c, v in zip(header, row)if isinstance(c, SanitizedColumnId)
-        }) for row in lines
+        ) for row in lines
     )
 
 
     for key, value in zip(keys, values):
         # Insure key columns have at least one real value
         if not any(isinstance(k, Some) for k in key.values()):
-            raise EmptySanitizerKeyError(tuple(v for v in value.values()))
+            raise EmptySanitizerKeyError(value)
 
     return LookupSanitizer(
         map=dict(zip(keys, values)),
         header=header,
-        key_col_ids=tuple(c for c in header if isinstance(c, UnsanitizedColumnId)),
-        new_col_ids=tuple(c for c in header if isinstance(c, SanitizedColumnId)),
         checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
     )

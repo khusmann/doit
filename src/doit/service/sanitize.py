@@ -2,7 +2,6 @@ import typing as t
 
 from ..common.table import (
     LookupSanitizerMiss,
-    TableRowView,
     Omitted,
     ErrorValue,
 )
@@ -68,27 +67,29 @@ def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, L
     return missing_columns_updates | missing_rows_updates
 
 
-def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer) -> SanitizedTableRowView:
+def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer):
     row_subset = row.subset(sanitizer.key_col_ids) # TODO: Only subset in the case of LookupSanitizer
 
     # If any row keys are Error, return that Error for all new vals
     error = next((v for v in row_subset.values() if isinstance(v, ErrorValue)), None)
     if error:
-        return TableRowView({ k: error for k in sanitizer.new_col_ids })
+        return tuple((k, error) for k in sanitizer.new_col_ids)
 
     match sanitizer:
         case LookupSanitizer():
             # If all row keys are Missing, return Missing for all new vals
             if (all(isinstance(v, Omitted) for v in row_subset.values())):
-                return TableRowView({ k: Omitted() for k in sanitizer.new_col_ids })
+                return tuple((k, Omitted()) for k in sanitizer.new_col_ids)
 
             # Lookup the new sanitized columns using the key columns
-            return sanitizer.map.get(row_subset) or TableRowView(
-                { k: ErrorValue(LookupSanitizerMiss(row_subset, sanitizer.map)) for k in sanitizer.new_col_ids }
+            return sanitizer.map.get(row_subset) or tuple(
+                (k,ErrorValue(LookupSanitizerMiss(row_subset, sanitizer.map)))
+                    for k in sanitizer.new_col_ids
             )
         case IdentitySanitizer():
-            return TableRowView(
-                { new: row_subset.get(old) for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids) } 
+            return tuple(
+                (new, row_subset.get(old))
+                    for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids)
             )
 
 def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo:
@@ -147,9 +148,12 @@ def sanitize_table(table: UnsanitizedTable, sanitizers: t.Sequence[LookupSanitiz
     )
 
     sanitized_rows = tuple(
-        SanitizedTableRowView.combine_views(
-            *(sanitize_row(row, sanitizer) for sanitizer in all_sanitizers)
-        ) for row in table.data.rows
+        SanitizedTableRowView(
+            v
+                for sanitizer in all_sanitizers
+                    for v in sanitize_row(row, sanitizer) 
+        )
+            for row in table.data.rows
     )
     
     # Step 3: And then you're done!

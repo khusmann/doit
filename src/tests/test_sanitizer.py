@@ -34,23 +34,23 @@ def test_basic_load():
         7,8,9,12
     """)
 
-    testrow = UnsanitizedTableRowView({
-        UnsanitizedColumnId("b"): Some("5"),
-        UnsanitizedColumnId("d"): Some("11"),
-    })
+    testrow = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("b"), Some("5")),
+        (UnsanitizedColumnId("d"), Some("11")),
+    ))
 
-    testrow_reverse = UnsanitizedTableRowView({
-        UnsanitizedColumnId("d"): Some("11"),
-        UnsanitizedColumnId("b"): Some("5"),
-    })
+    testrow_reverse = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("d"), Some("11")),
+        (UnsanitizedColumnId("b"), Some("5")),
+    ))
 
     sanitizer = load_sanitizer_csv(raw)
     
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitize_row(testrow, sanitizer).values()) == [Some("4"), Some("6")]
-    assert list(sanitize_row(testrow_reverse, sanitizer).values()) == [Some("4"), Some("6")]
+    assert list(v for _, v in sanitize_row(testrow, sanitizer)) == [Some("4"), Some("6")]
+    assert list(v for _, v in sanitize_row(testrow_reverse, sanitizer)) == [Some("4"), Some("6")]
 
 def test_missing_load():
     raw = dedent("""\
@@ -60,28 +60,28 @@ def test_missing_load():
         7,,9,12
     """)
 
-    testrow = UnsanitizedTableRowView({
-        UnsanitizedColumnId("b"): Some("5"),
-        UnsanitizedColumnId("d"): Some("11"),
-    })
+    testrow = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("b"), Some("5")),
+        (UnsanitizedColumnId("d"), Some("11")),
+    ))
 
-    testrow_missing = UnsanitizedTableRowView({
-        UnsanitizedColumnId("b"): Omitted(),
-        UnsanitizedColumnId("d"): Some("12"),
-    })
+    testrow_missing = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("b"), Omitted()),
+        (UnsanitizedColumnId("d"), Some("12")),
+    ))
 
-    testrow_error = UnsanitizedTableRowView({
-        UnsanitizedColumnId("z"): Some("10")
-    })
+    testrow_error = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("z"), Some("10")),
+    ))
 
     sanitizer = load_sanitizer_csv(raw)
 
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
 
-    assert list(sanitize_row(testrow, sanitizer).values()) == [Some("4"), Redacted()]
-    assert list(sanitize_row(testrow_missing, sanitizer).values()) == [Some("7"), Some("9")]
-    assert list(sanitize_row(testrow_error, sanitizer).values()) == list(repeat(ErrorValue(ColumnNotFoundInRow(UnsanitizedColumnId('b'), testrow_error)), 2))
+    assert list(v for _, v in sanitize_row(testrow, sanitizer)) == [Some("4"), Redacted()]
+    assert list(v for _, v in sanitize_row(testrow_missing, sanitizer)) == [Some("7"), Some("9")]
+    assert list(v for _, v in sanitize_row(testrow_error, sanitizer)) == list(repeat(ErrorValue(ColumnNotFoundInRow(UnsanitizedColumnId('b'), testrow_error)), 2))
 
 def test_missing_keys():
     raw = dedent("""\
@@ -91,20 +91,20 @@ def test_missing_keys():
         7,8,9,
     """)
 
-    testrow = UnsanitizedTableRowView({
-        UnsanitizedColumnId("b"): Some("8"),
-        UnsanitizedColumnId("d"): Omitted(),
-    })
+    testrow = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("b"), Some("8")),
+        (UnsanitizedColumnId("d"), Omitted()),
+    ))
 
-    testrow_allmissing = UnsanitizedTableRowView({
-        UnsanitizedColumnId("b"): Omitted(),
-        UnsanitizedColumnId("d"): Omitted(),
-    })
+    testrow_allmissing = UnsanitizedTableRowView((
+        (UnsanitizedColumnId("b"), Omitted()),
+        (UnsanitizedColumnId("d"), Omitted()),
+    ))
 
     sanitizer = load_sanitizer_csv(raw)
 
-    assert list(sanitize_row(testrow, sanitizer).values()) == [Some("7"), Some("9")]
-    assert list(sanitize_row(testrow_allmissing, sanitizer).values()) == [Omitted(), Omitted()]
+    assert list(v for _, v in sanitize_row(testrow, sanitizer)) == [Some("7"), Some("9")]
+    assert list(v for _, v in sanitize_row(testrow_allmissing, sanitizer)) == [Omitted(), Omitted()]
 
 def test_missing_key_error():
     raw = dedent("""\

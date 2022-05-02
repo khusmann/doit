@@ -2,7 +2,8 @@ import csv
 import hashlib
 
 from ..common.table import (
-    omitted_if_empty,
+    Some,
+    Omitted,
 )
 
 from .model import (
@@ -23,7 +24,7 @@ def load_sanitizedtable_csv(csv_text: str) -> SanitizedTable:
 
     rows = tuple(
         SanitizedTableRowView(
-            { h: omitted_if_empty(v) for h, v in zip(column_ids, row)}
+            (h, Some(v) if v else Omitted()) for h, v in zip(column_ids, row)
         ) for row in reader
     )
 

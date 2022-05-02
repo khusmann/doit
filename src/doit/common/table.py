@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing as t
+from collections import abc
 import traceback
 from dataclasses import dataclass
 
@@ -80,11 +81,17 @@ class ErrorValue:
 
 TableValue = Some | Multi | Omitted | Redacted | ErrorValue
 
-def omitted_if_empty(value: t.Optional[t.Any]) -> TableValue:
-    return Some(value) if value else Omitted()
-
-def redacted_if_empty(value: t.Optional[t.Any]) -> TableValue:
-    return Some(value) if value else Redacted()
+def to_tv(value: t.Optional[t.Any], none_value: TableValue):
+    match value:
+        case None:
+            return none_value
+        case str():
+            return Some(value)
+        case abc.Sequence():
+            value = t.cast(t.Sequence[t.Any], value)
+            return Multi(tuple(value))
+        case _:
+            return Some(value)        
 
 def tv_combine(tv1: TableValue, tv2: TableValue) -> TableValue:
     if isinstance(tv1, ErrorValue):
@@ -137,8 +144,8 @@ def tv_lookup_with_default(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[
 class TableRowView(t.Generic[ColumnIdT]):
     _map: t.Mapping[ColumnIdT, TableValue]
 
-    def __init__(self, map: t.Mapping[ColumnIdT, TableValue]):
-        self._map = map
+    def __init__(self, items: t.Iterable[t.Tuple[ColumnIdT, TableValue]]):
+        self._map = dict(items)
 
     def __hash__(self) -> int:
         error = next((v for v in self._map.values() if isinstance(v, ErrorValue)), None)
@@ -162,7 +169,7 @@ class TableRowView(t.Generic[ColumnIdT]):
         return self._map.get(column_name, ErrorValue(ColumnNotFoundInRow(column_name, self)))
 
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT]:
-        return TableRowView({ k: self.get(k) for k in keys })
+        return TableRowView((k, self.get(k)) for k in keys)
 
     def has_some(self):
         return any(isinstance(i, Some) for i in self._map.values())
@@ -170,16 +177,10 @@ class TableRowView(t.Generic[ColumnIdT]):
     @classmethod
     def combine_views(cls, *views: TableRowView[ColumnIdT]) -> TableRowView[ColumnIdT]:
         return TableRowView(
-            dict(
-                v
-                    for view in views
-                        for v in view._map.items() 
-            )
+            v
+                for view in views
+                    for v in view._map.items() 
         )
-
-    @classmethod
-    def from_pair(cls, id: ColumnIdT, tv: TableValue):
-        return cls({ id: tv })
 
 ### TableData
 
