@@ -14,7 +14,6 @@ from .view import (
 )
 
 class StudyRepoWriter(ABC):
-
     @abstractmethod
     def query_instrumentlinkerspecs(self) -> t.Tuple[InstrumentLinkerSpec, ...]: ...
 
@@ -26,7 +25,6 @@ class StudyRepoWriter(ABC):
     def new(cls, spec: StudySpec, filename: str = "") -> StudyRepoWriter: ...
 
 class StudyRepoReader(ABC):
-
     @abstractmethod
     def query_instrument(self, instrument_name: str) -> InstrumentView: ...
 
