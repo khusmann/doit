@@ -1,5 +1,6 @@
 import typing as t
-from pydantic import BaseModel, BaseSettings, Field
+from ...common import ImmutableBaseModel
+from pydantic import BaseSettings, Field
 
 class QualtricsRemoteSettings(BaseSettings):
     api_key: t.Optional[str]
@@ -10,27 +11,27 @@ class QualtricsRemoteSettings(BaseSettings):
         env_prefix = "qualtrics_"
 
 ### List Surveys API
-class QualtricsSurveyListElement(BaseModel):
+class QualtricsSurveyListElement(ImmutableBaseModel):
     id: str
     name: str
 
-class QualtricsSurveyList(BaseModel):
+class QualtricsSurveyList(ImmutableBaseModel):
     elements: t.List[QualtricsSurveyListElement]
 
 ### Download Survey API
 
-class QualtricsExportResponse(BaseModel):
+class QualtricsExportResponse(ImmutableBaseModel):
     progressId: str
 
-class QualtricsExportStatusInProgress(BaseModel):
+class QualtricsExportStatusInProgress(ImmutableBaseModel):
     percentComplete: str
     status: t.Literal["inProgress"]
 
-class QualtricsExportStatusComplete(BaseModel):
+class QualtricsExportStatusComplete(ImmutableBaseModel):
     status: t.Literal["complete"]
     fileId: t.Optional[str]
 
-class QualtricsExportStatusFailed(BaseModel):
+class QualtricsExportStatusFailed(ImmutableBaseModel):
     status: t.Literal["failed"]
 
 QualtricsExportStatus = t.Annotated[
