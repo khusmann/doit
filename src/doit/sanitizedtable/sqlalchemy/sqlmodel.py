@@ -50,7 +50,6 @@ class TableEntrySql(Base):
     schema_checksum = Column(String, nullable=False)
     columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
-        backref="parent_table",
         order_by="ColumnEntrySql.id",
     )
 
