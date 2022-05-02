@@ -2,7 +2,6 @@ from __future__ import annotations
 import typing as t
 import enum
 from sqlalchemy import (
-    Column,
     Integer,
     String,
     ForeignKey,
@@ -10,7 +9,7 @@ from sqlalchemy import (
     Table,
     Float,
     MetaData,
-    Enum,
+    Column,
 )
 
 from sqlalchemy.orm import (
@@ -18,15 +17,21 @@ from sqlalchemy.orm import (
     RelationshipProperty,
 )
 
-from ...common.sqlalchemy import declarative_base, backref
+from ...common.sqlalchemy import (
+    OptionalColumn,
+    declarative_base,
+    backref,
+    RequiredColumn,
+    RequiredEnumColumn,
+)
 
 Base = declarative_base()
 
 class CodemapSql(Base):
     __tablename__ = "__codemaps__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-    values = Column(JSON, nullable=False)
+    id = RequiredColumn(Integer, primary_key=True)
+    name = RequiredColumn(String, unique=True)
+    values = RequiredColumn(JSON)
 
     column_entries: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
@@ -35,10 +40,11 @@ class CodemapSql(Base):
 
 class MeasureEntrySql(Base):
     __tablename__ = "__measure_entries__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
-    title = Column(String)
-    description = Column(String)
+    id = RequiredColumn(Integer, primary_key=True)
+    name = RequiredColumn(String, unique=True)
+    title = OptionalColumn(String)
+    description = OptionalColumn(String)
+
     items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         order_by="ColumnEntrySql.id",
@@ -56,18 +62,18 @@ class ColumnEntryType(enum.Enum):
 
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries__"
-    id = Column(Integer, primary_key=True)
-    parent_measure_id = Column(Integer, ForeignKey(MeasureEntrySql.id))
-    parent_column_id = Column(Integer, ForeignKey(id))
-    codemap_id = Column(Integer, ForeignKey(CodemapSql.id))
-    name = Column(String, nullable=False)
-    shortname = Column(String)
+    id = RequiredColumn(Integer, primary_key=True)
+    parent_measure_id = OptionalColumn(Integer, ForeignKey(MeasureEntrySql.id))
+    parent_column_id = OptionalColumn(Integer, ForeignKey(id))
+    codemap_id = OptionalColumn(Integer, ForeignKey(CodemapSql.id))
+    name = RequiredColumn(String)
+    shortname = OptionalColumn(String)
 
-    type = t.cast(Column[ColumnEntryType], Column(Enum(ColumnEntryType), nullable=False))
+    type = RequiredEnumColumn(ColumnEntryType)
 
-    prompt = Column(String)
-    title = Column(String)
-    description = Column(String)
+    prompt = OptionalColumn(String)
+    title = OptionalColumn(String)
+    description = OptionalColumn(String)
 
     items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
@@ -129,8 +135,8 @@ def setup_datatable(metadata: MetaData, table: StudyTableSql):
 
 class StudyTableSql(Base):
     __tablename__ = "__table_info__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
+    id = RequiredColumn(Integer, primary_key=True)
+    name = RequiredColumn(String, unique=True)
 
     columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
@@ -153,16 +159,16 @@ TableColumnAssociationSql = Table(
 
 class InstrumentEntrySql(Base):
     __tablename__ = "__instrument_entries__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
-    studytable_id = Column(Integer, ForeignKey(StudyTableSql.id))
-    title = Column(String)
-    description = Column(String)
-    instructions = Column(String)
-    source_service = Column(String)
-    source_title = Column(String)
-    data_checksum = Column(String)
-    schema_checksum = Column(String)
+    id = RequiredColumn(Integer, primary_key=True)
+    name = RequiredColumn(String, unique=True)
+    studytable_id = OptionalColumn(Integer, ForeignKey(StudyTableSql.id))
+    title = OptionalColumn(String)
+    description = OptionalColumn(String)
+    instructions = OptionalColumn(String)
+    source_service = OptionalColumn(String)
+    source_title = OptionalColumn(String)
+    data_checksum = OptionalColumn(String)
+    schema_checksum = OptionalColumn(String)
 
     studytable: RelationshipProperty[StudyTableSql | None] = relationship(
         "StudyTableSql",
@@ -180,19 +186,19 @@ class InstrumentNodeType(enum.Enum):
 
 class InstrumentNodeSql(Base):
     __tablename__ = "__instrument_nodes__"
-    id = Column(Integer, primary_key=True)
-    parent_node_id = Column(Integer, ForeignKey(id))
-    parent_instrument_id = Column(Integer, ForeignKey(InstrumentEntrySql.id))
-    column_entry_id = Column(Integer, ForeignKey(ColumnEntrySql.id))
-    source_column_name = Column(String)
-    source_column_type = Column(String)
-    source_prompt = Column(String)
-    type = t.cast(Column[InstrumentNodeType], Column(Enum(InstrumentNodeType), nullable=False))
+    id = RequiredColumn(Integer, primary_key=True)
+    parent_node_id = OptionalColumn(Integer, ForeignKey(id))
+    parent_instrument_id = OptionalColumn(Integer, ForeignKey(InstrumentEntrySql.id))
+    column_entry_id = OptionalColumn(Integer, ForeignKey(ColumnEntrySql.id))
+    source_column_name = OptionalColumn(String)
+    source_column_type = OptionalColumn(String)
+    source_prompt = OptionalColumn(String)
+    type = RequiredEnumColumn(InstrumentNodeType)
 
-    source_value_map = Column(JSON)
-    title = Column(String)
-    prompt = Column(String)
-    constant_value = Column(String)
+    source_value_map = OptionalColumn(JSON)
+    title = OptionalColumn(String)
+    prompt = OptionalColumn(String)
+    constant_value = OptionalColumn(String)
 
     items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
         "InstrumentNodeSql",

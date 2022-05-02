@@ -1,4 +1,5 @@
 import typing as t
+import enum
 
 from sqlalchemy import (
     select,
@@ -6,7 +7,11 @@ from sqlalchemy import (
     update,
     Table,
     MetaData,
+    Column,
+    Enum,
 )
+
+from sqlalchemy.sql.type_api import TypeEngine
 
 from sqlalchemy.orm import (
     Session,
@@ -25,6 +30,17 @@ declarative_base: t.Callable[[], t.Type[DeclarativeBase]] = declarative_base
 backref: t.Any = backref
 
 T = t.TypeVar('T')
+
+EnumT = t.TypeVar('EnumT', bound=enum.Enum)
+
+def RequiredColumn(type: t.Type[TypeEngine[T]], constraint: t.Any | None = None, primary_key: bool = False, unique: bool = False) -> Column[T]:
+    return Column(type, constraint, nullable=False, primary_key=primary_key, unique=unique)
+
+def RequiredEnumColumn(type: t.Type[EnumT], constraint: t.Any | None = None, primary_key: bool = False, unique: bool = False) -> Column[EnumT]:
+    return t.cast(Column[EnumT], Column(Enum(type), constraint, nullable=False, primary_key=primary_key, unique=unique))
+
+def OptionalColumn(type: t.Type[TypeEngine[T]], constraint: t.Any | None = None, unique: bool = False) -> Column[T | None]:
+    return Column(type, constraint, nullable=True, unique=unique)
 
 class SessionWrapper:
     impl: Session

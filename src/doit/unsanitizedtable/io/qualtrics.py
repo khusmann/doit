@@ -12,8 +12,6 @@ from doit.common.table import (
     to_tv,
     tv_bind,
     Some,
-    OrdinalValue,
-    OrdinalLabel,
 )
 
 from ..model import (
@@ -138,14 +136,14 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
             return UnsanitizedOrdinalColumnInfo(
                 id=id,
                 prompt=prompt,
-                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in items.oneOf },
+                codes={ i.const: i.label for i in items.oneOf },
                 value_type='multiselect',
             )
         case QualtricsOrdinalQuestion(description=prompt,oneOf=oneOf):
             return UnsanitizedOrdinalColumnInfo(
                 id=id,
                 prompt=prompt,
-                codes={ OrdinalValue(i.const): OrdinalLabel(i.label) for i in oneOf },
+                codes={ i.const: i.label for i in oneOf },
                 value_type='ordinal',
             )
         case QualtricsArrayQuestion(description=prompt):

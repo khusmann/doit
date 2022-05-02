@@ -2,7 +2,6 @@ from __future__ import annotations
 import typing as t
 from faker import Faker
 from faker.providers import BaseProvider
-from doit.common.table import OrdinalValue
 
 from doit.study.spec import (
     ConstantInstrumentItemSpec,
@@ -249,7 +248,7 @@ class StudySpecProvider(BaseProvider):
         }
 
     def codemap(self, n: int = 4):
-        values = tuple(OrdinalValue(i) for i in range(1, n))
+        values = tuple(i for i in range(1, n))
         tags = tuple(fake.unique.word().upper() for _ in values)
         texts = tuple(fake.sentence(3) for _ in values)
         return CodeMapSpec(

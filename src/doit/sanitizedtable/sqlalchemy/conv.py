@@ -128,6 +128,9 @@ def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
     )
 
 def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
+    if not entry.prompt:
+        raise Exception("Error: entry missing prompt {}".format(entry.name))
+
     match entry.type:
         case ColumnEntryType.TEXT:
             return SanitizedTextColumnInfo(

@@ -4,19 +4,13 @@ from pydantic import Field, validator
 
 from ..common import ImmutableBaseModel
 
-from ..common.table import (
-    OrdinalLabel,
-    OrdinalTag,
-    OrdinalValue,
-)
-
 ### CodeMapSpec
 
 class CodeMapSpec(ImmutableBaseModel):
     class Value(t.TypedDict):
-        value: OrdinalValue
-        tag: OrdinalTag
-        text: OrdinalLabel
+        value: int
+        tag: str
+        text: str
 
     __root__: t.Tuple[CodeMapSpec.Value, ...]
 

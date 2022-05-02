@@ -1,4 +1,7 @@
 import pytest
+
+import simplejson
+
 from faker import Faker
 from .fakespec import StudySpecProvider
 
@@ -21,7 +24,7 @@ def test_add_measure(seed: int):
 
     assert isinstance(repo, SqlAlchemyRepo)
 
-    print(repo.query_measure(measure_names[0]))
+    print(simplejson.dumps(repo.query_measure(measure_names[0]), indent=3))
 
     #assert 5==6
 
@@ -37,7 +40,7 @@ def test_add_instrument(seed: int):
 
     assert isinstance(repo, SqlAlchemyRepo)
 
-    print(repo.query_instrument(instrument_names[0]).json(indent=3))
+    print(simplejson.dumps(repo.query_instrument(instrument_names[0]), indent=3))
     
     #assert 5==6
 
@@ -53,6 +56,6 @@ def test_studytable(seed: int):
 
     assert isinstance(repo, SqlAlchemyRepo)
 
-    print(repo.query_studytable_by_instrument(instrument_names[1]).json(indent=3))
+    print(simplejson.dumps(repo.query_studytable_by_instrument(instrument_names[1]), indent=3))
     
     #assert 5==6

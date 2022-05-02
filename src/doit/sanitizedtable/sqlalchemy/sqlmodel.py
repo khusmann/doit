@@ -9,7 +9,6 @@ from sqlalchemy import (
     MetaData,
     Table,
     JSON,
-    Enum,
 )
 
 from sqlalchemy.orm import (
@@ -17,7 +16,12 @@ from sqlalchemy.orm import (
     RelationshipProperty,
 )
 
-from ...common.sqlalchemy import declarative_base
+from ...common.sqlalchemy import (
+    declarative_base,
+    RequiredColumn,
+    OptionalColumn,
+    RequiredEnumColumn,
+)
 
 Base = declarative_base()
 
@@ -44,10 +48,11 @@ def setup_datatable(metadata: MetaData, table: TableEntrySql) -> Table:
 
 class TableEntrySql(Base):
     __tablename__ = "__table_entries__"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
-    data_checksum = Column(String, nullable=False)
-    schema_checksum = Column(String, nullable=False)
+    id = RequiredColumn(Integer, primary_key=True)
+    name = RequiredColumn(String, unique=True)
+    data_checksum = RequiredColumn(String)
+    schema_checksum = RequiredColumn(String)
+
     columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         order_by="ColumnEntrySql.id",
@@ -60,10 +65,11 @@ class ColumnEntryType(enum.Enum):
 
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries"
-    id = Column(Integer, primary_key=True)
-    parent_table_id = Column(Integer, ForeignKey(TableEntrySql.id), nullable=False)
-    name = Column(String, nullable=False)
-    type = t.cast(Column[ColumnEntryType], Column(Enum(ColumnEntryType), nullable=False))
-    prompt = Column(String)
-    sanitizer_checksum = Column(String)
-    codes = Column(JSON)
+    id = RequiredColumn(Integer, primary_key=True)
+    parent_table_id = RequiredColumn(Integer, ForeignKey(TableEntrySql.id))
+    name = RequiredColumn(String)
+    type = RequiredEnumColumn(ColumnEntryType)
+
+    prompt = OptionalColumn(String)
+    sanitizer_checksum = OptionalColumn(String)
+    codes = OptionalColumn(JSON)

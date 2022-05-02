@@ -1,42 +1,33 @@
 from __future__ import annotations
 import typing as t
 
-from ..common import ImmutableBaseModel
-
-from ..common.table import (
-    OrdinalLabel,
-    OrdinalTag,
-    OrdinalValue,
-)
-
 ### ColumnView
 
-class CodemapValue(ImmutableBaseModel):
-    value: OrdinalValue
-    tag: OrdinalTag
-    text: OrdinalLabel
+class CodemapValue(t.TypedDict):
+    value: int
+    tag: str
+    text: str
 
-class CodemapRaw(ImmutableBaseModel):
-    values: t.Tuple[CodemapValue, ...]
+CodemapRaw = t.Tuple[CodemapValue, ...]
 
-class CodemapView(ImmutableBaseModel):
-    tags: t.Mapping[OrdinalValue, OrdinalTag]
-    labels: t.Mapping[OrdinalValue, OrdinalLabel]
+class CodemapView(t.NamedTuple):
+    tags: t.Mapping[int, str]
+    labels: t.Mapping[int, str]
 
-class OrdinalColumnView(ImmutableBaseModel):
+class OrdinalColumnView(t.NamedTuple):
     name: str
     studytable_name: t.Optional[str]
     prompt: str
-    type: t.Literal['ordinal', 'categorical']
+    type: t.Literal['ordinal', 'categorical', 'multiselect']
     codes: CodemapView
 
-class IndexColumnView(ImmutableBaseModel):
+class IndexColumnView(t.NamedTuple):
     name: str
     title: str
     description: t.Optional[str]
     codes: CodemapView
 
-class SimpleColumnView(ImmutableBaseModel):
+class SimpleColumnView(t.NamedTuple):
     name: str
     studytable_name: t.Optional[str]
     prompt: str
@@ -50,17 +41,17 @@ ColumnView = t.Union[
 
 ### InstrumentView - Info to populate an instrument's page
 
-class QuestionInstrumentNodeView(ImmutableBaseModel):
+class QuestionInstrumentNodeView(t.NamedTuple):
     prompt: str
-    source_column_name: str
+    source_column_name: t.Optional[str]
     column_info: t.Optional[ColumnView]
-#    map: 
+    map: t.Mapping[str, str]
 
-class ConstantInstrumentNodeView(ImmutableBaseModel):
+class ConstantInstrumentNodeView(t.NamedTuple):
     constant_value: str
     column_info: t.Optional[ColumnView]
 
-class GroupInstrumentNodeView(ImmutableBaseModel):
+class GroupInstrumentNodeView(t.NamedTuple):
     title: t.Optional[str]
     prompt: t.Optional[str]
     items: t.Tuple[InstrumentNodeView, ...]
@@ -71,7 +62,7 @@ InstrumentNodeView = t.Union[
     GroupInstrumentNodeView,
 ]
 
-class InstrumentView(ImmutableBaseModel):
+class InstrumentView(t.NamedTuple):
     name: str
     title: str
     description: t.Optional[str]
@@ -85,26 +76,26 @@ class InstrumentView(ImmutableBaseModel):
 
 ### IndicesView - Info to populate the indices page
 
-class IndexItemView(ImmutableBaseModel):
+class IndexItemView(t.NamedTuple):
     name: str
 
-class IndicesView(ImmutableBaseModel):
+class IndicesView(t.NamedTuple):
     items: t.Tuple[str, ...]
 
 ### MeasureView - Info to populate a measure's page
 
-class OrdinalMeasureNodeView(ImmutableBaseModel):
+class OrdinalMeasureNodeView(t.NamedTuple):
     name: str
     prompt: str
-    type: t.Literal['ordinal', 'categorical']
+    type: t.Literal['ordinal', 'categorical', 'multiselect']
     codes: CodemapView
 
-class SimpleMeasureNodeView(ImmutableBaseModel):
+class SimpleMeasureNodeView(t.NamedTuple):
     name: str
     prompt: str
     type: t.Literal['text', 'integer', 'real']
 
-class GroupMeasureNodeView(ImmutableBaseModel):
+class GroupMeasureNodeView(t.NamedTuple):
     name: str
     prompt: str
     items: t.Tuple[MeasureNodeView, ...]
@@ -115,7 +106,7 @@ MeasureNodeView = t.Union[
     GroupMeasureNodeView,
 ]
 
-class MeasureView(ImmutableBaseModel):
+class MeasureView(t.NamedTuple):
     name: str
     title: str
     description: t.Optional[str]
@@ -123,18 +114,18 @@ class MeasureView(ImmutableBaseModel):
 
 ### Studytable View
 
-class StudyTableView(ImmutableBaseModel):
+class StudyTableView(t.NamedTuple):
     name: str
     columns: t.Tuple[ColumnView, ...]
 
 
 ### LinkerView
 
-class QuestionSrcLink(ImmutableBaseModel):
+class QuestionSrcLink(t.NamedTuple):
     source_column_name: str
     source_value_map: t.Mapping[str, str]
 
-class ConstantSrcLink(ImmutableBaseModel):
+class ConstantSrcLink(t.NamedTuple):
     constant_value: str
 
 SrcLink = t.Union[
@@ -142,11 +133,12 @@ SrcLink = t.Union[
     ConstantSrcLink,
 ]
 
-class OrdinalDstLink(ImmutableBaseModel):
+class OrdinalDstLink(t.NamedTuple):
     linked_name: str
     value_from_tag: t.Mapping[str, int]
+    type: t.Literal['ordinal', 'categorical', 'multiselect', 'index']
 
-class SimpleDstLink(ImmutableBaseModel):
+class SimpleDstLink(t.NamedTuple):
     linked_name: str
     type: t.Literal['text', 'real', 'integer']
 
@@ -163,6 +155,3 @@ class InstrumentLinkerSpec(t.NamedTuple):
     studytable_name: str
     instrument_name: str
     linker_specs: t.Tuple[LinkerSpec, ...]
-
-GroupMeasureNodeView.update_forward_refs()
-GroupInstrumentNodeView.update_forward_refs()

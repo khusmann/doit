@@ -6,12 +6,6 @@ from dataclasses import dataclass
 
 from functools import reduce
 
-### Value types
-
-OrdinalValue = t.NewType('OrdinalValue', int)
-OrdinalLabel = t.NewType('OrdinalValue', str)
-OrdinalTag = t.NewType('OrdinalTag', str)
-
 ### Error types
 
 class EmptyHeaderError(ValueError):

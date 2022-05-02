@@ -116,7 +116,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
             if not index_columns:
                 raise Exception("Error: instrument {} has no indices".format(instrument.name))
 
-            table_name = "-".join(sorted(i.shortname for i in index_columns))
+            table_name = "-".join(sorted(i.shortname for i in index_columns if i.shortname))
 
             table = session.get_or_create_by_name(StudyTableSql, table_name)
 
