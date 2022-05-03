@@ -5,8 +5,6 @@ import typing as t
 from ..common.table import (
     TableValue,
     Some,
-    tv_lookup,
-    tv_lookup_with_default,
 )
 
 from ..linker.model import (
@@ -59,11 +57,12 @@ def from_src(
 
             match column_info:
                 case SanitizedTextColumnInfo():
-                    return tv_lookup_with_default(tv, src.source_value_map, str)
+                    return tv.lookup_with_default(src.source_value_map, str)
                 case SanitizedOrdinalColumnInfo():
-                    label = tv_lookup(tv, column_info.codes, int)
-                    return tv_lookup_with_default(label, src.source_value_map, str)
-
+                    return (
+                        tv.lookup(column_info.codes, int)
+                          .lookup_with_default(src.source_value_map, str)
+                    ) 
 
         case ConstantSrcLink():
             return Some(src.constant_value)
@@ -71,7 +70,7 @@ def from_src(
 def to_dst(dst: DstLink, tv: TableValue):
     match dst:
         case OrdinalDstLink():
-            return tv_lookup(tv, dst.value_from_tag, str)
+            return tv.lookup(dst.value_from_tag, str)
         case SimpleDstLink():
             return tv
 

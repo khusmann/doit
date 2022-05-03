@@ -28,16 +28,38 @@ ColumnIdP = t.TypeVar('ColumnIdP')
 ### TableValue
 
 class Some(t.NamedTuple):
-    value: t.Any
-
+    value: int | str | float
+    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
+        return _bind(self, fn, type)
+    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup(self, m, type)
+    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup_with_default(self, m, type)
+ 
 class Multi(t.NamedTuple):
     values: t.Tuple[t.Any, ...]
+    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
+        return _bind(self, fn, type)
+    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup(self, m, type)
+    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup_with_default(self, m, type)
 
 class Omitted(t.NamedTuple):
-    pass
+    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
+        return _bind(self, fn, type)
+    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup(self, m, type)
+    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup_with_default(self, m, type)
 
 class Redacted(t.NamedTuple):
-    pass
+    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
+        return _bind(self, fn, type)
+    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup(self, m, type)
+    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup_with_default(self, m, type)
 
 class ColumnNotFoundInRow(t.NamedTuple):
     missing_column: t.Any
@@ -73,24 +95,30 @@ class ErrorValue:
     def print_traceback(self):
         print("".join(traceback.format_list(self.stack)))
 
+    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
+        return _bind(self, fn, type)
+    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup(self, m, type)
+    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
+        return _lookup_with_default(self, m, type)
+
 TableValue = Some | Multi | Omitted | Redacted | ErrorValue
 
-def to_tv(value: t.Optional[t.Any], none_value: TableValue):
+def from_optional(value: t.Optional[int | str | float | t.Tuple[t.Any, ...]], none_value: TableValue):
     match value:
         case None:
             return none_value
         case str():
             return Some(value)
         case abc.Sequence():
-            value = t.cast(t.Sequence[t.Any], value)
             if len(value) == 0:
                 return none_value
             else:
-                return Multi(tuple(value))
+                return Multi(value)
         case _:
             return Some(value)        
 
-def tv_combine(tv1: TableValue, tv2: TableValue) -> TableValue:
+def _combine(tv1: TableValue, tv2: TableValue) -> TableValue:
     if isinstance(tv1, ErrorValue):
         return tv1 
     if isinstance(tv2, ErrorValue):
@@ -113,14 +141,14 @@ def tv_combine(tv1: TableValue, tv2: TableValue) -> TableValue:
                 case Multi(values=v2s):
                     return Multi((*v1s, *v2s))
 
-def tv_bind(
+def _bind(
     tv: TableValue,
     fn: t.Callable[[T], TableValue],
     type: t.Type[T],
 ) -> TableValue:
     match tv:
         case Multi(values=values) if all(isinstance(i, type) for i in values):
-            return reduce(tv_combine, (fn(i) for i in values))
+            return reduce(_combine, (fn(i) for i in values))
         case Multi(values=values):
             return ErrorValue(IncorrectType(values))
         case Some(value=value) if isinstance(value, type):
@@ -130,11 +158,11 @@ def tv_bind(
         case Redacted() | Omitted() | ErrorValue():
             return tv
 
-def tv_lookup(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
-    return tv_bind(tv, lambda v: Some(m[v]) if v in m else ErrorValue(MissingCode(v, m)), type)
+def _lookup(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
+    return _bind(tv, lambda v: Some(m[v]) if v in m else ErrorValue(MissingCode(v, m)), type)
 
-def tv_lookup_with_default(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
-    return tv_bind(tv, lambda v: Some(m.get(v, v)), type)
+def _lookup_with_default(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
+    return _bind(tv, lambda v: Some(m.get(v, v)), type)
 
 ### TableRowView
 

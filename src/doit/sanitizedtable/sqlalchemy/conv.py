@@ -11,7 +11,7 @@ from ...common.table import (
     Redacted,
     TableValue,
     TableRowView,
-    to_tv,
+    from_optional,
 )
 
 from .sqlmodel import (
@@ -38,7 +38,7 @@ def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: ResultPro
             column_ids=tuple(c.id for c in columns),
             rows=tuple(
                 TableRowView(
-                    (c.id, to_tv(row[c.id.name], Omitted())) for c in columns
+                    (c.id, from_optional(row[c.id.name], Omitted())) for c in columns
                 ) for row in rows
             )
         )

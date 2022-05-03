@@ -9,8 +9,7 @@ from pydantic import Field
 from doit.common.table import (
     Omitted,
     TableRowView,
-    to_tv,
-    tv_bind,
+    from_optional,
     Some,
 )
 
@@ -173,9 +172,9 @@ def from_qualtrics_value(column: UnsanitizedColumnInfo, value: t.Any):
     # TODO: encode missing values for unasked questions (due to branching, etc) as NotAsked() or something
     match column:
         case UnsanitizedTextColumnInfo():
-            return to_tv(value, Omitted())
+            return from_optional(value, Omitted())
         case UnsanitizedOrdinalColumnInfo():
-            return tv_bind(to_tv(value, Omitted()), lambda x: Some(int(x)), str)
+            return from_optional(value, Omitted()).bind(lambda x: Some(int(x)), str)
 
 def parse_qualtrics_data(
     schema_mapping: QualtricsSchemaMapping,
