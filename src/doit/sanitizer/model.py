@@ -12,7 +12,7 @@ from ..sanitizedtable.model import (
 )
 
 class LookupSanitizer(t.NamedTuple):
-    map: t.Mapping[UnsanitizedTableRowView, t.Tuple[t.Tuple[SanitizedColumnId, TableValue], ...]]
+    map: t.Mapping[UnsanitizedTableRowView, t.Tuple[t.Tuple[SanitizedColumnId, TableValue[t.Any]], ...]]
     header: t.Tuple[UnsanitizedColumnId | SanitizedColumnId, ...]
     checksum: str
 

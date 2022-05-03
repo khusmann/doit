@@ -1,10 +1,9 @@
 import typing as t
 
-from doit.study.model import LinkedTableData
+from ..model import LinkedTable, LinkedColumnInfo
 
 from ...common.table import (
     Some,
-    Multi,
     Omitted,
     Redacted,
     ErrorValue,
@@ -37,25 +36,52 @@ from ..spec import (
     MeasureItemGroupSpec,
 )
 
-def sql_from_tablevalue(tv: TableValue):
-    match tv:
-        case Some(value=value):
-            return value
-        case Multi(values=values):
-            return values
-        case Omitted():
-            return None
-        case Redacted():
-            print("Encountered redacted value")
-            return None 
-        case ErrorValue():
-            print("Encountered error value: {}".format(tv))
-            return None
+def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
+    # TODO: return a RowResult type which turns into a TableResult
+    # write all rows with valid results; then return a [WriteTableError]
+    # which can be aggregated into a DOIT_ERRORS.csv file for inspection
+    match column.value_type:
+        case 'text' | 'real' | 'integer':
+            tv = value.assert_type(str | int | float)
+            match tv:
+                case Some(value=v):
+                    return v
+                case Omitted():
+                    return None
+                case Redacted():
+                    return "__REDACTED__"
+                case ErrorValue():
+                    raise Exception("Error: Error value in text column {}".format(tv))           
 
-def sql_from_linkedtabledata(linked_table: LinkedTableData):
+        case 'ordinal' | 'categorical' | 'index':
+            tv = value.assert_type(int)
+            match tv:
+                case Some(value=v):
+                    return v
+                case Omitted():
+                    return None
+                case Redacted():
+                    raise Exception("Error: Redacted value in coded column {}".format(column.id.linked_name))
+                case ErrorValue():
+                    raise Exception("Error: Error value in coded column {}".format(tv))
+        
+        case 'multiselect':
+            tv = value.assert_type_seq(int)
+            match tv:
+                case Some(value=v):
+                    return v
+                case Omitted():
+                    return None
+                case Redacted():
+                    raise Exception("Error: Redacted value in multiselect column {}".format(column.id.linked_name))
+                case ErrorValue():
+                    raise Exception("Error: Error value in multiselect column {}".format(tv))
+
+
+def render_tabledata(linked_table: LinkedTable):
     return tuple(
-        { id.linked_name: sql_from_tablevalue(row.get(id)) for id in row.column_ids() }
-            for row in linked_table.rows
+        { c.id.linked_name: sql_from_tablevalue(c, row.get(c.id)) for c in linked_table.columns }
+            for row in linked_table.data.rows
     )
 
 def sql_from_codemap_spec(spec: CodeMapSpec, measure_name: str, codemap_name: str):

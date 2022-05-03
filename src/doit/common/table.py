@@ -4,8 +4,6 @@ from collections import abc
 import traceback
 from dataclasses import dataclass
 
-from functools import reduce
-
 ### Error types
 
 class EmptyHeaderError(ValueError):
@@ -22,44 +20,95 @@ class EmptySanitizerKeyError(ValueError):
 T = t.TypeVar('T')
 P = t.TypeVar("P")
 
+SingleT = t.TypeVar('SingleT', int, str, float)
+SingleP = t.TypeVar('SingleP', int, str, float)
+
+UnionSingleT = t.TypeVar('UnionSingleT', bound=int | str | float)
+
 ColumnIdT = t.TypeVar('ColumnIdT')
 ColumnIdP = t.TypeVar('ColumnIdP')
 
+def value_if_none_fn(none_value: TableValue[T]) -> t.Callable[[T | None], TableValue[T]]:
+    return lambda x: none_value if x is None else Some(x)
+
+def value_if_none_fn_seq(none_value: TableValue[t.Sequence[T]]) -> t.Callable[[t.Sequence[T | None]], TableValue[t.Sequence[T]]]:
+    return lambda x: none_value if any(i is None for i in x) else t.cast(TableValue[t.Sequence[T]], Some(x))
+
+def lookup_fn(map: t.Mapping[SingleT, SingleP]) -> t.Callable[[SingleT], TableValue[SingleP]]:
+    return lambda x: value_if_none_fn(ErrorValue(MissingCode(x, map)))(map.get(x)) 
+
+def lookup_fn_seq(map: t.Mapping[SingleT, SingleP]) -> t.Callable[[t.Sequence[SingleT]], TableValue[t.Sequence[SingleP]]]:
+    return lambda x: value_if_none_fn_seq(ErrorValue(MissingCode(x, map)))(tuple(map.get(i) for i in x))
+
+def cast_fn(to_type: t.Type[SingleP]) -> t.Callable[[SingleT], TableValue[SingleP]]:
+    def inner(x: SingleT):
+        try:
+            return Some(to_type(x))
+        except:
+            return ErrorValue(IncorrectType(x))
+    return inner
+
+def cast_fn_seq(to_type: t.Type[SingleP]) -> t.Callable[[t.Sequence[SingleT]], TableValue[t.Sequence[SingleP]]]:
+    def inner(x: t.Sequence[SingleT]):
+        try:
+            result: TableValue[t.Sequence[SingleP]] = Some(tuple(to_type(i) for i in x))
+            return result
+        except:
+            return ErrorValue(IncorrectType(x))
+    return inner
+
 ### TableValue
+class Some(t.Generic[T]):
+    value: T
+    def __init__(self, value: T):
+        self.value=value
+    def __repr__(self):
+        return "Some({})".format(self.value)
+    def __hash__(self):
+        return hash(self.value)
+    def __eq__(self, o: t.Any):
+        return isinstance(o, Some) and self.value == t.cast(Some[T], o).value
 
-class Some(t.NamedTuple):
-    value: int | str | float
-    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
-        return _bind(self, fn, type)
-    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup(self, m, type)
-    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup_with_default(self, m, type)
- 
-class Multi(t.NamedTuple):
-    values: t.Tuple[t.Any, ...]
-    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
-        return _bind(self, fn, type)
-    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup(self, m, type)
-    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup_with_default(self, m, type)
+    def bind(self, fn: t.Callable[[T], TableValue[P]]) -> TableValue[P]:
+        return fn(self.value)
+    def map(self, fn: t.Callable[[T], P]) -> TableValue[P]:
+        return Some(fn(self.value))
+    def assert_type(self, value_type: t.Type[UnionSingleT]) -> TableValue[UnionSingleT]:
+        return Some(self.value) if isinstance(self.value, value_type) else ErrorValue(IncorrectType(self.value))
+    def assert_type_seq(self, value_type: t.Type[UnionSingleT]) -> TableValue[t.Sequence[UnionSingleT]]:
+        if isinstance(self.value, abc.Sequence):
+            multivalue = t.cast(t.Sequence[UnionSingleT], self.value)
+            if all(isinstance(i, value_type) for i in multivalue):
+                return Some(multivalue) 
+        return ErrorValue(IncorrectType(self.value))
 
-class Omitted(t.NamedTuple):
-    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
-        return _bind(self, fn, type)
-    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup(self, m, type)
-    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup_with_default(self, m, type)
+class Omitted:
+    def __hash__(self):
+        return hash(())
+    def __eq__(self, o: t.Any):
+        return type(self) == type(o)
+    def bind(self, fn: t.Callable[[t.Any], TableValue[P]]) -> TableValue[P]:
+        return self
+    def map(self, fn: t.Callable[[t.Any], P]) -> TableValue[P]:
+        return self
+    def assert_type(self, value_type: t.Type[UnionSingleT]) -> TableValue[UnionSingleT]:
+        return self
+    def assert_type_seq(self, value_type: t.Type[UnionSingleT]) -> TableValue[t.Sequence[UnionSingleT]]:
+        return self
 
-class Redacted(t.NamedTuple):
-    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
-        return _bind(self, fn, type)
-    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup(self, m, type)
-    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup_with_default(self, m, type)
+class Redacted:
+    def __hash__(self):
+        return hash(())
+    def __eq__(self, o: t.Any):
+        return type(self) == type(o)
+    def bind(self, fn: t.Callable[[t.Any], TableValue[P]]) -> TableValue[P]:
+        return self
+    def map(self, fn: t.Callable[[t.Any], P]) -> TableValue[P]:
+        return self
+    def assert_type(self, value_type: t.Type[UnionSingleT]) -> TableValue[UnionSingleT]:
+        return self
+    def assert_type_seq(self, value_type: t.Type[UnionSingleT]) -> TableValue[t.Sequence[UnionSingleT]]:
+        return self
 
 class ColumnNotFoundInRow(t.NamedTuple):
     missing_column: t.Any
@@ -89,87 +138,32 @@ class ErrorValue:
     def __repr__(self):
         return "{}".format(str(self.reason))
 
+    def __hash__(self):
+        return hash(self.reason)
+
     def __eq__(self, o: t.Any):
         return isinstance(o, ErrorValue) and self.reason == o.reason
 
     def print_traceback(self):
         print("".join(traceback.format_list(self.stack)))
 
-    def bind(self, fn: t.Callable[[T], TableValue], type: t.Type[T]) -> TableValue:
-        return _bind(self, fn, type)
-    def lookup(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup(self, m, type)
-    def lookup_with_default(self, m: t.Mapping[T, t.Any], type: t.Type[T]):
-        return _lookup_with_default(self, m, type)
+    def bind(self, fn: t.Callable[[t.Any], TableValue[P]]) -> TableValue[P]:
+        return self
+    def map(self, fn: t.Callable[[t.Any], P]) -> TableValue[P]:
+        return self
+    def assert_type(self, value_type: t.Type[UnionSingleT]) -> TableValue[UnionSingleT]:
+        return self
+    def assert_type_seq(self, value_type: t.Type[UnionSingleT]) -> TableValue[t.Sequence[UnionSingleT]]:
+        return self
 
-TableValue = Some | Multi | Omitted | Redacted | ErrorValue
-
-def from_optional(value: t.Optional[int | str | float | t.Tuple[t.Any, ...]], none_value: TableValue):
-    match value:
-        case None:
-            return none_value
-        case str():
-            return Some(value)
-        case abc.Sequence():
-            if len(value) == 0:
-                return none_value
-            else:
-                return Multi(value)
-        case _:
-            return Some(value)        
-
-def _combine(tv1: TableValue, tv2: TableValue) -> TableValue:
-    if isinstance(tv1, ErrorValue):
-        return tv1 
-    if isinstance(tv2, ErrorValue):
-        return tv2
-    if isinstance(tv1, Redacted | Omitted):
-        return ErrorValue(IncorrectType(tv1))
-    if isinstance(tv2, Redacted | Omitted):
-        return ErrorValue(IncorrectType(tv2))
-    match tv1:
-        case Some(value=v1):
-            match tv2:
-                case Some(value=v2):
-                    return Multi((v1, v2))
-                case Multi(values=v2s):
-                    return Multi((v1, *v2s))
-        case Multi(values=v1s):
-            match tv2:
-                case Some(value=v2):
-                    return Multi((*v1s, v2))
-                case Multi(values=v2s):
-                    return Multi((*v1s, *v2s))
-
-def _bind(
-    tv: TableValue,
-    fn: t.Callable[[T], TableValue],
-    type: t.Type[T],
-) -> TableValue:
-    match tv:
-        case Multi(values=values) if all(isinstance(i, type) for i in values):
-            return reduce(_combine, (fn(i) for i in values))
-        case Multi(values=values):
-            return ErrorValue(IncorrectType(values))
-        case Some(value=value) if isinstance(value, type):
-            return fn(value)
-        case Some(value=value):
-            return ErrorValue(IncorrectType(value))
-        case Redacted() | Omitted() | ErrorValue():
-            return tv
-
-def _lookup(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
-    return _bind(tv, lambda v: Some(m[v]) if v in m else ErrorValue(MissingCode(v, m)), type)
-
-def _lookup_with_default(tv: TableValue, m: t.Mapping[T, t.Any], type: t.Type[T]):
-    return _bind(tv, lambda v: Some(m.get(v, v)), type)
+TableValue = Some[T] | Omitted | Redacted | ErrorValue
 
 ### TableRowView
 
 class TableRowView(t.Generic[ColumnIdT]):
-    _map: t.Mapping[ColumnIdT, TableValue]
+    _map: t.Mapping[ColumnIdT, TableValue[t.Any]]
 
-    def __init__(self, items: t.Iterable[t.Tuple[ColumnIdT, TableValue]]):
+    def __init__(self, items: t.Iterable[t.Tuple[ColumnIdT, TableValue[t.Any]]]):
         self._map = dict(items)
 
     def __hash__(self) -> int:
@@ -190,7 +184,7 @@ class TableRowView(t.Generic[ColumnIdT]):
     def values(self):
         return self._map.values()
 
-    def get(self, column_name: ColumnIdT) -> TableValue:
+    def get(self, column_name: ColumnIdT) -> TableValue[t.Any]:
         return self._map.get(column_name, ErrorValue(ColumnNotFoundInRow(column_name, self)))
 
     def subset(self, keys: t.Collection[ColumnIdT]) -> TableRowView[ColumnIdT]:

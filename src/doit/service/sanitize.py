@@ -98,6 +98,7 @@ def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo
                 id=id,
                 prompt=column_info.prompt,
                 sanitizer_checksum=None,
+                value_type=column_info.value_type,
             )
         case UnsanitizedOrdinalColumnInfo():
             return SanitizedOrdinalColumnInfo(

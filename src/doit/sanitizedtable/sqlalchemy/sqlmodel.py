@@ -30,7 +30,7 @@ def datatablecolumn_from_columnentrytype(type: ColumnEntryType):
         case ColumnEntryType.ORDINAL:
             return Integer
         case ColumnEntryType.MULTISELECT:
-            return JSON
+            return JSON(none_as_null=True)
         case ColumnEntryType.TEXT:
             return String
 

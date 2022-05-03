@@ -6,10 +6,13 @@ from ...common import ImmutableBaseModel
 
 from pydantic import Field
 
-from doit.common.table import (
+from collections import abc
+
+from ...common.table import (
     Omitted,
     TableRowView,
-    from_optional,
+    cast_fn_seq,
+    cast_fn,
     Some,
 )
 
@@ -168,13 +171,27 @@ def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
         tuple(c for _, c in qmapping)
     )
 
-def from_qualtrics_value(column: UnsanitizedColumnInfo, value: t.Any):
+def from_qualtrics_value(column: UnsanitizedColumnInfo, value: str | t.Sequence[str] | None):
     # TODO: encode missing values for unasked questions (due to branching, etc) as NotAsked() or something
-    match column:
-        case UnsanitizedTextColumnInfo():
-            return from_optional(value, Omitted())
-        case UnsanitizedOrdinalColumnInfo():
-            return from_optional(value, Omitted()).bind(lambda x: Some(int(x)), str)
+    match value:
+        case None:
+            return Omitted()
+
+        case str():
+            match column.value_type:
+                case 'text':
+                    return Some(value)
+                case 'ordinal':
+                    return Some(value).bind(cast_fn(int))
+                case 'multiselect':
+                    raise Exception("Error: expected multiselect value, instead got {}".format(value))
+
+        case abc.Sequence():
+            if column.value_type != 'multiselect':
+                raise Exception("Error: expected multiselect column type, instead got {}".format(column))
+
+            return Some(value).bind(cast_fn_seq(int))
+
 
 def parse_qualtrics_data(
     schema_mapping: QualtricsSchemaMapping,

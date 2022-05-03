@@ -6,12 +6,10 @@ from sqlalchemy.engine import ResultProxy
 from ...common.table import (
     Omitted,
     Some,
-    Multi,
     ErrorValue,
     Redacted,
     TableValue,
     TableRowView,
-    from_optional,
 )
 
 from .sqlmodel import (
@@ -33,12 +31,24 @@ from ..model import (
 
 from pydantic import parse_obj_as
 
+def tablevalue_from_sql(column: SanitizedColumnInfo, value: t.Any | None):
+    if value is None:
+        return Omitted()
+    
+    match column.value_type:
+        case 'text':
+            return Some(value).assert_type(str)
+        case 'ordinal':
+            return Some(value).assert_type(int) 
+        case 'multiselect':
+            return Some(value).assert_type_seq(int)
+
 def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: ResultProxy):
     return SanitizedTableData(
             column_ids=tuple(c.id for c in columns),
             rows=tuple(
                 TableRowView(
-                    (c.id, from_optional(row[c.id.name], Omitted())) for c in columns
+                    (c.id, tablevalue_from_sql(c, row[c.id.name])) for c in columns
                 ) for row in rows
             )
         )
@@ -49,40 +59,44 @@ def render_tabledata(table: SanitizedTable):
             for row in table.data.rows
     ]
 
-def render_value(column: SanitizedColumnInfo, v: TableValue):
-    if isinstance(v, ErrorValue):
-        print("Encountered error value: {}".format(v))
-        return None
-
-    match column:
-        case SanitizedTextColumnInfo():
+def render_value(column: SanitizedColumnInfo, value: TableValue[t.Any]):
+    match column.value_type:
+        case 'text':
+            v = value.assert_type(str)
             match v:
-                case Some(value=value):
-                    if not isinstance(value, str):
-                        raise Exception("Error: expected string value type for {}, got {}".format(value, type(value)))
-                    return str(value)
+                case Some(value=text):
+                    return text
                 case Redacted():
                     return "__REDACTED__"
                 case Omitted():
                     return None
-                case _:
-                    raise Exception("Error: Unexpected value in text column {}".format(v))
+                case ErrorValue():
+                    raise Exception("Error: Error value in text column {}".format(v))
 
-        case SanitizedOrdinalColumnInfo():
+        case 'ordinal':
+            v = value.assert_type(int)
             match v:
-                case Some(value=value):
-                    if not isinstance(value, int):
-                        raise Exception("Error: expected int value type for {}, got {}".format(value, type(value)))
-                    return value
-                case Multi(values=values):
-                    if not all(isinstance(i, int) for i in values):
-                        raise Exception("Error: expected int value type for {}, got {}".format(values, tuple(type(i) for i in values)))
-
-                    return list(values)
+                case Some(value=ord):
+                    return ord
                 case Omitted():
                     return None
-                case _:
-                    raise Exception("Error: Unexpected value in ordinal column {}".format(v))
+                case Redacted():
+                    raise Exception("Error: Redacted value in ordinal column {}".format(column.id.name))
+                case ErrorValue():
+                    raise Exception("Error: Error value in ordinal column {}".format(v))
+
+        case 'multiselect':
+            v = value.assert_type_seq(int)
+            match v:
+                case Some(value=multi):
+                    return multi
+                case Omitted():
+                    return None
+                case Redacted():
+                    raise Exception("Error: Redacted value in multiselect column {}".format(column.id.name))
+                case ErrorValue():
+                    raise Exception("Error: Error value in multiselect column {}".format(v))
+
 
 def sql_columnentrytype(info: SanitizedColumnInfo) -> ColumnEntryType:
     match info.value_type:
@@ -139,7 +153,14 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 sanitizer_checksum=entry.sanitizer_checksum,
                 value_type=entry.type.value,
             )
-        case ColumnEntryType.ORDINAL | ColumnEntryType.MULTISELECT:
+        case ColumnEntryType.ORDINAL:
+            return SanitizedOrdinalColumnInfo(
+                id=SanitizedColumnId(entry.name),
+                prompt=entry.prompt,
+                codes=parse_obj_as(t.Mapping[int, str], entry.codes),
+                value_type=entry.type.value,
+            )
+        case ColumnEntryType.MULTISELECT:
             return SanitizedOrdinalColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,

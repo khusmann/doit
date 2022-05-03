@@ -31,7 +31,7 @@ from .from_spec import (
     AddMeasureContext,
     sql_from_codemap_spec,
     sql_from_index_column_spec,
-    sql_from_linkedtabledata,
+    render_tabledata,
 )
 
 from .to_view import (
@@ -144,7 +144,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         sql_table = self.datatable_metadata.tables[linked_table.studytable_name]
 
-        session.upsert_rows(sql_table, sql_from_linkedtabledata(linked_table.data))
+        session.upsert_rows(sql_table, render_tabledata(linked_table))
 
         session.commit()
 

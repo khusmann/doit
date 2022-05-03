@@ -136,7 +136,7 @@ SrcLink = t.Union[
 class OrdinalDstLink(t.NamedTuple):
     linked_name: str
     value_from_tag: t.Mapping[str, int]
-    type: t.Literal['ordinal', 'categorical', 'multiselect', 'index']
+    type: t.Literal['ordinal', 'categorical', 'multiselect', 'index', 'multiselect']
 
 class SimpleDstLink(t.NamedTuple):
     linked_name: str

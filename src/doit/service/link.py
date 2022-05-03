@@ -3,8 +3,10 @@ import typing as t
 
 
 from ..common.table import (
-    TableValue,
     Some,
+    lookup_fn,
+    lookup_fn_seq,
+    cast_fn,
 )
 
 from ..linker.model import (
@@ -13,12 +15,9 @@ from ..linker.model import (
 )
 
 from ..study.view import (
-    DstLink,
     InstrumentLinkerSpec,
     LinkerSpec,
     OrdinalDstLink,
-    SimpleDstLink,
-    SrcLink,
     ConstantSrcLink,
     QuestionSrcLink,
 )
@@ -30,21 +29,22 @@ from ..sanitizedtable.model import (
     SanitizedTableData,
     SanitizedTableInfo,
     SanitizedTableRowView,
-    SanitizedTextColumnInfo,
 )
 
 from ..study.model import (
+    LinkedColumnInfo,
     LinkedTableRowView,
     LinkedTableData,
     LinkedTable,
     LinkedColumnId,
 )
 
-def from_src(
+def link_value(
     column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo],
-    src: SrcLink,
+    spec: LinkerSpec,
     row: SanitizedTableRowView,
 ):
+    src, dst = spec.src, spec.dst
     match src:
         case QuestionSrcLink():
             src_name = SanitizedColumnId(src.source_column_name)
@@ -55,30 +55,56 @@ def from_src(
 
             tv = row.get(src_name)
 
-            match column_info:
-                case SanitizedTextColumnInfo():
-                    return tv.lookup_with_default(src.source_value_map, str)
-                case SanitizedOrdinalColumnInfo():
-                    return (
-                        tv.lookup(column_info.codes, int)
-                          .lookup_with_default(src.source_value_map, str)
+            source_value_map = src.source_value_map
+
+            match column_info.value_type:
+                case 'text':
+                    source_value = (
+                        tv.assert_type(str)
+                          .map(lambda v: source_value_map.get(v, v)) # pyright bug: this should be known via union type
+                    )
+                case 'ordinal':
+                    assert isinstance(column_info, SanitizedOrdinalColumnInfo)
+                    source_value = (
+                        tv.assert_type(int)
+                          .bind(lookup_fn(column_info.codes))
+                          .map(lambda v: source_value_map.get(v, v))
                     ) 
+                case 'multiselect':
+                    assert isinstance(column_info, SanitizedOrdinalColumnInfo) # pyright bug: this should be known via union type
+                    source_value = (
+                        tv.assert_type_seq(int)
+                          .bind(lookup_fn_seq(column_info.codes))
+                          .map(lambda v: tuple(source_value_map.get(i, i) for i in v))
+                    )
 
         case ConstantSrcLink():
-            return Some(src.constant_value)
+            source_value = Some(src.constant_value)
 
-def to_dst(dst: DstLink, tv: TableValue):
-    match dst:
-        case OrdinalDstLink():
-            return tv.lookup(dst.value_from_tag, str)
-        case SimpleDstLink():
-            return tv
+    source_value_single = source_value.assert_type(str)
+    source_value_seq = source_value.assert_type_seq(str)
+
+    match dst.type:
+        case 'ordinal' | 'categorical' | 'index':
+            assert isinstance(dst, OrdinalDstLink) # pyright bug: this should be known by union type
+            result = source_value_single.bind(lookup_fn(dst.value_from_tag))
+        case 'multiselect':
+            assert isinstance(dst, OrdinalDstLink) # pyright bug: this should be known by union type
+            result = source_value_seq.bind(lookup_fn_seq(dst.value_from_tag))
+        case 'text':
+            result = source_value_single.bind(cast_fn(str))
+        case 'real':
+            result = source_value_single.bind(cast_fn(float))
+        case 'integer':
+            result = source_value_single.bind(cast_fn(int))
+
+    return (LinkedColumnId(dst.linked_name), result)
 
 def linker_from_spec(column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo], spec: LinkerSpec):
-    linked_name = LinkedColumnId(spec.dst.linked_name)
     return Linker(
-        dst_col_id=linked_name,
-        link_fn=lambda row: ( linked_name, to_dst(spec.dst, from_src(column_lookup, spec.src, row)) ),
+        dst_col_id=LinkedColumnId(spec.dst.linked_name),
+        dst_col_type=spec.dst.type,
+        link_fn=(lambda row: link_value(column_lookup, spec, row)),
     )
 
 def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:
@@ -87,14 +113,17 @@ def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: Instrum
         studytable_name=instrumentlinker_spec.studytable_name,
         instrument_name=instrumentlinker_spec.instrument_name,
         linkers=tuple(
-            linker_from_spec(column_lookup, rowlinker_spec)
-                for rowlinker_spec in instrumentlinker_spec.linker_specs
+            linker_from_spec(column_lookup, spec)
+                for spec in instrumentlinker_spec.linker_specs
         ),
     )
 
 def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -> LinkedTable:
-    dst_column_ids = tuple(
-        row_linker.dst_col_id for row_linker in instrument_linker.linkers
+    dst_column_info = tuple(
+        LinkedColumnInfo(
+            id=row_linker.dst_col_id,
+            value_type=row_linker.dst_col_type,
+        ) for row_linker in instrument_linker.linkers
     )
 
     rows = tuple(
@@ -105,8 +134,9 @@ def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -
 
     return LinkedTable(
         studytable_name=instrument_linker.studytable_name,
+        columns=dst_column_info,
         data=LinkedTableData(
-            column_ids=dst_column_ids,
+            column_ids=tuple(c.id for c in dst_column_info),
             rows=rows,
         )
     )
