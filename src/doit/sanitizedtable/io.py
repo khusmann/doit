@@ -15,7 +15,7 @@ from .model import (
     SanitizedSimpleColumnInfo,
 )
 
-def load_sanitizedtable_csv(csv_text: str) -> SanitizedTable:
+def load_sanitizedtable_csv(csv_text: str, name: str) -> SanitizedTable:
     csv_lines = csv_text.splitlines()
 
     reader = csv.reader(csv_lines)
@@ -30,6 +30,7 @@ def load_sanitizedtable_csv(csv_text: str) -> SanitizedTable:
 
     return SanitizedTable(
         info=SanitizedTableInfo(
+            name=name,
             data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
             schema_checksum=hashlib.sha256(csv_lines[0].encode()).hexdigest(),
             columns=tuple(

@@ -44,7 +44,7 @@ def test_basic_load():
         (UnsanitizedColumnId("b"), Some("5")),
     ))
 
-    sanitizer = load_sanitizer_csv(raw)
+    sanitizer = load_sanitizer_csv(raw, "test_sanitizer")
     
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
@@ -74,7 +74,7 @@ def test_missing_load():
         (UnsanitizedColumnId("z"), Some("10")),
     ))
 
-    sanitizer = load_sanitizer_csv(raw)
+    sanitizer = load_sanitizer_csv(raw, "test_sanitizer")
 
     assert [c.unsafe_name for c in sanitizer.key_col_ids] == ["b", "d"]
     assert [c.name for c in sanitizer.new_col_ids] == ["a", "c"]
@@ -101,7 +101,7 @@ def test_missing_keys():
         (UnsanitizedColumnId("d"), Omitted()),
     ))
 
-    sanitizer = load_sanitizer_csv(raw)
+    sanitizer = load_sanitizer_csv(raw, "test_sanitizer")
 
     assert list(v for _, v in sanitize_row(testrow, sanitizer)) == [Some("7"), Some("9")]
     assert list(v for _, v in sanitize_row(testrow_allmissing, sanitizer)) == [Omitted(), Omitted()]
@@ -115,7 +115,7 @@ def test_missing_key_error():
     """)
 
     with pytest.raises(EmptySanitizerKeyError):
-        load_sanitizer_csv(raw)
+        load_sanitizer_csv(raw, "test_sanitizer")
 
 def test_missing_header_error():
     raw = dedent("""\
@@ -126,7 +126,7 @@ def test_missing_header_error():
     """)
 
     with pytest.raises(EmptyHeaderError):
-        load_sanitizer_csv(raw)
+        load_sanitizer_csv(raw, "test_sanitizer")
 
 def test_duplicate_header_error():
     raw = dedent("""\
@@ -137,4 +137,4 @@ def test_duplicate_header_error():
     """)
 
     with pytest.raises(DuplicateHeaderError):
-        load_sanitizer_csv(raw)
+        load_sanitizer_csv(raw, "test_sanitizer")

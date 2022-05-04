@@ -2,7 +2,7 @@ import typing as t
 from pathlib import Path
 from datetime import datetime, timezone
 
-from .sanitizer.model import SanitizerUpdate
+from .sanitizer.model import SanitizerUpdate, TableSanitizer
 
 from .unsanitizedtable.model import UnsanitizedTable
 
@@ -99,19 +99,22 @@ def get_local_source_listing(
         ) for source in sources
     )
 
-def load_sanitizers(
+def load_table_sanitizer(
     instrument_name: str,
     sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
 ):
     from .sanitizer.io import load_sanitizer_csv
-    return {
-        i.stem: load_sanitizer_csv(i.read_text())
-            for i in sanitizer_dir_from_instrument_name(instrument_name).glob("*.csv")
-    }
+    return TableSanitizer(
+        table_name=instrument_name,
+        sanitizers=tuple(
+            load_sanitizer_csv(i.read_text(), i.stem)
+                for i in sanitizer_dir_from_instrument_name(instrument_name).glob("*.csv")
+        )
+    )
 
-def update_sanitizers(
+def update_sanitizer(
     instrument_name: str,
-    sanitizer_updates: t.Mapping[str, SanitizerUpdate],
+    sanitizer_updates: t.Sequence[SanitizerUpdate],
     sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
 ):
     from .sanitizer.io import write_sanitizer_update
@@ -119,8 +122,8 @@ def update_sanitizers(
     workdir = sanitizer_dir_from_instrument_name(instrument_name)
     workdir.mkdir(parents=True, exist_ok=True)
 
-    for name, update in sanitizer_updates.items():
-        sanitizer_path = (workdir / name).with_suffix(".csv")
+    for update in sanitizer_updates:
+        sanitizer_path = (workdir / update.name).with_suffix(".csv")
         if update.new:
             if sanitizer_path.exists():
                 raise Exception("Error: attempting to create new sanitizer but {} already exists".format(sanitizer_path))

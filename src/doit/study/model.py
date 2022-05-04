@@ -18,6 +18,7 @@ LinkedTableData = TableData[LinkedColumnId]
 LinkedTableRowView = TableRowView[LinkedColumnId]
 
 class LinkedTable(t.NamedTuple):
+    instrument_name: str
     studytable_name: str
     columns: t.Tuple[LinkedColumnInfo, ...]    
     data: LinkedTableData

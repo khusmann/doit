@@ -16,15 +16,15 @@ def test_invariance():
         9,12,,d,e
     """)
 
-    sanitizedtable = load_sanitizedtable_csv(sanitizedtable_raw)
+    sanitizedtable = load_sanitizedtable_csv(sanitizedtable_raw, "test_table")
 
     repo = SqlAlchemyRepo.new()
 
     assert isinstance(repo, SqlAlchemyRepo)
 
-    repo.write_table(sanitizedtable, "test-table")
+    repo.write_table(sanitizedtable)
 
-    result = repo.read_table("test-table")
+    result = repo.read_table("test_table")
 
     assert result == sanitizedtable
 

@@ -61,10 +61,10 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
 
         return cls(engine, datatable_metadata)
 
-    def write_table(self, table: SanitizedTable, name: str):
+    def write_table(self, table: SanitizedTable):
         session = SessionWrapper(self.engine)
 
-        entry = sql_from_tableinfo(table.info, name)
+        entry = sql_from_tableinfo(table.info)
         session.add(entry) 
 
         new_table = setup_datatable(self.datatable_metadata, entry)

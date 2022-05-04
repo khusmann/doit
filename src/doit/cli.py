@@ -101,7 +101,7 @@ def run_cli():
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
 def fetch(instrument_name: str | None):
     """Fetch data from sources"""
-    from .service.sanitize import update_tablesanitizers
+    from .service.sanitize import update_tablesanitizer
     click.secho()
 
     if instrument_name:
@@ -123,14 +123,14 @@ def fetch(instrument_name: str | None):
             defaults.blob_bkup_filename,
         )
 
-        sanitizers = app.load_sanitizers(
+        sanitizer = app.load_table_sanitizer(
             name,
             defaults.sanitizer_dir_from_instrument_name,
         )
 
-        updates = update_tablesanitizers(table, sanitizers)
+        updates = update_tablesanitizer(table, sanitizer)
 
-        app.update_sanitizers(
+        app.update_sanitizer(
             name,
             updates,
             defaults.sanitizer_dir_from_instrument_name,
@@ -160,13 +160,13 @@ def sanitize():
             defaults.blob_from_instrument_name
         )
 
-        sanitizers = app.load_sanitizers(
+        sanitizer = app.load_table_sanitizer(
             entry.name,
             defaults.sanitizer_dir_from_instrument_name,
         )
 
-        sanitized = sanitize_table(unsanitized, tuple(sanitizers.values()))
-        repo.write_table(sanitized, entry.name)
+        sanitized = sanitize_table(unsanitized, sanitizer)
+        repo.write_table(sanitized)
     click.secho()
 
 @cli.command()

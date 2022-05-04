@@ -1,3 +1,4 @@
+import typing as t
 import csv
 import re
 import hashlib
@@ -41,7 +42,7 @@ def to_csv_header(cid: SanitizedColumnId | UnsanitizedColumnId):
         case UnsanitizedColumnId():
             return "({})".format(cid.unsafe_name)
 
-def to_csv_value(tv: TableValue):
+def to_csv_value(tv: TableValue[t.Any]):
     match tv:
         case Some(value=value) if isinstance(value, str):
             return value
@@ -63,7 +64,7 @@ def write_sanitizer_update(f: io.TextIOBase, update: SanitizerUpdate, new: bool)
         ) for row in update.rows
     ))
 
-def load_sanitizer_csv(csv_text: str) -> LookupSanitizer:
+def load_sanitizer_csv(csv_text: str, name: str) -> LookupSanitizer:
     reader = csv.reader(io.StringIO(csv_text, newline=''))
 
     header_str = tuple(next(reader))
@@ -102,6 +103,7 @@ def load_sanitizer_csv(csv_text: str) -> LookupSanitizer:
             raise EmptySanitizerKeyError(value)
 
     return LookupSanitizer(
+        name=name,
         map=dict(zip(keys, values)),
         header=header,
         checksum=hashlib.sha256(csv_text.encode()).hexdigest(),

@@ -153,6 +153,7 @@ def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -
 
     return LinkedTable(
         studytable_name=instrument_linker.studytable_name,
+        instrument_name=instrument_linker.instrument_name,
         columns=dst_column_info,
         data=LinkedTableData(
             column_ids=tuple(c.id for c in dst_column_info),

@@ -19,7 +19,7 @@ class SanitizedTableRepoReader(ABC):
 
 class SanitizedTableRepoWriter(ABC):
     @abstractmethod
-    def write_table(self, table: SanitizedTable, name: str) -> None: ...
+    def write_table(self, table: SanitizedTable) -> None: ...
 
     @classmethod
     @abstractmethod
