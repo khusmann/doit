@@ -1,9 +1,10 @@
 from __future__ import annotations
 import typing as t
-
+from functools import partial
 
 from ..common.table import (
     Some,
+    TableValue,
     lookup_fn,
     lookup_fn_seq,
     cast_fn,
@@ -12,14 +13,17 @@ from ..common.table import (
 from ..linker.model import (
     Linker,
     InstrumentLinker,
+    LinkFn,
 )
 
 from ..study.view import (
+    DstLink,
     InstrumentLinkerSpec,
     LinkerSpec,
     OrdinalDstLink,
     ConstantSrcLink,
     QuestionSrcLink,
+    SrcLink,
 )
 
 from ..sanitizedtable.model import (
@@ -39,82 +43,89 @@ from ..study.model import (
     LinkedColumnId,
 )
 
-def link_value(
+def from_source_fn(
     column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo],
-    spec: LinkerSpec,
-    row: SanitizedTableRowView,
-):
-    src, dst = spec.src, spec.dst
+    src: SrcLink,
+) -> t.Callable[[SanitizedTableRowView], TableValue[t.Any]]:
     match src:
         case QuestionSrcLink():
-            src_name = SanitizedColumnId(src.source_column_name)
+            column_info = column_lookup.get(SanitizedColumnId(src.source_column_name))
             
-            column_info = column_lookup.get(src_name)
             if not column_info:
                 raise Exception("Error: cannot find column in instrument source table ({})".format(src.source_column_name))
 
-            tv = row.get(src_name)
-
-            source_value_map = src.source_value_map
-
-            match column_info.value_type:
-                case 'text':
-                    source_value = (
-                        tv.assert_type(str)
-                          .map(lambda v: source_value_map.get(v, v)) # pyright bug: this should be known via union type
-                    )
-                case 'ordinal':
-                    assert isinstance(column_info, SanitizedOrdinalColumnInfo)
-                    source_value = (
-                        tv.assert_type(int)
-                          .bind(lookup_fn(column_info.codes))
-                          .map(lambda v: source_value_map.get(v, v))
-                    ) 
-                case 'multiselect':
-                    assert isinstance(column_info, SanitizedOrdinalColumnInfo) # pyright bug: this should be known via union type
-                    source_value = (
-                        tv.assert_type_seq(int)
-                          .bind(lookup_fn_seq(column_info.codes))
-                          .map(lambda v: tuple(source_value_map.get(i, i) for i in v))
-                    )
+            return partial(from_source_question, column_info, src.source_value_map)
 
         case ConstantSrcLink():
-            source_value = Some(src.constant_value)
+            return lambda _: Some(src.constant_value)
 
-    source_value_single = source_value.assert_type(str)
-    source_value_seq = source_value.assert_type_seq(str)
+def from_source_question(
+    column_info: SanitizedColumnInfo,
+    source_value_map: t.Mapping[str, str],
+    row: SanitizedTableRowView
+) -> TableValue[t.Any]:
+    tv = row.get(column_info.id)
+
+    match column_info.value_type:
+        case 'text':
+            return (
+                tv.assert_type(str)
+                  .map(lambda v: source_value_map.get(v, v)) # pyright bug: this should be known via union type
+            )
+        case 'ordinal':
+            assert isinstance(column_info, SanitizedOrdinalColumnInfo)
+            return (
+                tv.assert_type(int)
+                  .bind(lookup_fn(column_info.codes))
+                  .map(lambda v: source_value_map.get(v, v))
+            ) 
+        case 'multiselect':
+            assert isinstance(column_info, SanitizedOrdinalColumnInfo) # pyright bug: this should be known via union type
+            return (
+                tv.assert_type_seq(int)
+                  .bind(lookup_fn_seq(column_info.codes))
+                  .map(lambda v: tuple(source_value_map.get(i, i) for i in v))
+            )
+
+def to_dst(
+    source_value: TableValue[t.Any],
+    dst: DstLink,
+):
+    single = source_value.assert_type(str)
+    seq = source_value.assert_type_seq(str)
 
     match dst.type:
         case 'ordinal' | 'categorical' | 'index':
             assert isinstance(dst, OrdinalDstLink) # pyright bug: this should be known by union type
-            result = source_value_single.bind(lookup_fn(dst.value_from_tag))
+            result = single.bind(lookup_fn(dst.value_from_tag))
         case 'multiselect':
             assert isinstance(dst, OrdinalDstLink) # pyright bug: this should be known by union type
-            result = source_value_seq.bind(lookup_fn_seq(dst.value_from_tag))
+            result = seq.bind(lookup_fn_seq(dst.value_from_tag))
         case 'text':
-            result = source_value_single.bind(cast_fn(str))
+            result = single.bind(cast_fn(str))
         case 'real':
-            result = source_value_single.bind(cast_fn(float))
+            result = single.bind(cast_fn(float))
         case 'integer':
-            result = source_value_single.bind(cast_fn(int))
+            result = single.bind(cast_fn(int))
 
     return (LinkedColumnId(dst.linked_name), result)
 
-def linker_from_spec(column_lookup: t.Mapping[SanitizedColumnId, SanitizedColumnInfo], spec: LinkerSpec):
-    return Linker(
-        dst_col_id=LinkedColumnId(spec.dst.linked_name),
-        dst_col_type=spec.dst.type,
-        link_fn=(lambda row: link_value(column_lookup, spec, row)),
-    )
-
 def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:
     column_lookup = { c.id: c for c in tableinfo.columns }
+
+    def build_link_fn(spec: LinkerSpec) -> LinkFn:
+        src_fn = from_source_fn(column_lookup, spec.src)
+        return lambda row: to_dst(src_fn(row), spec.dst)
+
     return InstrumentLinker(
         studytable_name=instrumentlinker_spec.studytable_name,
         instrument_name=instrumentlinker_spec.instrument_name,
         linkers=tuple(
-            linker_from_spec(column_lookup, spec)
-                for spec in instrumentlinker_spec.linker_specs
+            Linker(
+                dst_col_id=LinkedColumnId(spec.dst.linked_name),
+                dst_col_type=spec.dst.type,
+                link_fn=build_link_fn(spec),
+            ) for spec in instrumentlinker_spec.linker_specs
         ),
     )
 

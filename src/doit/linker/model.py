@@ -10,10 +10,12 @@ from ..study.model import (
     LinkedColumnId,
 )
 
+LinkFn = t.Callable[[SanitizedTableRowView], t.Tuple[LinkedColumnId, TableValue[t.Any]]]
+
 class Linker(t.NamedTuple):
     dst_col_id: LinkedColumnId
     dst_col_type: t.Literal['ordinal', 'categorical', 'index', 'real', 'integer', 'multiselect', 'text']
-    link_fn: t.Callable[[SanitizedTableRowView], t.Tuple[LinkedColumnId, TableValue[t.Any]]]
+    link_fn: LinkFn
 
 class InstrumentLinker(t.NamedTuple):
     studytable_name: str
