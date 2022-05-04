@@ -10,6 +10,8 @@ from ...common.table import (
     Redacted,
     TableValue,
     TableRowView,
+    TableErrorReport,
+    TableErrorReportItem,
 )
 
 from .sqlmodel import (
@@ -54,10 +56,24 @@ def tabledata_from_sql(columns: t.Sequence[SanitizedColumnInfo], rows: ResultPro
         )
 
 def render_tabledata(table: SanitizedTable):
-    return [
-        { c.id.name: render_value(c, row.get(c.id)) for c in table.info.columns }
-            for row in table.data.rows
-    ]
+    errors: TableErrorReport = set()
+
+    def filter_error(column: SanitizedColumnInfo, value: TableValue[t.Any]):
+        name = column.id.name
+        filtered_value = render_value(column, value)
+        if isinstance(filtered_value, ErrorValue):
+            errors.add(TableErrorReportItem(table.info.name, name, filtered_value))
+            return None
+        else:
+            return filtered_value
+
+    return (
+        tuple(
+            { c.id.name: filter_error(c, row.get(c.id)) for c in table.info.columns }
+                for row in table.data.rows
+        ),
+        errors,
+    )
 
 def render_value(column: SanitizedColumnInfo, value: TableValue[t.Any]):
     match column.value_type:

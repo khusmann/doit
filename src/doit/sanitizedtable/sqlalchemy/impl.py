@@ -70,9 +70,13 @@ class SqlAlchemyRepo(SanitizedTableRepoReader, SanitizedTableRepoWriter):
         new_table = setup_datatable(self.datatable_metadata, entry)
         new_table.create(self.engine)
 
-        session.insert_rows(new_table, render_tabledata(table))
+        rows, errors = render_tabledata(table)
+
+        session.insert_rows(new_table, rows)
 
         session.commit()
+
+        return errors
 
     def read_tableinfo(self, name: str) -> SanitizedTableInfo:
         session = SessionWrapper(self.engine)

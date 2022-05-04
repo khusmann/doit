@@ -143,6 +143,7 @@ def fetch(instrument_name: str | None):
 def sanitize():
     """Sanitize sources"""
     from .service.sanitize import sanitize_table
+    from .common.table import TableErrorReport
     
     listing = app.get_local_source_listing(
         defaults.source_dir,
@@ -153,6 +154,8 @@ def sanitize():
         defaults.sanitized_repo_path,
         defaults.sanitized_repo_bkup_path,
     )
+    
+    errors: TableErrorReport = set()
 
     click.secho()
     for entry in tqdm(listing):
@@ -167,7 +170,16 @@ def sanitize():
         )
 
         sanitized = sanitize_table(unsanitized, sanitizer)
-        repo.write_table(sanitized)
+        new_errors = repo.write_table(sanitized)
+        errors |= new_errors
+
+    if errors:
+        click.secho()
+        click.secho("Encountered {} errors.".format(len(errors)), fg='bright_red')
+        click.secho()
+        click.secho("See {} for more info".format(click.style(defaults.error_file_path, fg='bright_cyan')))
+        app.write_errors(errors, defaults.error_file_path)
+
     click.secho()
 
 @cli.command()
@@ -221,7 +233,6 @@ def link():
         click.secho("Encountered {} errors.".format(len(errors)), fg='bright_red')
         click.secho()
         click.secho("See {} for more info".format(click.style(defaults.error_file_path, fg='bright_cyan')))
-        click.secho()
         app.write_errors(errors, defaults.error_file_path)
     
     click.secho()

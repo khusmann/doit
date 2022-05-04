@@ -41,10 +41,6 @@ from ..spec import (
 )
 
 def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
-    # TODO: return a RowResult type which turns into a TableResult
-    # write all rows with valid results; then return a [WriteTableError]
-    # which can be aggregated into a DOIT_ERRORS.csv file for inspection
-
     match column.value_type:
         case 'text':
             tv = value.assert_type(str)

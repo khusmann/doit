@@ -1,6 +1,8 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
+from ..common.table import TableErrorReport
+
 from .model import (
     SanitizedTableInfo,
     SanitizedTable,
@@ -19,7 +21,7 @@ class SanitizedTableRepoReader(ABC):
 
 class SanitizedTableRepoWriter(ABC):
     @abstractmethod
-    def write_table(self, table: SanitizedTable) -> None: ...
+    def write_table(self, table: SanitizedTable) -> TableErrorReport: ...
 
     @classmethod
     @abstractmethod
