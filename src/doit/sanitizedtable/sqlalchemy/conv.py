@@ -153,14 +153,7 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 sanitizer_checksum=entry.sanitizer_checksum,
                 value_type=entry.type.value,
             )
-        case ColumnEntryType.ORDINAL:
-            return SanitizedCodedColumnInfo(
-                id=SanitizedColumnId(entry.name),
-                prompt=entry.prompt,
-                codes=parse_obj_as(t.Mapping[int, str], entry.codes),
-                value_type=entry.type.value,
-            )
-        case ColumnEntryType.MULTISELECT:
+        case ColumnEntryType.ORDINAL | ColumnEntryType.MULTISELECT:
             return SanitizedCodedColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,

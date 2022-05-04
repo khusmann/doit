@@ -41,8 +41,8 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
     # write all rows with valid results; then return a [WriteTableError]
     # which can be aggregated into a DOIT_ERRORS.csv file for inspection
     match column.value_type:
-        case 'text' | 'real' | 'integer':
-            tv = value.assert_type(str | int | float)
+        case 'text':
+            tv = value.assert_type(str)
             match tv:
                 case Some(value=v):
                     return v
@@ -51,7 +51,19 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
                 case Redacted():
                     return "__REDACTED__"
                 case ErrorValue():
-                    raise Exception("Error: Error value in text column {}".format(tv))           
+                    raise Exception("Error: Error value in text column {}".format(tv))
+
+        case  'real' | 'integer':
+            tv = value.assert_type(str)
+            match tv:
+                case Some(value=v):
+                    return v
+                case Omitted():
+                    return None
+                case Redacted():
+                    raise Exception("Error: Redacted value in numeric column {}".format(column.id.linked_name))
+                case ErrorValue():
+                    raise Exception("Error: Error value in numeric column {}".format(tv))
 
         case 'ordinal' | 'categorical' | 'index':
             tv = value.assert_type(int)
