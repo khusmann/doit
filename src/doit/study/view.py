@@ -1,7 +1,7 @@
 from __future__ import annotations
 import typing as t
 
-### ColumnView
+### ColumnView info to display columns
 
 class CodemapValue(t.TypedDict):
     value: int
@@ -14,17 +14,18 @@ class CodemapView(t.NamedTuple):
     tags: t.Mapping[int, str]
     labels: t.Mapping[int, str]
 
-class OrdinalColumnView(t.NamedTuple):
+class CodedColumnView(t.NamedTuple):
     name: str
     studytable_name: t.Optional[str]
     prompt: str
-    type: t.Literal['ordinal', 'categorical', 'multiselect']
+    value_type: t.Literal['ordinal', 'categorical', 'multiselect']
     codes: CodemapView
 
 class IndexColumnView(t.NamedTuple):
     name: str
     title: str
     description: t.Optional[str]
+    value_type: t.Literal['index']
     codes: CodemapView
 
 class SimpleColumnView(t.NamedTuple):
@@ -34,7 +35,7 @@ class SimpleColumnView(t.NamedTuple):
     type: t.Literal['text', 'integer', 'real']
 
 ColumnView = t.Union[
-    OrdinalColumnView,
+    CodedColumnView,
     SimpleColumnView,
     IndexColumnView,
 ]
@@ -84,16 +85,16 @@ class IndicesView(t.NamedTuple):
 
 ### MeasureView - Info to populate a measure's page
 
-class OrdinalMeasureNodeView(t.NamedTuple):
+class CodedMeasureNodeView(t.NamedTuple):
     name: str
     prompt: str
-    type: t.Literal['ordinal', 'categorical', 'multiselect']
+    value_type: t.Literal['ordinal', 'categorical', 'multiselect']
     codes: CodemapView
 
 class SimpleMeasureNodeView(t.NamedTuple):
     name: str
     prompt: str
-    type: t.Literal['text', 'integer', 'real']
+    value_type: t.Literal['text', 'integer', 'real']
 
 class GroupMeasureNodeView(t.NamedTuple):
     name: str
@@ -101,7 +102,7 @@ class GroupMeasureNodeView(t.NamedTuple):
     items: t.Tuple[MeasureNodeView, ...]
 
 MeasureNodeView = t.Union[
-    OrdinalMeasureNodeView,
+    CodedMeasureNodeView,
     SimpleMeasureNodeView,
     GroupMeasureNodeView,
 ]
@@ -133,17 +134,17 @@ SrcLink = t.Union[
     ConstantSrcLink,
 ]
 
-class OrdinalDstLink(t.NamedTuple):
+class CodedDstLink(t.NamedTuple):
     linked_name: str
     value_from_tag: t.Mapping[str, int]
-    type: t.Literal['ordinal', 'categorical', 'multiselect', 'index', 'multiselect']
+    value_type: t.Literal['ordinal', 'categorical', 'multiselect', 'index', 'multiselect']
 
 class SimpleDstLink(t.NamedTuple):
     linked_name: str
-    type: t.Literal['text', 'real', 'integer']
+    value_type: t.Literal['text', 'real', 'integer']
 
 DstLink = t.Union[
-    OrdinalDstLink,
+    CodedDstLink,
     SimpleDstLink,
 ]
 

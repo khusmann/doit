@@ -16,7 +16,7 @@ from ..view import (
     CodemapRaw,
     ConstantInstrumentNodeView,
     DstLink,
-    OrdinalDstLink,
+    CodedDstLink,
     SimpleDstLink,
     GroupInstrumentNodeView,
     GroupMeasureNodeView,
@@ -25,8 +25,8 @@ from ..view import (
     MeasureNodeView,
     ColumnView,
     MeasureView,
-    OrdinalColumnView,
-    OrdinalMeasureNodeView,
+    CodedColumnView,
+    CodedMeasureNodeView,
     QuestionInstrumentNodeView,
     SimpleColumnView,
     SimpleMeasureNodeView,
@@ -67,17 +67,17 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
-            return OrdinalMeasureNodeView(
+            return CodedMeasureNodeView(
                 name=entry.name,
                 prompt=entry.prompt or SQL_MISSING_TEXT,
-                type=entry.type.value,
+                value_type=entry.type.value,
                 codes=to_codemapview(entry.codemap)
             )
         case ColumnEntryType.TEXT | ColumnEntryType.REAL | ColumnEntryType.INTEGER:
             return SimpleMeasureNodeView(
                 name=entry.name,
                 prompt=entry.prompt or SQL_MISSING_TEXT,
-                type=entry.type.value,
+                value_type=entry.type.value,
             )
         case ColumnEntryType.GROUP:
             return GroupMeasureNodeView(
@@ -134,10 +134,10 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
             if not entry.codemap:
                 raise Exception("Error: missing codemap")
 
-            return OrdinalColumnView(
+            return CodedColumnView(
                 name=entry.name,
                 prompt=entry.prompt or SQL_MISSING_TEXT,
-                type=entry.type.value,
+                value_type=entry.type.value,
                 studytable_name=studytable_name,
                 codes=to_codemapview(entry.codemap)
             )
@@ -150,6 +150,7 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 name=entry.name,
                 title=entry.title or SQL_MISSING_TEXT,
                 description=entry.description,
+                value_type=entry.type.value,
                 codes=to_codemapview(entry.codemap)
             )
 
@@ -197,15 +198,15 @@ def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
 
             codemap = parse_obj_as(CodemapRaw, entry.codemap.values)
 
-            return OrdinalDstLink(
+            return CodedDstLink(
                 linked_name=entry.name,
                 value_from_tag={ i['tag']: i['value'] for i in codemap },
-                type=entry.type.value,
+                value_type=entry.type.value,
             )
         case ColumnEntryType.REAL | ColumnEntryType.INTEGER | ColumnEntryType.TEXT:
             return SimpleDstLink(
                 linked_name=entry.name,
-                type=entry.type.value,
+                value_type=entry.type.value,
             )
         case ColumnEntryType.GROUP:
             raise Exception("Error: Group column types cannot be linked!")

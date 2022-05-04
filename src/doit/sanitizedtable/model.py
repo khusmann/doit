@@ -14,13 +14,13 @@ class SanitizedTextColumnInfo(t.NamedTuple):
     sanitizer_checksum: t.Optional[str]
     value_type: t.Literal['text'] = 'text'
 
-class SanitizedOrdinalColumnInfo(t.NamedTuple):
+class SanitizedCodedColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
     codes: t.Mapping[int, str]
     value_type: t.Literal['ordinal', 'multiselect']
 
-SanitizedColumnInfo = SanitizedTextColumnInfo | SanitizedOrdinalColumnInfo
+SanitizedColumnInfo = SanitizedTextColumnInfo | SanitizedCodedColumnInfo
 
 class SanitizedTableInfo(t.NamedTuple):
     data_checksum: str

@@ -19,7 +19,7 @@ from ...common.table import (
 from ..model import (
     UnsanitizedColumnId,
     UnsanitizedColumnInfo,
-    UnsanitizedOrdinalColumnInfo,
+    UnsanitizedCodedColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableData,
     UnsanitizedTextColumnInfo,
@@ -135,14 +135,14 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 is_safe=False,
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):
-            return UnsanitizedOrdinalColumnInfo(
+            return UnsanitizedCodedColumnInfo(
                 id=id,
                 prompt=prompt,
                 codes={ i.const: i.label for i in items.oneOf },
                 value_type='multiselect',
             )
         case QualtricsOrdinalQuestion(description=prompt,oneOf=oneOf):
-            return UnsanitizedOrdinalColumnInfo(
+            return UnsanitizedCodedColumnInfo(
                 id=id,
                 prompt=prompt,
                 codes={ i.const: i.label for i in oneOf },

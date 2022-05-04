@@ -35,7 +35,7 @@ class CodeMapSpec(ImmutableBaseModel):
 RelativeMeasureNodeName = t.NewType('RealtiveMeasureNodeName', str)
 RelativeCodeMapName = t.NewType('RelativeCodeMapName', str)
 
-class OrdinalMeasureItemSpec(ImmutableBaseModel):
+class CodedMeasureItemSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     prompt: str
     type: t.Literal['ordinal', 'categorical', 'multiselect']
@@ -55,7 +55,7 @@ class MeasureItemGroupSpec(ImmutableBaseModel):
 MeasureNodeSpec = t.Annotated[
     t.Union[
         MeasureItemGroupSpec,
-        OrdinalMeasureItemSpec,
+        CodedMeasureItemSpec,
         SimpleMeasureItemSpec,
     ], Field(discriminator='type')
 ]
@@ -118,8 +118,6 @@ class StudySpec(t.NamedTuple):
     config: StudyConfigSpec
     measures: t.Mapping[str, MeasureSpec]
     instruments: t.Mapping[str, InstrumentSpec]
-
-    
 
 MeasureItemGroupSpec.update_forward_refs()
 CodeMapSpec.update_forward_refs()

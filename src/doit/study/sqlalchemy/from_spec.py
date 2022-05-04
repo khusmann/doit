@@ -29,7 +29,7 @@ from ..spec import (
     InstrumentSpec,
     MeasureSpec,
     MeasureNodeSpec,
-    OrdinalMeasureItemSpec,
+    CodedMeasureItemSpec,
     QuestionInstrumentItemSpec,
     RelativeCodeMapName,
     SimpleMeasureItemSpec,
@@ -134,7 +134,7 @@ class AddMeasureContext(t.NamedTuple):
         def inner(spec: MeasureNodeSpec) -> t.List[ColumnEntrySql]:
                 name = ".".join((parent_name, spec.id))
                 match spec:
-                    case OrdinalMeasureItemSpec():
+                    case CodedMeasureItemSpec():
                         codemap = self.get_codemap_by_relname(spec.codes)
                         if not codemap:
                             raise Exception("Error: Cannot find codemap: {}".format(spec.codes))

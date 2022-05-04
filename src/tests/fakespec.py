@@ -12,7 +12,7 @@ from doit.study.spec import (
     MeasureItemGroupSpec,
     MeasureNodeSpec,
     MeasureSpec,
-    OrdinalMeasureItemSpec,
+    CodedMeasureItemSpec,
     QuestionInstrumentItemSpec,
     RelativeCodeMapName,
     RelativeMeasureNodeName,
@@ -207,8 +207,8 @@ class StudySpecProvider(BaseProvider):
             type=self.random_element(('text', 'real', 'integer')), # type: ignore
         )
 
-    def ordinal_measure_item(self, codes: t.Collection[RelativeCodeMapName]) -> OrdinalMeasureItemSpec:
-        return OrdinalMeasureItemSpec(
+    def ordinal_measure_item(self, codes: t.Collection[RelativeCodeMapName]) -> CodedMeasureItemSpec:
+        return CodedMeasureItemSpec(
             id=self.measure_node_name(),
             prompt=fake.text(20),
             type=self.random_element(('ordinal', 'categorical')), # type: ignore

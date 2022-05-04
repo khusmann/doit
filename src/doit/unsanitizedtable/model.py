@@ -14,14 +14,14 @@ class UnsanitizedTextColumnInfo(t.NamedTuple):
     is_safe: bool
     value_type: t.Literal['text'] = 'text'
 
-class UnsanitizedOrdinalColumnInfo(t.NamedTuple):
+class UnsanitizedCodedColumnInfo(t.NamedTuple):
     id: UnsanitizedColumnId
     prompt: str
     codes: t.Mapping[int, str]
     is_safe = True
     value_type: t.Literal['ordinal', 'multiselect']
 
-UnsanitizedColumnInfo = UnsanitizedTextColumnInfo | UnsanitizedOrdinalColumnInfo
+UnsanitizedColumnInfo = UnsanitizedTextColumnInfo | UnsanitizedCodedColumnInfo
 
 UnsanitizedTableRowView = TableRowView[UnsanitizedColumnId]
 UnsanitizedTableData = TableData[UnsanitizedColumnId]

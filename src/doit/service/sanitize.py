@@ -16,7 +16,7 @@ from ..sanitizer.model import (
 from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
     UnsanitizedColumnInfo,
-    UnsanitizedOrdinalColumnInfo,
+    UnsanitizedCodedColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableRowView,
     UnsanitizedTextColumnInfo,
@@ -30,7 +30,7 @@ from ..sanitizedtable.model import (
     SanitizedTableData,
     SanitizedTableRowView,
     SanitizedTextColumnInfo,
-    SanitizedOrdinalColumnInfo,
+    SanitizedCodedColumnInfo,
 )
 
 def update_tablesanitizers(table: UnsanitizedTable, sanitizers: t.Mapping[str, LookupSanitizer]):
@@ -100,8 +100,8 @@ def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo
                 sanitizer_checksum=None,
                 value_type=column_info.value_type,
             )
-        case UnsanitizedOrdinalColumnInfo():
-            return SanitizedOrdinalColumnInfo(
+        case UnsanitizedCodedColumnInfo():
+            return SanitizedCodedColumnInfo(
                 id=id,
                 prompt=column_info.prompt,
                 codes=column_info.codes,

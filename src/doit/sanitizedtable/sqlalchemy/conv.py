@@ -22,7 +22,7 @@ from .sqlmodel import (
 from ..model import (
     SanitizedColumnId,
     SanitizedColumnInfo,
-    SanitizedOrdinalColumnInfo,
+    SanitizedCodedColumnInfo,
     SanitizedTableInfo,
     SanitizedTable,
     SanitizedTableData,
@@ -116,7 +116,7 @@ def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
                 type=sql_columnentrytype(info),
                 sanitizer_checksum=info.sanitizer_checksum,
             )
-        case SanitizedOrdinalColumnInfo():
+        case SanitizedCodedColumnInfo():
             return ColumnEntrySql(
                 name=info.id.name,
                 prompt=info.prompt,
@@ -154,14 +154,14 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 value_type=entry.type.value,
             )
         case ColumnEntryType.ORDINAL:
-            return SanitizedOrdinalColumnInfo(
+            return SanitizedCodedColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 codes=parse_obj_as(t.Mapping[int, str], entry.codes),
                 value_type=entry.type.value,
             )
         case ColumnEntryType.MULTISELECT:
-            return SanitizedOrdinalColumnInfo(
+            return SanitizedCodedColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 codes=parse_obj_as(t.Mapping[int, str], entry.codes),
