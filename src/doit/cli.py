@@ -1,6 +1,7 @@
 import typing as t
 
 from dotenv import load_dotenv
+
 load_dotenv('.env')
 
 import click
@@ -172,7 +173,12 @@ def sanitize():
 @cli.command()
 def link():
     """Link study"""
-    from .service.link import link_tableinfo, link_table
+    from .service.link import (
+        link_tableinfo,
+        link_table,
+    )
+
+    from .common.table import TableErrorReport
     
     sanitized_repo = app.open_sanitizedtable_repo(
         defaults.sanitized_repo_path,
@@ -200,12 +206,23 @@ def link():
         link_tableinfo(info, spec) for info, spec in zip(sanitizedtableinfos, instrumentlinker_specs)
     )
 
+    errors: TableErrorReport = set()
+
     click.secho()
 
     for linker in tqdm(linkers):
         sanitized_table = sanitized_repo.read_table(linker.instrument_name)
         linked_table = link_table(sanitized_table.data, linker)
-        linked_repo.write_table(linked_table)
+        new_errors = linked_repo.write_table(linked_table)
+        errors |= new_errors
+
+    if errors:
+        click.secho()
+        click.secho("Encountered {} errors.".format(len(errors)), fg='bright_red')
+        click.secho()
+        click.secho("See {} for more info".format(click.style(defaults.error_file_path, fg='bright_cyan')))
+        click.secho()
+        app.write_errors(errors, defaults.error_file_path)
     
     click.secho()
 

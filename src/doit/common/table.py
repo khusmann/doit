@@ -139,13 +139,14 @@ class ErrorValue:
         return "{}".format(str(self.reason))
 
     def __hash__(self):
-        return hash(self.reason)
+        return hash(type(self.reason))
 
     def __eq__(self, o: t.Any):
         return isinstance(o, ErrorValue) and self.reason == o.reason
 
-    def print_traceback(self):
-        print("".join(traceback.format_list(self.stack)))
+    @property
+    def traceback(self):
+        return "".join(traceback.format_list(self.stack))
 
     def bind(self, fn: t.Callable[[t.Any], TableValue[P]]) -> TableValue[P]:
         return self
@@ -184,6 +185,9 @@ class TableRowView(t.Generic[ColumnIdT]):
     def values(self):
         return self._map.values()
 
+    def items(self):
+        return self._map.items()
+
     def get(self, column_name: ColumnIdT) -> TableValue[t.Any]:
         return self._map.get(column_name, ErrorValue(ColumnNotFoundInRow(column_name, self)))
 
@@ -219,3 +223,37 @@ class TableData(t.Generic[ColumnIdT]):
         for row in self.rows:
             result += " | ".join(repr(row.get(c)) for c in self.column_ids) + "\n"
         return result
+
+# Table error handling. TODO: Move somewhere else?
+
+class TableErrorReportItem(t.NamedTuple):
+    table_name: str
+    column_name: str
+    error_value: ErrorValue
+
+TableErrorReport = t.Set[TableErrorReportItem]
+
+import io
+
+def write_error_report(f: io.TextIOBase, report: TableErrorReport, debug: bool = False):
+    import csv
+    writer = csv.writer(f)
+
+    writer.writerow(("table_name", "column_name", "error"))
+
+    for item in sorted(report, key=lambda x: x.table_name + x.column_name + x.error_value.reason.__class__.__name__):
+        row = (item.table_name, item.column_name)
+        reason = item.error_value.reason
+        match reason:
+            case MissingCode():
+                row += ("MissingCode", reason.value, reason.codes)
+            case ColumnNotFoundInRow():
+                row += ("ColumnNotFoundInRow", reason.missing_column, reason.row)
+            case LookupSanitizerMiss():
+                row += ("LookupSanitizerMiss", reason.lookup, reason.sanitizer_map)
+            case IncorrectType():
+                row += ("IncorrectType", reason.value, type(reason.value))
+        if debug:
+            row += (item.error_value.traceback,)
+        
+        writer.writerow(row)

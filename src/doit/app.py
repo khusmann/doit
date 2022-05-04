@@ -6,7 +6,9 @@ from .sanitizer.model import SanitizerUpdate, TableSanitizer
 
 from .unsanitizedtable.model import UnsanitizedTable
 
-from .remote.fetch import (
+from .common.table import TableErrorReport
+
+from .remote.fetch import ( # TODO: put these imports into the functions that call them
     fetch_blob,
     get_listing,
 )
@@ -174,3 +176,11 @@ def load_study_spec(
         instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")},
         parser=yaml.safe_load,
     )
+
+def write_errors(
+    report: TableErrorReport,
+    error_file_path: Path
+):
+    from .common.table import write_error_report
+    with open(error_file_path, "w") as f:
+        write_error_report(f, report)

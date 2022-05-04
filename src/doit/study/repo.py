@@ -2,6 +2,8 @@ from __future__ import annotations
 import typing as t
 from abc import ABC, abstractmethod
 
+from ..common.table import TableErrorReport
+
 from .spec import StudySpec
 
 from .model import LinkedTable
@@ -18,7 +20,7 @@ class StudyRepoWriter(ABC):
     def query_instrumentlinkerspecs(self) -> t.Tuple[InstrumentLinkerSpec, ...]: ...
 
     @abstractmethod
-    def write_table(self, linked_table: LinkedTable): ...
+    def write_table(self, linked_table: LinkedTable) -> TableErrorReport: ...
 
     @classmethod
     @abstractmethod

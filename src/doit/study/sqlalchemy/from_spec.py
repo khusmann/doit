@@ -3,11 +3,15 @@ import typing as t
 from ..model import LinkedTable, LinkedColumnInfo
 
 from ...common.table import (
+    ColumnNotFoundInRow,
+    IncorrectType,
     Some,
     Omitted,
     Redacted,
     ErrorValue,
     TableValue,
+    TableErrorReport,
+    TableErrorReportItem,
 )
 
 from .sqlmodel import (
@@ -40,6 +44,7 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
     # TODO: return a RowResult type which turns into a TableResult
     # write all rows with valid results; then return a [WriteTableError]
     # which can be aggregated into a DOIT_ERRORS.csv file for inspection
+
     match column.value_type:
         case 'text':
             tv = value.assert_type(str)
@@ -51,7 +56,7 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
                 case Redacted():
                     return "__REDACTED__"
                 case ErrorValue():
-                    raise Exception("Error: Error value in text column {}".format(tv))
+                    return tv
 
         case  'real' | 'integer':
             tv = value.assert_type(str)
@@ -61,11 +66,11 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
                 case Omitted():
                     return None
                 case Redacted():
-                    raise Exception("Error: Redacted value in numeric column {}".format(column.id.linked_name))
+                    return ErrorValue(IncorrectType(value))
                 case ErrorValue():
-                    raise Exception("Error: Error value in numeric column {}".format(tv))
+                    return tv
 
-        case 'ordinal' | 'categorical' | 'index':
+        case 'ordinal' | 'categorical':
             tv = value.assert_type(int)
             match tv:
                 case Some(value=v):
@@ -73,10 +78,22 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
                 case Omitted():
                     return None
                 case Redacted():
-                    raise Exception("Error: Redacted value in coded column {}".format(column.id.linked_name))
+                    return ErrorValue(IncorrectType(value))
                 case ErrorValue():
-                    raise Exception("Error: Error value in coded column {}".format(tv))
-        
+                    return tv
+
+        case 'index':
+            tv = value.assert_type(int)
+            match tv:
+                case Some(value=v):
+                    return v
+                case Omitted():
+                    return ErrorValue(IncorrectType(value))
+                case Redacted():
+                    return ErrorValue(IncorrectType(value))
+                case ErrorValue():
+                    return tv
+
         case 'multiselect':
             tv = value.assert_type_seq(int)
             match tv:
@@ -85,16 +102,39 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
                 case Omitted():
                     return None
                 case Redacted():
-                    raise Exception("Error: Redacted value in multiselect column {}".format(column.id.linked_name))
+                    return ErrorValue(IncorrectType(value))
                 case ErrorValue():
-                    raise Exception("Error: Error value in multiselect column {}".format(tv))
+                    return tv
 
 
 def render_tabledata(linked_table: LinkedTable):
-    return tuple(
-        { c.id.linked_name: sql_from_tablevalue(c, row.get(c.id)) for c in linked_table.columns }
+    errors: TableErrorReport = set()
+
+    def filter_error(column: LinkedColumnInfo, value: TableValue[t.Any]):
+        linked_name = column.id.linked_name
+        filtered_value = sql_from_tablevalue(column, value)
+        if isinstance(filtered_value, ErrorValue):
+            errors.add(TableErrorReportItem(linked_table.instrument_name, linked_name, filtered_value))
+            return None
+        else:
+            return filtered_value
+
+    rendered_values = tuple(
+        { c.id.linked_name: filter_error(c, row.get(c.id)) for c in linked_table.columns }
             for row in linked_table.data.rows
     )
+
+    index_names = tuple(i.id.linked_name for i in linked_table.columns if i.value_type == 'index')
+
+    def is_valid_row(row: t.Mapping[str, t.Any]):
+        missing_index = next((i for i in index_names if row[i] is None), None)
+        if missing_index:
+            errors.add(TableErrorReportItem(linked_table.instrument_name, missing_index, ErrorValue(ColumnNotFoundInRow(missing_index, row))))
+            return False
+        else:
+            return True
+
+    return tuple(row for row in rendered_values if is_valid_row(row)), errors
 
 def sql_from_codemap_spec(spec: CodeMapSpec, measure_name: str, codemap_name: str):
     name = ".".join((measure_name, codemap_name))

@@ -79,6 +79,8 @@ class AppSettings(BaseSettings):
     def study_repo_bkup_path(self, old_date: datetime) -> Path:
         return self.study_repo_path.with_suffix(".{}{}".format(int(old_date.timestamp()), self.study_repo_path.suffix))
 
+    error_file_path = Path("./doit-errors.csv")
+
     ###
 
     class Config(BaseSettings.Config):

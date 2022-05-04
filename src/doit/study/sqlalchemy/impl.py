@@ -144,9 +144,13 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         sql_table = self.datatable_metadata.tables[linked_table.studytable_name]
 
-        session.upsert_rows(sql_table, render_tabledata(linked_table))
+        rows, errors = render_tabledata(linked_table)
+
+        session.upsert_rows(sql_table, rows)
 
         session.commit()
+
+        return errors
 
     def query_instrument(self, instrument_name: str):
         session = SessionWrapper(self.engine)
