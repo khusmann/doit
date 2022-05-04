@@ -22,7 +22,7 @@ from ..model import (
     UnsanitizedCodedColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableData,
-    UnsanitizedTextColumnInfo,
+    UnsanitizedSimpleColumnInfo,
 )
 
 
@@ -123,13 +123,13 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
     id = UnsanitizedColumnId(value.exportTag if value.dataType == 'question' else key)
     match value:
         case QualtricsStringQuestion(description=prompt):
-            return UnsanitizedTextColumnInfo(
+            return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
             )
         case QualtricsNumericQuestion(description=prompt):
-            return UnsanitizedTextColumnInfo(
+            return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
@@ -154,7 +154,7 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
 def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
     responseId = (
         "responseId",
-        UnsanitizedTextColumnInfo(
+        UnsanitizedSimpleColumnInfo(
             id=UnsanitizedColumnId('responseId'),
             prompt="Qualtrics response id",
             is_safe=True,

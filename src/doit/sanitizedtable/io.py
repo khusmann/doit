@@ -12,7 +12,7 @@ from .model import (
     SanitizedTableInfo,
     SanitizedTableRowView,
     SanitizedTable,
-    SanitizedTextColumnInfo,
+    SanitizedSimpleColumnInfo,
 )
 
 def load_sanitizedtable_csv(csv_text: str) -> SanitizedTable:
@@ -33,7 +33,7 @@ def load_sanitizedtable_csv(csv_text: str) -> SanitizedTable:
             data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
             schema_checksum=hashlib.sha256(csv_lines[0].encode()).hexdigest(),
             columns=tuple(
-                SanitizedTextColumnInfo(
+                SanitizedSimpleColumnInfo(
                     id=cid,
                     prompt=cid.name,
                     sanitizer_checksum=None,

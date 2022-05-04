@@ -8,7 +8,7 @@ from ..common.table import (
 class UnsanitizedColumnId(t.NamedTuple):
     unsafe_name: str
 
-class UnsanitizedTextColumnInfo(t.NamedTuple):
+class UnsanitizedSimpleColumnInfo(t.NamedTuple):
     id: UnsanitizedColumnId
     prompt: str
     is_safe: bool
@@ -21,7 +21,7 @@ class UnsanitizedCodedColumnInfo(t.NamedTuple):
     is_safe = True
     value_type: t.Literal['ordinal', 'multiselect']
 
-UnsanitizedColumnInfo = UnsanitizedTextColumnInfo | UnsanitizedCodedColumnInfo
+UnsanitizedColumnInfo = UnsanitizedSimpleColumnInfo | UnsanitizedCodedColumnInfo
 
 UnsanitizedTableRowView = TableRowView[UnsanitizedColumnId]
 UnsanitizedTableData = TableData[UnsanitizedColumnId]

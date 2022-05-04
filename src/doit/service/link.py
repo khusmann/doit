@@ -2,8 +2,6 @@ from __future__ import annotations
 import typing as t
 from functools import partial
 
-from ..common import assert_never
-
 from ..common.table import (
     Some,
     TableValue,
@@ -19,20 +17,24 @@ from ..linker.model import (
 )
 
 from ..study.view import (
+    CodedDstLink,
     DstLink,
     InstrumentLinkerSpec,
     LinkerSpec,
     ConstantSrcLink,
     QuestionSrcLink,
+    SimpleDstLink,
     SrcLink,
 )
 
 from ..sanitizedtable.model import (
+    SanitizedCodedColumnInfo,
     SanitizedColumnId,
     SanitizedColumnInfo,
     SanitizedTableData,
     SanitizedTableInfo,
     SanitizedTableRowView,
+    SanitizedSimpleColumnInfo,
 )
 
 from ..study.model import (
@@ -66,25 +68,29 @@ def from_source_question(
 ) -> TableValue[t.Any]:
     tv = row.get(column_info.id)
 
-    if (column_info.value_type == 'text'):
-        return (
-            tv.assert_type(str)
-              .map(lambda v: source_value_map.get(v, v)) # pyright bug: this should be known via union type
-        )
-    elif (column_info.value_type == 'ordinal'):
-        return (
-            tv.assert_type(int)
-              .bind(lookup_fn(column_info.codes))
-              .map(lambda v: source_value_map.get(v, v))
-        )
-    elif (column_info.value_type == 'multiselect'):
-        return (
-            tv.assert_type_seq(int)
-              .bind(lookup_fn_seq(column_info.codes))
-              .map(lambda v: tuple(source_value_map.get(i, i) for i in v))
-        )
-    else:
-        assert_never(column_info.value_type)
+    match column_info:
+        case SanitizedCodedColumnInfo():
+            match column_info.value_type:
+                case 'multiselect':
+                    return (
+                        tv.assert_type_seq(int)
+                          .bind(lookup_fn_seq(column_info.codes))
+                          .map(lambda v: tuple(source_value_map.get(i, i) for i in v))
+                    )
+                case 'ordinal':
+                    return (
+                        tv.assert_type(int)
+                          .bind(lookup_fn(column_info.codes))
+                          .map(lambda v: source_value_map.get(v, v))
+                    )
+
+        case SanitizedSimpleColumnInfo():
+            match column_info.value_type:
+                case 'text':
+                    return (
+                        tv.assert_type(str)
+                          .map(lambda v: source_value_map.get(v, v))
+                    )
 
 def to_dst(
     source_value: TableValue[t.Any],
@@ -93,27 +99,22 @@ def to_dst(
     single = source_value.assert_type(str)
     seq = source_value.assert_type_seq(str)
 
-    if (
-        dst.value_type == 'ordinal' or
-        dst.value_type == 'categorical' or
-        dst.value_type == 'index'
-    ):
-        result = single.bind(lookup_fn(dst.value_from_tag))
+    match dst:
+        case CodedDstLink():
+            match dst.value_type:
+                case 'multiselect':
+                    result = seq.bind(lookup_fn_seq(dst.value_from_tag))
+                case 'ordinal' | 'categorical' | 'index':
+                    result = single.bind(lookup_fn(dst.value_from_tag))
 
-    elif (dst.value_type == 'multiselect'):
-        result = seq.bind(lookup_fn_seq(dst.value_from_tag))
-
-    elif (dst.value_type == 'text'):
-        result = single.bind(cast_fn(str))
-
-    elif (dst.value_type == 'real'):
-        result = single.bind(cast_fn(float))
-
-    elif (dst.value_type == 'integer'):
-        result = single.bind(cast_fn(int))
-
-    else:
-        assert_never(dst.value_type)
+        case SimpleDstLink():
+            match dst.value_type:
+                case 'text':
+                    result = single.bind(cast_fn(str))
+                case 'real':
+                    result = single.bind(cast_fn(float))
+                case 'integer':
+                    result = single.bind(cast_fn(int))
 
     return (LinkedColumnId(dst.linked_name), result)
 

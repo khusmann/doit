@@ -26,7 +26,7 @@ from ..model import (
     SanitizedTableInfo,
     SanitizedTable,
     SanitizedTableData,
-    SanitizedTextColumnInfo,
+    SanitizedSimpleColumnInfo,
 )
 
 from pydantic import parse_obj_as
@@ -109,7 +109,7 @@ def sql_columnentrytype(info: SanitizedColumnInfo) -> ColumnEntryType:
 
 def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
     match info:
-        case SanitizedTextColumnInfo():
+        case SanitizedSimpleColumnInfo():
             return ColumnEntrySql(
                 name=info.id.name,
                 prompt=info.prompt,
@@ -147,7 +147,7 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
 
     match entry.type:
         case ColumnEntryType.TEXT:
-            return SanitizedTextColumnInfo(
+            return SanitizedSimpleColumnInfo(
                 id=SanitizedColumnId(entry.name),
                 prompt=entry.prompt,
                 sanitizer_checksum=entry.sanitizer_checksum,

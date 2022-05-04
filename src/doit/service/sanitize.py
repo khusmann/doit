@@ -19,7 +19,7 @@ from ..unsanitizedtable.model import (
     UnsanitizedCodedColumnInfo,
     UnsanitizedTable,
     UnsanitizedTableRowView,
-    UnsanitizedTextColumnInfo,
+    UnsanitizedSimpleColumnInfo,
 )
 
 from ..sanitizedtable.model import (
@@ -29,7 +29,7 @@ from ..sanitizedtable.model import (
     SanitizedColumnInfo,
     SanitizedTableData,
     SanitizedTableRowView,
-    SanitizedTextColumnInfo,
+    SanitizedSimpleColumnInfo,
     SanitizedCodedColumnInfo,
 )
 
@@ -93,8 +93,8 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: Sanitizer):
 def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo:
     id = SanitizedColumnId(column_info.id.unsafe_name)
     match column_info:
-        case UnsanitizedTextColumnInfo():
-            return SanitizedTextColumnInfo(
+        case UnsanitizedSimpleColumnInfo():
+            return SanitizedSimpleColumnInfo(
                 id=id,
                 prompt=column_info.prompt,
                 sanitizer_checksum=None,
@@ -112,7 +112,7 @@ def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedCo
     match sanitizer:
         case LookupSanitizer():
             return tuple(
-                SanitizedTextColumnInfo(
+                SanitizedSimpleColumnInfo(
                     id=id,
                     prompt="; ".join(column_lookup[c].prompt for c in sanitizer.key_col_ids),
                     sanitizer_checksum=sanitizer.checksum,
