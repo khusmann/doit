@@ -89,7 +89,7 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
         case ColumnEntryType.GROUP:
             return GroupMeasureNodeView(
                 name=entry.name,
-                prompt=entry.prompt or SQL_MISSING_TEXT,
+                prompt=entry.prompt,
                 items=tuple(
                     to_measurenodeview(i) for i in entry.items
                 ),

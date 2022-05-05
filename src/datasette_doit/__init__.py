@@ -97,7 +97,9 @@ def render_cell(value, column, table, database, datasette):
 @hookimpl
 def extra_css_urls():
     return [
-        "/-/static-plugins/doit/jquery.floatingscroll.css"
+        "/-/static-plugins/doit/jquery.floatingscroll.css",
+        "https://unpkg.com/purecss@2.1.0/build/pure-min.css",
+        "/-/static-plugins/doit/doit.css",
     ]
 
 @hookimpl

@@ -124,7 +124,7 @@ class SimpleMeasureNodeView(t.NamedTuple):
 
 class GroupMeasureNodeView(t.NamedTuple):
     name: str
-    prompt: str
+    prompt: t.Optional[str]
     items: t.Tuple[MeasureNodeView, ...]
 
 MeasureNodeView = t.Union[

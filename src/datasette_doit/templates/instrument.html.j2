@@ -14,52 +14,60 @@
 {% endblock %}
 
 {% block content %}
-<h1>Instrument ID: {{instrument.name}}</h1>
-<h1>Title: {{instrument.title}}</h1>
-<h1>Description:</h1>
-<p>{{instrument.description}}</p>
-<h1>Instructions:</h1>
-<p>{{instrument.instructions}}</p>
-<br>
-{% for item in instrument.nodes recursive %}
-    {% if item.type == 'question' %}
-        {% if item.column_info.name %}
-            <div style="border-style: dashed; border-width: 3px; padding: 1em">
-        {% else %}
-            <div style="border-style: dashed; border-width: 3px; padding: 1em; background-color: lightgray">
-        {% endif %}
-        <h2>
-            {{item.prompt}}
-        </h2>
-        <p>Linked Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
-        <p>Linked Measure type: {{item.column_info.type}}</p>
-        {% if item.map %}
-        <table>
-            <tr>
-                <th>Instrument Text</th>
-                <th>Measure Tag</th>
-                <th>Measure Value</th>
-                <th>Measure Text</th>
-            </tr>
-            {% for key, tag in item.map.items() %}
-            <tr>
-                <td>{{key}}</td>
-                <td>{{tag}}</td>
-                <td>{% if item.column_info.codes %}{{item.column_info.codes.value_from_tag[tag] }}{% endif %}</td>
-                <td>{% if item.column_info.codes %}{{item.column_info.codes.label_from_tag[tag] }}{% endif %}</td>
-            </tr>
-            {% endfor %}
-        </table>
-        {% endif %}
+<div class="doit-main">
+    <div class="doit-header">
+        <h1>Title: {{instrument.title}}</h1>
+        <h2>Instrument ID: {{instrument.name}}</h1>
+        <h2>Description:</h1>
+        <p>{{instrument.description}}</p>
+        <h2>Instructions:</h1>
+        <p>{{instrument.instructions}}</p>
     </div>
-    {% endif %}
-    {% if item.type == 'group' %}
-    <div style="border-style: dashed; border-width: 3px; padding: 1em">
-        {% if item.title %}<h2>{{item.title}}</h2>{% endif %}
-        <p>Prompt: {{item.prompt}}</p>
-        {{ loop(item.items) }}
-    </div>
-    {% endif %}
-{% endfor %}
-
+    {% for item in instrument.nodes recursive %}
+        {% if item.type == 'question' %}
+            {% if item.column_info.name %}
+            <div class="pure-g doit-item">
+            {% else %}
+            <div class="pure-g doit-item doit-unlinked-item">
+            {% endif %}
+                <div class="pure-u">
+                    <h2>{{item.prompt}}</h2>
+                    <p>Linked Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
+                    <p>Linked Measure type: {{item.column_info.value_type}}</p>
+                </div>
+                <div class="pure-u">
+                    {% if item.map %}
+                    <table class="pure-table pure-table-horizontal">
+                    <thead>
+                        <tr>
+                            <th>Instrument Text</th>
+                            <th>Measure Tag</th>
+                            <th>Measure Value</th>
+                            <th>Measure Text</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, tag in item.map.items() %}
+                        <tr>
+                            <td>{{key}}</td>
+                            <td>{{tag}}</td>
+                            <td>{% if item.column_info.codes %}{{item.column_info.codes.value_from_tag[tag] }}{% endif %}</td>
+                            <td>{% if item.column_info.codes %}{{item.column_info.codes.label_from_tag[tag] }}{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        {% if item.type == 'group' %}
+        <div class="doit-group">
+            {% if item.title %}<h2>{{item.title}}</h2>{% endif %}
+            {% if item.prompt %}<p>Prompt: {{item.prompt}}</p>{% endif %}
+            {{ loop(item.items) }}
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
 {% endblock %}
