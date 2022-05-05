@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Instrument: {{instrument.name}}{% endblock %}
+
+{% block body_class %}index{% endblock %}
+
+{% block nav %}
+    <p class="crumbs">
+        <a href="{{ urls.instance() }}">home</a>
+        | <a href="/-/instruments">instruments</a>
+        | <a href="/-/measures">measures</a>
+    </p>
+    {{ super() }}
+{% endblock %}
+
+{% block content %}
+<h1>Instrument ID: {{instrument.name}}</h1>
+<h1>Title: {{instrument.title}}</h1>
+<h1>Description:</h1>
+<p>{{instrument.description}}</p>
+<h1>Instructions:</h1>
+<p>{{instrument.instructions}}</p>
+<br>
+{% for item in instrument.nodes recursive %}
+    {% if item.type == 'question' %}
+        {% if item.column_info.name %}
+            <div style="border-style: dashed; border-width: 3px; padding: 1em">
+        {% else %}
+            <div style="border-style: dashed; border-width: 3px; padding: 1em; background-color: lightgray">
+        {% endif %}
+        <h2>
+            {{item.prompt}}
+        </h2>
+        <p>Linked Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
+        <p>Linked Measure type: {{item.column_info.type}}</p>
+        {% if item.map %}
+        <table>
+            <tr>
+                <th>Instrument Text</th>
+                <th>Measure Tag</th>
+                <th>Measure Value</th>
+                <th>Measure Text</th>
+            </tr>
+            {% for key, tag in item.map.items() %}
+            <tr>
+                <td>{{key}}</td>
+                <td>{{tag}}</td>
+                <td>{% if item.column_info.codes %}{{item.column_info.codes.value_from_tag[tag] }}{% endif %}</td>
+                <td>{% if item.column_info.codes %}{{item.column_info.codes.label_from_tag[tag] }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if item.type == 'group' %}
+    <div style="border-style: dashed; border-width: 3px; padding: 1em">
+        {% if item.title %}<h2>{{item.title}}</h2>{% endif %}
+        <p>Prompt: {{item.prompt}}</p>
+        {{ loop(item.items) }}
+    </div>
+    {% endif %}
+{% endfor %}
+
+{% endblock %}

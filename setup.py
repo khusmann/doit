@@ -13,10 +13,10 @@ setup(
             'doit = doit.cli:cli',
         ],
         'datasette': [
-            'doit = doit.datasette'
+            'doit = datasette_doit',
         ],
     },
     package_data={"doit": [
-        "src/datasette/templates/*"
+        "src/datasette-doit/templates/*",
     ]},
 )

@@ -40,6 +40,8 @@ from .to_view import (
     to_columnview,
     to_studytableview,
     to_instrumentlinkerspec,
+    to_instrumentlistingview,
+    to_measurelistingview,
 )
 
 class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
@@ -157,6 +159,19 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         return to_instrumentview(
             session.get_by_name(InstrumentEntrySql, instrument_name)
         )
+
+    def query_instrumentlisting(self):
+        session = SessionWrapper(self.engine)
+        return to_instrumentlistingview(
+            session.get_all(InstrumentEntrySql)
+        )
+
+    def query_measurelisting(self):
+        session = SessionWrapper(self.engine)
+        return to_measurelistingview(
+            session.get_all(MeasureEntrySql)
+        )
+
 
     def query_measure(self, measure_name: str):
         session = SessionWrapper(self.engine)

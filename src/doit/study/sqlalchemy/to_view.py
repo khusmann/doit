@@ -17,6 +17,10 @@ from ..view import (
     ConstantInstrumentNodeView,
     DstLink,
     CodedDstLink,
+    InstrumentListingItemView,
+    InstrumentListingView,
+    MeasureListingItemView,
+    MeasureListingView,
     SimpleDstLink,
     GroupInstrumentNodeView,
     GroupMeasureNodeView,
@@ -57,8 +61,11 @@ def to_codemapview(entry: CodemapSql) -> CodemapView:
     codemap = parse_obj_as(CodemapRaw, entry.values)
 
     return CodemapView(
-        tags={ i['value']: i['tag'] for i in codemap },
-        labels={ i['value']: i['text'] for i in codemap },
+        tag_from_value={ i['value']: i['tag'] for i in codemap },
+        label_from_value={ i['value']: i['text'] for i in codemap },
+        label_from_tag={ i['tag']: i['text'] for i in codemap },
+        value_from_tag={ i['tag']: i['value'] for i in codemap },
+        values=codemap,
     )
 
 def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
@@ -96,7 +103,7 @@ def to_instrumentnodeview(entry: InstrumentNodeSql) -> InstrumentNodeView:
             return QuestionInstrumentNodeView(
                 prompt=entry.prompt or SQL_MISSING_TEXT,
                 source_column_name=entry.source_column_name,
-                map=parse_obj_as(t.Mapping[str, str], entry.source_value_map) if entry.source_value_map else {},
+                map=parse_obj_as(t.Mapping[str, t.Optional[str]], entry.source_value_map) if entry.source_value_map else {},
                 column_info=to_columnview(entry.column_entry) if entry.column_entry else None,
             )
         case InstrumentNodeType.CONSTANT:
@@ -126,6 +133,27 @@ def to_instrumentview(entry: InstrumentEntrySql):
                 if i.parent_node_id is None
         ),
     )
+
+def to_instrumentlistingview(entries: t.Sequence[InstrumentEntrySql]):
+    return InstrumentListingView(
+        items=tuple(
+            InstrumentListingItemView(
+                name=i.name,
+                title=i.title or SQL_MISSING_TEXT,
+            ) for i in entries
+        )
+    )
+
+def to_measurelistingview(entries: t.Sequence[MeasureEntrySql]):
+    return MeasureListingView(
+        items=tuple(
+            MeasureListingItemView(
+                name=i.name,
+                title=i.title or SQL_MISSING_TEXT,
+            ) for i in entries
+        )
+    )
+
 
 def to_columnview(entry: ColumnEntrySql) -> ColumnView:
     studytable_name = entry.studytables[0].name if len(entry.studytables) == 1 else None

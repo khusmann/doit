@@ -11,8 +11,13 @@ class CodemapValue(t.TypedDict):
 CodemapRaw = t.Tuple[CodemapValue, ...]
 
 class CodemapView(t.NamedTuple):
-    tags: t.Mapping[int, str]
-    labels: t.Mapping[int, str]
+    tag_from_value: t.Mapping[int, str]
+    label_from_value: t.Mapping[int, str]
+    
+    label_from_tag: t.Mapping[str, str]
+    value_from_tag: t.Mapping[str, int]
+
+    values: t.Tuple[CodemapValue, ...]
 
 class CodedColumnView(t.NamedTuple):
     name: str
@@ -46,16 +51,19 @@ class QuestionInstrumentNodeView(t.NamedTuple):
     prompt: str
     source_column_name: t.Optional[str]
     column_info: t.Optional[ColumnView]
-    map: t.Mapping[str, str]
+    map: t.Mapping[str, t.Optional[str]]
+    type: t.Final = 'question'
 
 class ConstantInstrumentNodeView(t.NamedTuple):
     constant_value: str
     column_info: t.Optional[ColumnView]
+    type: t.Final = 'constant'
 
 class GroupInstrumentNodeView(t.NamedTuple):
     title: t.Optional[str]
     prompt: t.Optional[str]
     items: t.Tuple[InstrumentNodeView, ...]
+    type: t.Final = 'group'
 
 InstrumentNodeView = t.Union[
     QuestionInstrumentNodeView,
@@ -74,6 +82,24 @@ class InstrumentView(t.NamedTuple):
     # source_name
 
     nodes: t.Tuple[InstrumentNodeView, ...]
+
+### InstrumentListingView
+
+class InstrumentListingItemView(t.NamedTuple):
+    name: str
+    title: str
+
+class InstrumentListingView(t.NamedTuple):
+    items: t.Tuple[InstrumentListingItemView, ...]
+
+### MeasureListingView
+
+class MeasureListingItemView(t.NamedTuple):
+    name: str
+    title: str
+
+class MeasureListingView(t.NamedTuple):
+    items: t.Tuple[MeasureListingItemView, ...]
 
 ### IndicesView - Info to populate the indices page
 
@@ -118,7 +144,6 @@ class MeasureView(t.NamedTuple):
 class StudyTableView(t.NamedTuple):
     name: str
     columns: t.Tuple[ColumnView, ...]
-
 
 ### LinkerView
 
