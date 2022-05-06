@@ -26,7 +26,7 @@ from .remote.model import (
     RemoteTableListing,
 )
 
-from .study.spec import StudySpec
+from .study.spec import InstrumentSpec, StudySpec
 from .study.io import load_studyspec_str
 
 def add_source(
@@ -180,6 +180,36 @@ def load_study_spec(
         instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")},
         parser=yaml.safe_load,
     )
+
+def write_instrument_spec_stub(
+    instrument_name: str,
+    stub: InstrumentSpec,
+    instrument_stub_from_instrument_name: t.Callable[[str], Path]
+):
+    # This dumper makes dictionary keys dump in order. This is so the
+    # ordering of keys in the stubs of instrument yamls take the same
+    # order that they are defined in the InstrumentSpec object.
+    import yaml
+
+    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
+        return dumper.represent_dict(data.items())
+
+    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
+        return dumper.represent_list(tuple)
+
+    yaml.add_representer(dict, ordered_dict_dumper)
+    yaml.add_representer(tuple, tuple_dumper)
+
+    stub_path = instrument_stub_from_instrument_name(instrument_name)
+
+    stub_path.parent.mkdir(exist_ok=True, parents=True)
+
+    with open(stub_path, "w") as f:
+        yaml.dump(stub.dict(exclude_none=True), f)
+
+    return stub_path
+
+
 
 def write_errors(
     report: TableErrorReport,

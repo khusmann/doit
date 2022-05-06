@@ -36,8 +36,8 @@ class AppSettings(BaseSettings):
 
     sanitizer_repo_dir = Path("./build/unsafe/sanitizers")
 
-    def sanitizer_dir_from_instrument_name(self, instrument_id: str) -> Path:
-        return self.sanitizer_repo_dir / instrument_id
+    def sanitizer_dir_from_instrument_name(self, instrument_name: str) -> Path:
+        return self.sanitizer_repo_dir / instrument_name
 
     #def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
     #    return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]
@@ -63,6 +63,9 @@ class AppSettings(BaseSettings):
     instrument_dir = Path("./instruments")
     measure_dir = Path("./measures")
     config_file = Path("./study.yaml")
+
+    def instrument_stub_from_instrument_name(self, instrument_name: str):
+        return (self.instrument_dir / instrument_name).with_suffix(".yaml.stub")
 
     # StudyRepo
 

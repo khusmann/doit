@@ -143,6 +143,7 @@ def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
 def sql_from_tableinfo(info: SanitizedTableInfo) -> TableEntrySql:
     return TableEntrySql(
         name=info.name,
+        title=info.title,
         data_checksum=info.data_checksum,
         schema_checksum=info.schema_checksum,
         columns=[ sql_from_columninfo(column) for column in info.columns ],
@@ -151,6 +152,7 @@ def sql_from_tableinfo(info: SanitizedTableInfo) -> TableEntrySql:
 def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
     return SanitizedTableInfo(
         name=entry.name,
+        title=entry.title,
         data_checksum=entry.data_checksum,
         schema_checksum=entry.schema_checksum,
         columns=tuple(

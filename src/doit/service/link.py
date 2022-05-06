@@ -10,6 +10,11 @@ from ..common.table import (
     cast_fn,
 )
 
+from ..study.spec import (
+    InstrumentSpec,
+    QuestionInstrumentItemSpec,
+)
+
 from ..linker.model import (
     Linker,
     InstrumentLinker,
@@ -31,6 +36,7 @@ from ..sanitizedtable.model import (
     SanitizedCodedColumnInfo,
     SanitizedColumnId,
     SanitizedColumnInfo,
+    SanitizedTable,
     SanitizedTableData,
     SanitizedTableInfo,
     SanitizedTableRowView,
@@ -158,5 +164,30 @@ def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -
         data=LinkedTableData(
             column_ids=tuple(c.id for c in dst_column_info),
             rows=rows,
+        )
+    )
+
+def stub_columnspec(column: SanitizedColumnInfo):
+    match column:
+        case SanitizedCodedColumnInfo():
+            map = { key: None for key in column.codes.values()}
+        case SanitizedSimpleColumnInfo():
+            map = None
+    
+    return QuestionInstrumentItemSpec(
+        prompt=column.prompt,
+        type='question',
+        remote_id=column.id.name,
+        id=None,
+        map=map,
+    )
+
+def stub_instrumentspec(table: SanitizedTable) -> InstrumentSpec:
+    return InstrumentSpec(
+        title=table.info.title,
+        description="enter description here",
+        instructions="enter instructions here",
+        items=tuple(
+            stub_columnspec(i) for i in table.info.columns
         )
     )

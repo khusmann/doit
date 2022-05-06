@@ -249,7 +249,7 @@ def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> Unsanitized
         schema_checksum="",
         data_checksum="",
         source_name="wearit",
-        source_title="",
+        source_title=wearit_schema.survey.surveyTitle,
         data=UnsanitizedTableData(
             column_ids=tuple(c.id for c in columns_flat),
             rows=rows

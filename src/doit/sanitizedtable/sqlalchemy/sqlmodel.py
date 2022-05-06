@@ -50,6 +50,7 @@ class TableEntrySql(Base):
     __tablename__ = "__table_entries__"
     id = RequiredColumn(Integer, primary_key=True)
     name = RequiredColumn(String, unique=True)
+    title = RequiredColumn(String)
     data_checksum = RequiredColumn(String)
     schema_checksum = RequiredColumn(String)
 

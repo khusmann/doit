@@ -105,15 +105,84 @@ def sanitizer_add():
     pass
 
 @sanitizer_cli.command(name="update")
-@click.argument('instrument_str', required=False, shell_complete=complete_instrument_name)
-def sanitizer_update(instrument_str: str | None):
+@click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
+def sanitizer_update(instrument_name: str | None):
     """Update sanitizers with new data"""
-    pass
+    from .service.sanitize import update_tablesanitizer
+    if instrument_name:
+        items = (instrument_name,)
+    else:
+        listing = app.get_local_source_listing(
+            defaults.source_dir,
+            defaults.blob_from_instrument_name
+        )
+        items = tuple(l.name for l in listing)
+
+    for name in items:
+        table = app.load_unsanitizedtable(
+            name,
+            defaults.blob_from_instrument_name,
+        )
+        table_sanitizer = app.load_table_sanitizer(
+            name,
+            defaults.sanitizer_dir_from_instrument_name,
+        )
+
+        updates = update_tablesanitizer(table, table_sanitizer)
+
+        if updates:
+            click.secho("Updating sanitizers for {}".format(click.style(name, fg="bright_cyan")))
+            for u in updates:
+                if u.new:
+                    click.secho("    Creating new sanitizer {} ({}) items".format(u.name, len(u.rows)))
+                else:
+                    click.secho("    Updating sanitizer {} ({}) items".format(u.name, len(u.rows)))
+
+        app.update_sanitizer(
+            name,
+            updates,
+            defaults.sanitizer_dir_from_instrument_name
+        )
+
+    click.secho()
 
 @cli.command(name="run")
 def run_cli():
     """Run the entire pipeline (fetch, sanitize, link)"""
     pass
+
+@cli.command()
+@click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
+def stub(instrument_name: str | None):
+    """Stub an instrument definition"""
+    from .service.link import stub_instrumentspec
+    click.secho()
+
+    if instrument_name:
+        items = (instrument_name,)
+    else:
+        listing = app.get_local_source_listing(
+            defaults.source_dir,
+            defaults.blob_from_instrument_name
+        )
+        items = tuple(l.name for l in listing)
+
+    sanitized_repo = app.open_sanitizedtable_repo(
+        defaults.sanitized_repo_path,
+    )
+
+    for name in items:
+        table = sanitized_repo.read_table(name)
+        stub = stub_instrumentspec(table)
+        filename = app.write_instrument_spec_stub(
+            name,
+            stub,
+            defaults.instrument_stub_from_instrument_name,
+        )
+        click.secho("Wrote: {}".format(click.style(filename, fg="bright_cyan")))
+
+    click.secho()
+
 
 @cli.command()
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)

@@ -65,7 +65,7 @@ def update_tablesanitizer(table: UnsanitizedTable, table_sanitizer: TableSanitiz
         ) for sanitizer in table_sanitizer.sanitizers
     )
 
-    return missing_columns_updates + missing_rows_updates
+    return missing_columns_updates + tuple(i for i in missing_rows_updates if len(i.rows) > 0)
 
 
 def sanitize_row(row: UnsanitizedTableRowView, sanitizer: RowSanitizer):
@@ -158,6 +158,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
     return SanitizedTable(
         info=SanitizedTableInfo(
             name=table_sanitizer.table_name,
+            title=table.source_title,
             data_checksum=table.data_checksum,
             schema_checksum=table.schema_checksum,
             columns=sanitized_columns,
