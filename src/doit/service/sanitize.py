@@ -132,7 +132,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
         key_col_ids=tuple(c.id for c in table.schema if c.is_safe)
     )
     
-    all_sanitizers = (*table_sanitizer.sanitizers, safe_column_sanitizer)
+    all_sanitizers = (safe_column_sanitizer, *table_sanitizer.sanitizers)
     
     # Step 2: Sanitize columns and rows
 

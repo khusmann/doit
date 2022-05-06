@@ -143,6 +143,8 @@ def new_sanitizedtable_repo(
 ):
     if sanitized_repo_name.exists():
         sanitized_repo_name.rename(sanitized_repo_bkup_path(datetime.now(timezone.utc)))
+    else:
+        sanitized_repo_name.parent.mkdir(exist_ok=True, parents=True)
     from .sanitizedtable.sqlalchemy.impl import SqlAlchemyRepo
     return SqlAlchemyRepo.new(str(sanitized_repo_name))
 
@@ -161,6 +163,8 @@ def new_study_repo(
 ):
     if study_repo_name.exists():
         study_repo_name.rename(study_repo_bkup_path(datetime.now(timezone.utc)))
+    else:
+        study_repo_name.parent.mkdir(exist_ok=True, parents=True)
     from .study.sqlalchemy.impl import SqlAlchemyRepo
     return SqlAlchemyRepo.new(study_spec, str(study_repo_name))
 

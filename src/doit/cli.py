@@ -37,14 +37,32 @@ def source_cli():
 @click.argument('uri')
 def source_add(instrument_name: str, uri: str):
     """Add an instrument source"""
+    from .service.sanitize import update_tablesanitizer
+    from .remote.blob import load_blob
     click.secho()
     progress = progress_callback()
-    app.add_source(
+    blob = app.add_source(
         instrument_name,
         uri,
         progress,
         defaults.blob_from_instrument_name,
     )
+
+    table = load_blob(blob)
+
+    existing_sanitizers = app.load_table_sanitizer(
+        instrument_name,
+        defaults.sanitizer_dir_from_instrument_name,
+    )
+
+    updates = update_tablesanitizer(table, existing_sanitizers)
+
+    app.update_sanitizer(
+        instrument_name,
+        updates,
+        defaults.sanitizer_dir_from_instrument_name,
+    )
+
     click.secho()
 
 @source_cli.command(name="rm")
@@ -69,7 +87,6 @@ def source_list(remote_service: str | None):
         for name, title in app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name):
             click.secho(" {} : {}".format(click.style(name, fg='bright_cyan'), title))
     click.secho()
-
 
 @cli.group(name="sanitizer")
 def sanitizer_cli():

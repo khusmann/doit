@@ -28,35 +28,6 @@ UnionSingleT = t.TypeVar('UnionSingleT', bound=int | str | float)
 ColumnIdT = t.TypeVar('ColumnIdT')
 ColumnIdP = t.TypeVar('ColumnIdP')
 
-def value_if_none_fn(none_value: TableValue[T]) -> t.Callable[[T | None], TableValue[T]]:
-    return lambda x: none_value if x is None else Some(x)
-
-def value_if_none_fn_seq(none_value: TableValue[t.Sequence[T]]) -> t.Callable[[t.Sequence[T | None]], TableValue[t.Sequence[T]]]:
-    return lambda x: none_value if any(i is None for i in x) else t.cast(TableValue[t.Sequence[T]], Some(x))
-
-def lookup_fn(map: t.Mapping[SingleT, SingleP]) -> t.Callable[[SingleT], TableValue[SingleP]]:
-    return lambda x: value_if_none_fn(ErrorValue(MissingCode(x, map)))(map.get(x)) 
-
-def lookup_fn_seq(map: t.Mapping[SingleT, SingleP]) -> t.Callable[[t.Sequence[SingleT]], TableValue[t.Sequence[SingleP]]]:
-    return lambda x: value_if_none_fn_seq(ErrorValue(MissingCode(x, map)))(tuple(map.get(i) for i in x))
-
-def cast_fn(to_type: t.Type[SingleP]) -> t.Callable[[SingleT], TableValue[SingleP]]:
-    def inner(x: SingleT):
-        try:
-            return Some(to_type(x))
-        except:
-            return ErrorValue(IncorrectType(x))
-    return inner
-
-def cast_fn_seq(to_type: t.Type[SingleP]) -> t.Callable[[t.Sequence[SingleT]], TableValue[t.Sequence[SingleP]]]:
-    def inner(x: t.Sequence[SingleT]):
-        try:
-            result: TableValue[t.Sequence[SingleP]] = Some(tuple(to_type(i) for i in x))
-            return result
-        except:
-            return ErrorValue(IncorrectType(x))
-    return inner
-
 ### TableValue
 class Some(t.Generic[T]):
     value: T
@@ -158,6 +129,35 @@ class ErrorValue:
         return self
 
 TableValue = Some[T] | Omitted | Redacted | ErrorValue
+
+def value_if_none_fn(none_value: TableValue[T]) -> t.Callable[[T | None], TableValue[T]]:
+    return lambda x: none_value if x is None else Some(x)
+
+def value_if_none_fn_seq(none_value: TableValue[t.Sequence[T]]) -> t.Callable[[t.Sequence[T | None]], TableValue[t.Sequence[T]]]:
+    return lambda x: none_value if any(i is None for i in x) else t.cast(TableValue[t.Sequence[T]], Some(x))
+
+def lookup_fn(map: t.Mapping[SingleT, SingleP]) -> t.Callable[[SingleT], TableValue[SingleP]]:
+    return lambda x: value_if_none_fn(ErrorValue(MissingCode(x, map)))(map.get(x)) 
+
+def lookup_fn_seq(map: t.Mapping[SingleT, SingleP]) -> t.Callable[[t.Sequence[SingleT]], TableValue[t.Sequence[SingleP]]]:
+    return lambda x: value_if_none_fn_seq(ErrorValue(MissingCode(x, map)))(tuple(map.get(i) for i in x))
+
+def cast_fn(to_type: t.Type[SingleP]) -> t.Callable[[SingleT], TableValue[SingleP]]:
+    def inner(x: SingleT):
+        try:
+            return Some(to_type(x))
+        except:
+            return ErrorValue(IncorrectType(x))
+    return inner
+
+def cast_fn_seq(to_type: t.Type[SingleP]) -> t.Callable[[t.Sequence[SingleT]], TableValue[t.Sequence[SingleP]]]:
+    def inner(x: t.Sequence[SingleT]):
+        try:
+            result: TableValue[t.Sequence[SingleP]] = Some(tuple(to_type(i) for i in x))
+            return result
+        except:
+            return ErrorValue(IncorrectType(x))
+    return inner
 
 ### TableRowView
 

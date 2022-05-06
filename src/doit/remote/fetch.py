@@ -19,6 +19,9 @@ def fetch_blob(uri: str | Path, progress_callback: t.Callable[[int], None] = lam
         case ParseResult(scheme="qualtrics", netloc=remote_id):
             from .qualtrics.impl import fetch_qualtrics_blob
             return fetch_qualtrics_blob(remote_id, progress_callback)
+        case ParseResult(scheme="wearit", path=data_path):
+            from .wearit.impl import fetch_wearit_blob
+            return fetch_wearit_blob(data_path, progress_callback)
         case _:
             raise Exception("Unrecognized uri: {}".format(uri))
 

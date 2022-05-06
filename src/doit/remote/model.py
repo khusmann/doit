@@ -28,7 +28,19 @@ class QualtricsSourceInfo(BaseModel):
     def uri(self):
         return "qualtrics://" + self.remote_id
 
-TableSourceInfo = QualtricsSourceInfo
+class WearitSourceInfo(BaseModel):
+    type: t.Literal['wearit']
+    data_checksum: str
+    schema_checksum: str
+
+    @property
+    def uri(self):
+        return "Not implemented"
+
+TableSourceInfo = t.Union[
+    QualtricsSourceInfo,
+    WearitSourceInfo,
+]
 
 class BlobInfo(BaseModel):
     fetch_date_utc: datetime

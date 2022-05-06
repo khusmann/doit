@@ -6,18 +6,21 @@ from .model import (
     BlobInfo,
     Blob,
     QualtricsSourceInfo,
-)
-
-from ..unsanitizedtable.io.qualtrics import (
-    load_unsanitizedtable_qualtrics
+    WearitSourceInfo,
 )
 
 def load_blob(blob: Blob):
     match blob.info.source_info:
         case QualtricsSourceInfo():
+            from ..unsanitizedtable.io.qualtrics import load_unsanitizedtable_qualtrics
             schema = blob.lazydata['schema.json']()
             data = blob.lazydata['data.json']()
             return load_unsanitizedtable_qualtrics(schema.decode('utf-8'), data.decode('utf-8'))
+        case WearitSourceInfo():
+            from ..unsanitizedtable.io.wearit import load_unsanitizedtable_wearit
+            schema = blob.lazydata['schema.json']()
+            data = blob.lazydata['data.csv']()
+            return load_unsanitizedtable_wearit(schema.decode('utf-8'), data.decode('utf-8'))
 
 def extract_member_data_fn(tf: tarfile.TarFile, member: tarfile.TarInfo):
     def inner():
