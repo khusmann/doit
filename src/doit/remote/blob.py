@@ -15,7 +15,12 @@ def load_blob(blob: Blob):
             from ..unsanitizedtable.io.qualtrics import load_unsanitizedtable_qualtrics
             schema = blob.lazydata['schema.json']()
             data = blob.lazydata['data.json']()
-            return load_unsanitizedtable_qualtrics(schema.decode('utf-8'), data.decode('utf-8'))
+            survey = blob.lazydata['survey.json']()
+            return load_unsanitizedtable_qualtrics(
+                schema.decode('utf-8'),
+                data.decode('utf-8'),
+                survey.decode('utf-8')
+            )
         case WearitSourceInfo():
             from ..unsanitizedtable.io.wearit import load_unsanitizedtable_wearit
             schema = blob.lazydata['schema.json']()

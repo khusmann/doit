@@ -36,7 +36,9 @@ def fetch_qualtrics_blob(remote_id: str, progress_callback: t.Callable[[int], No
     table_schema = remote.fetch_remote_table_schema(remote_id)
     table_data = remote.fetch_remote_table_data(remote_id, progress_callback)
 
-    table = load_unsanitizedtable_qualtrics(table_schema, table_data)
+    survey_layout = remote.fetch_survey(remote_id)
+
+    table = load_unsanitizedtable_qualtrics(table_schema, table_data, survey_layout)
 
     progress_callback(100)
 
@@ -62,6 +64,7 @@ def fetch_qualtrics_blob(remote_id: str, progress_callback: t.Callable[[int], No
         lazydata={
             "schema.json": lambda: table_schema.encode('utf-8'),
             "data.json": lambda: table_data.encode('utf-8'),
+            "survey.json": lambda: survey_layout.encode('utf-8'),
         }
     )
 
@@ -133,6 +136,12 @@ class QualtricsRemote:
 
     def fetch_remote_table_schema(self, qualtrics_id: str) -> str:
         endpoint_prefix = "surveys/{}/response-schema".format(qualtrics_id)
+        response = self.get(endpoint_prefix).json()
+        assert 'result' in response
+        return json.dumps(response['result'])
+
+    def fetch_survey(self, qualtrics_id: str) -> str:
+        endpoint_prefix = "surveys/{}".format(qualtrics_id)
         response = self.get(endpoint_prefix).json()
         assert 'result' in response
         return json.dumps(response['result'])

@@ -119,22 +119,24 @@ QUALTRICS_TYPE_MAP: t.Mapping[t.Type[QualtricsQuestionSchema], t.Literal['text',
     QualtricsStringQuestion: 'text',
 }
 
-def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchema) -> UnsanitizedColumnInfo:
+def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchema, column_sort_order: t.Mapping[str, str]) -> UnsanitizedColumnInfo:
     id = UnsanitizedColumnId(value.exportTag if value.dataType == 'question' else key)
+    key_parts = key.split("_")
+    sortkey = "_".join((column_sort_order.get(key_parts[0], "0"), *key_parts[1:]))
     match value:
         case QualtricsStringQuestion(description=prompt):
             return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
-                sortkey="0", # TODO
+                sortkey=sortkey,
             )
         case QualtricsNumericQuestion(description=prompt):
             return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
-                sortkey="0", # TODO
+                sortkey=sortkey,
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):
             return UnsanitizedCodedColumnInfo(
@@ -142,7 +144,7 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 prompt=prompt,
                 codes={ i.const: i.label for i in items.oneOf },
                 value_type='multiselect',
-                sortkey="0", # TODO
+                sortkey=sortkey,
             )
         case QualtricsOrdinalQuestion(description=prompt,oneOf=oneOf):
             return UnsanitizedCodedColumnInfo(
@@ -150,12 +152,12 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 prompt=prompt,
                 codes={ i.const: i.label for i in oneOf },
                 value_type='ordinal',
-                sortkey="0", # TODO
+                sortkey=sortkey,
             )
         case QualtricsArrayQuestion(description=prompt):
             raise Exception("Not implemented: {}".format(value))
 
-def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
+def parse_qualtrics_schema(qs: QualtricsSchema, column_sort_order: t.Mapping[str, str]) -> QualtricsSchemaMapping:
     responseId = (
         "responseId",
         UnsanitizedSimpleColumnInfo(
@@ -166,7 +168,7 @@ def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
         )
     )
     responses = (
-        (key, unsanitizedcolumninfo_from_qualtrics(key, value))
+        (key, unsanitizedcolumninfo_from_qualtrics(key, value, column_sort_order))
             for key, value in qs.properties.values.properties.items()
                 if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
     )
@@ -216,10 +218,40 @@ def parse_qualtrics_data(
         rows=rows,
     )
 
-def load_unsanitizedtable_qualtrics(schema_json: str, data_json: str) -> UnsanitizedTable:
+class QualtricsQuestion(ImmutableBaseModel):
+    type: t.Literal['Question']
+    questionId: str
+
+class QualtricsPagebreak(ImmutableBaseModel):
+    type: t.Literal['PageBreak']
+
+QualtricsElement = t.Union[
+    QualtricsQuestion,
+    QualtricsPagebreak,
+]
+
+class QualtricsBlock(ImmutableBaseModel):
+    elements: t.Tuple[QualtricsElement, ...]
+
+class QualtricsSurvey(ImmutableBaseModel):
+    blocks: t.Mapping[str, QualtricsBlock]
+
+def load_unsanitizedtable_qualtrics(schema_json: str, data_json: str, survey_json: str) -> UnsanitizedTable:
     qs = QualtricsSchema.parse_raw(schema_json)
     qd = QualtricsData.parse_raw(data_json)
-    schema_map = parse_qualtrics_schema(qs)
+    qsurvey = QualtricsSurvey.parse_raw(survey_json)
+
+    ordered_question_list = tuple(
+        e 
+            for b in qsurvey.blocks.values()
+                for e in b.elements
+                    if e.type == 'Question'
+    )
+
+    column_sort_order = { qid.questionId: str(i).zfill(6) for i, qid in enumerate(ordered_question_list)}
+
+    schema_map = parse_qualtrics_schema(qs, column_sort_order)
+
     return UnsanitizedTable(
         schema=schema_map.columns,
         data=parse_qualtrics_data(schema_map, qd),
