@@ -129,8 +129,15 @@ def get_metadata(datasette, key, database, table):
 @hookimpl
 def startup(datasette):
     async def inner():
-        pass
-#        datasette._doit = StudyRepoManager().load_repo_readonly()
+        study_spec = app.load_study_spec(
+            defaults.config_file,
+            defaults.instrument_dir,
+            defaults.measure_dir,
+        )
+
+        repo = SqlAlchemyRepo.new(study_spec, "")
+
+        datasette._doit = repo
     return inner
 
 @hookimpl
