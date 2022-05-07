@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing as t
+import hashlib
 import csv
 import io
 from ...common import ImmutableBaseModel
@@ -246,8 +247,8 @@ def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> Unsanitized
 
     return UnsanitizedTable(
         schema=columns_flat,
-        schema_checksum="",
-        data_checksum="",
+        schema_checksum=hashlib.sha256(schema_json.encode()).hexdigest(),
+        data_checksum=hashlib.sha256(data_csv.encode()).hexdigest(),
         source_name="wearit",
         source_title=wearit_schema.survey.surveyTitle,
         data=UnsanitizedTableData(
