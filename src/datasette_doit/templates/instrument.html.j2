@@ -68,6 +68,12 @@
             {{ loop(item.items) }}
         </div>
         {% endif %}
+        {% if item.type == 'constant' %}
+        <div class="doit-item">
+            <h2>{{ item.column_info.name }}</h2>
+            <p>Value: {{ item.constant_value }}</p>
+        </div>
+        {% endif %}
     {% endfor %}
 </div>
 {% endblock %}
