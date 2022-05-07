@@ -1,4 +1,5 @@
 import typing as t
+from itertools import count
 
 from ..model import LinkedTable, LinkedColumnInfo
 
@@ -223,6 +224,7 @@ def sql_instrumentnodetype(spec: InstrumentNodeSpec) -> InstrumentNodeType:
 
 class AddInstrumentContext(t.NamedTuple):
     get_column_by_name: t.Callable[[str], ColumnEntrySql]
+    sortkey = count(0)
 
     def sql_from_instrument_spec(self, spec: InstrumentSpec, name: str):
         return InstrumentEntrySql(
@@ -243,20 +245,24 @@ class AddInstrumentContext(t.NamedTuple):
                         source_value_map=spec.map,
                         type=sql_instrumentnodetype(spec),
                         column_entry=None if spec.id is None else self.get_column_by_name(spec.id),
+                        sortkey=next(self.sortkey),
                     )]
                 case ConstantInstrumentItemSpec():
                     return [InstrumentNodeSql(
                         constant_value=spec.value,
                         type=sql_instrumentnodetype(spec),
-                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id)
+                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id),
+                        sortkey=next(self.sortkey),
                     )]
                 case InstrumentItemGroupSpec():
+                    curr_sortkey = next(self.sortkey)
                     items = self.sql_from_instrumentnode_spec(spec.items)
                     return [InstrumentNodeSql(
                         title=spec.title,
                         prompt=spec.prompt,
                         type=sql_instrumentnodetype(spec),
                         items=items,
+                        sortkey=curr_sortkey,
                     ), *items]
         return [
             sql

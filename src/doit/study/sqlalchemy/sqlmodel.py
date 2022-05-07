@@ -176,7 +176,7 @@ class InstrumentEntrySql(Base):
 
     items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
         "InstrumentNodeSql",
-        order_by="InstrumentNodeSql.id",
+        order_by="InstrumentNodeSql.sortkey",
     )
 
 class InstrumentNodeType(enum.Enum):
@@ -194,6 +194,7 @@ class InstrumentNodeSql(Base):
     source_column_type = OptionalColumn(String)
     source_prompt = OptionalColumn(String)
     type = RequiredEnumColumn(InstrumentNodeType)
+    sortkey = RequiredColumn(Integer)
 
     source_value_map = OptionalColumn(JSON)
     title = OptionalColumn(String)
@@ -203,7 +204,7 @@ class InstrumentNodeSql(Base):
     items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
         "InstrumentNodeSql",
         backref=backref("parent_node", remote_side=id),
-        order_by="InstrumentNodeSql.id",
+        order_by="InstrumentNodeSql.sortkey",
     )
 
     parent_instrument: RelationshipProperty[InstrumentEntrySql | None] = relationship(
