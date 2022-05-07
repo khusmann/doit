@@ -55,8 +55,20 @@ def sql_from_tablevalue(column: LinkedColumnInfo, value: TableValue[t.Any]):
                 case ErrorValue():
                     return tv
 
-        case  'real' | 'integer':
-            tv = value.assert_type(str)
+        case  'real':
+            tv = value.assert_type(float)
+            match tv:
+                case Some(value=v):
+                    return v
+                case Omitted():
+                    return None
+                case Redacted():
+                    return ErrorValue(IncorrectType(value))
+                case ErrorValue():
+                    return tv
+
+        case  'integer':
+            tv = value.assert_type(int)
             match tv:
                 case Some(value=v):
                     return v

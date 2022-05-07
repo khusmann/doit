@@ -130,7 +130,7 @@ def setup_datatable(metadata: MetaData, table: StudyTableSql):
                 i.name,
                 datatablecolumn_from_columnentrytype(i.type),
                 primary_key=(i.type == ColumnEntryType.INDEX),
-            ) for i in table.columns
+            ) for i in sorted(table.columns, key=lambda x: x.sortkey)
         ]
     )
 
@@ -142,7 +142,7 @@ class StudyTableSql(Base):
     columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         secondary=lambda: TableColumnAssociationSql,
-        back_populates="studytables"
+        back_populates="studytables",
     )
 
     instruments: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
