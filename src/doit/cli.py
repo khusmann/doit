@@ -118,6 +118,8 @@ def sanitizer_update(instrument_name: str | None):
         )
         items = tuple(l.name for l in listing)
 
+    click.secho()
+
     for name in items:
         table = app.load_unsanitizedtable(
             name,

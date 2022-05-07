@@ -127,9 +127,19 @@ def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedCo
 def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> SanitizedTable:
 
     # Step 1: Create identity sanitizer for safe columns
+    
+    # TODO: Guard against users making new columns with duplicate names
+
+    table_sanitizer_new_id_names = frozenset(
+        id.name
+            for sanitizer in table_sanitizer.sanitizers
+                for id in sanitizer.new_col_ids
+    )
 
     safe_column_sanitizer = IdentitySanitizer(
-        key_col_ids=tuple(c.id for c in table.schema if c.is_safe)
+        key_col_ids=tuple(c.id for c in table.schema 
+            if c.is_safe and c.id.unsafe_name not in table_sanitizer_new_id_names
+        )
     )
     
     all_sanitizers = (safe_column_sanitizer, *table_sanitizer.sanitizers)
