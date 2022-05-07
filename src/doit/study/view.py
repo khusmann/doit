@@ -37,7 +37,7 @@ class SimpleColumnView(t.NamedTuple):
     name: str
     studytable_name: t.Optional[str]
     prompt: str
-    type: t.Literal['text', 'integer', 'real']
+    value_type: t.Literal['text', 'integer', 'real']
 
 ColumnView = t.Union[
     CodedColumnView,

@@ -114,13 +114,13 @@ def get_metadata(datasette, key, database, table):
         "databases": {
             database: {
                 "tables": {
-#                    "__codemaps__": { "hidden": True },
-#                    "__column_info__": { "hidden": True },
-#                    "__instrument_nodes__": { "hidden": True },
-#                    "__instruments__": { "hidden": True },
-#                    "__measures__": { "hidden": True },
-#                    "__table_column_association__": { "hidden": True },
-#                    "__table_info__": { "hidden": True },
+                    "__codemaps__": { "hidden": True },
+                    "__column_entries__": { "hidden": True },
+                    "__instrument_nodes__": { "hidden": True },
+                    "__instrument_entries__": { "hidden": True },
+                    "__measure_entries__": { "hidden": True },
+                    "__table_column_association__": { "hidden": True },
+                    "__table_info__": { "hidden": True },
                 }
             }
         }

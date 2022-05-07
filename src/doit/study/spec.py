@@ -64,7 +64,7 @@ class MeasureSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     items: t.Tuple[MeasureNodeSpec, ...]
-    codes: t.Mapping[RelativeCodeMapName, CodeMapSpec]
+    codes: t.Mapping[RelativeCodeMapName, CodeMapSpec] = {}
 
 ### Instrument
 

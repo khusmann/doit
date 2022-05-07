@@ -187,7 +187,7 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 name=entry.name,
                 prompt=entry.prompt or SQL_MISSING_TEXT,
                 studytable_name=studytable_name,
-                type=entry.type.value,
+                value_type=entry.type.value,
             )
 
         case ColumnEntryType.GROUP:

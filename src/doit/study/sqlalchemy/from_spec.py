@@ -161,7 +161,7 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
         description=spec.description,
         type=ColumnEntryType.INDEX,
         codemap=sql_from_codemap_spec(spec.values, "indices", index_name),
-        sortkey=0,
+        sortkey=-1,
     )
 
 def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
