@@ -31,7 +31,7 @@
             <div class="pure-g doit-item doit-unlinked-item">
             {% endif %}
                 <div class="pure-u">
-                    <h2>{{item.prompt}}</h2>
+                    <h3>{{item.prompt}}</h3>
                     <p>Linked Measure: <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a></p>
                     <p>Linked Measure type: {{item.column_info.value_type}}</p>
                 </div>
@@ -64,7 +64,7 @@
         {% if item.type == 'group' %}
         <div class="doit-group">
             {% if item.title %}<h2>{{item.title}}</h2>{% endif %}
-            {% if item.prompt %}<p>Prompt: {{item.prompt}}</p>{% endif %}
+            {% if item.prompt %}<h3>Group prompt: {{item.prompt}}</h3>{% endif %}
             {{ loop(item.items) }}
         </div>
         {% endif %}
