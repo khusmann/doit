@@ -116,23 +116,25 @@ class WearitSchema(ImmutableBaseModel):
 SurveyBlock.update_forward_refs()
 
 def flatten_schema_items(schema_items: t.Sequence[SurveyDataItem]) -> t.Tuple[t.Tuple[str, SurveyQuestion], ...]:
-    questions = tuple(
-        ("Q_{}".format(i.sQuId), i) for i in schema_items if i.has_data is True
-    )
+    def inner(item: SurveyDataItem):
+        if item.has_data is True:
+            return (("Q_{}".format(item.sQuId), item), )
+        if item.type == 'block':
+            return flatten_schema_items(item.blockItems)
+        return ()
 
-    children = tuple(
-        child
-            for i in schema_items if i.type == 'block'
-                for child in flatten_schema_items(i.blockItems)
+    return tuple(
+        i
+            for item in schema_items
+                for i in inner(item)
     )
-
-    return questions + children
 
 class MultiWearitColumnHelper(t.NamedTuple):
+    id: UnsanitizedColumnId
     wearit_item: MultisliderItem
     info_map: t.Mapping[int, UnsanitizedColumnInfo]
 
-def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> UnsanitizedColumnInfo | MultiWearitColumnHelper:
+def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> UnsanitizedColumnInfo | MultiWearitColumnHelper | None:
     if item_str in ["submit_date", "complete_date", "pid"]:
         return UnsanitizedSimpleColumnInfo(
             id=UnsanitizedColumnId(item_str),
@@ -143,15 +145,12 @@ def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> 
     item = item_lookup.get(item_str)
 
     if not item:
-        return UnsanitizedSimpleColumnInfo(
-            id=UnsanitizedColumnId(item_str),
-            prompt="Deleted question",
-            is_safe=False,
-        )
+        return None
 
     match item:
         case MultisliderItem(qTx=prompt):
             return MultiWearitColumnHelper(
+                id=UnsanitizedColumnId(item_str),
                 wearit_item=item,
                 info_map={
                     i.assRId: UnsanitizedSimpleColumnInfo(
@@ -216,6 +215,8 @@ def remove_helper(column: UnsanitizedColumnInfo | MultiWearitColumnHelper) -> t.
     else:
         return (column,)
 
+FIRST_THREE_COLS = ("submit_date", "complete_date", "pid")
+
 def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> UnsanitizedTable:
 
     wearit_schema = WearitSchema.parse_raw(schema_json)
@@ -224,25 +225,29 @@ def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> Unsanitized
 
     reader = csv.reader(io.StringIO(data_csv, newline=''))
 
-    header = ("submit_date", "complete_date", "pid") + tuple(next(reader))[3:]
+    header = FIRST_THREE_COLS + tuple(next(reader))[3:]
 
     next(reader) # Throw out prompts
 
     columns = tuple(parse_column(item_lookup, i) for i in header)
 
-    columns_flat = tuple(
-        c
-            for i in columns
-                for c in remove_helper(i)
-    )
-
-
     rows = tuple(
         UnsanitizedTableRowView(
             i 
                 for c, v in zip(columns, row)
-                    for i in parse_value(c, v)
+                    if c is not None
+                        for i in parse_value(c, v)
         ) for row in reader
+    )
+
+    column_sort_order = { key: i for i, key in enumerate(FIRST_THREE_COLS + tuple(item_lookup)) }
+
+    columns_nonempty = tuple(c for c in columns if c is not None)
+
+    columns_flat = tuple(
+        c
+            for i in sorted(columns_nonempty, key=lambda x: column_sort_order[x.id.unsafe_name])
+                for c in remove_helper(i)
     )
 
     return UnsanitizedTable(
