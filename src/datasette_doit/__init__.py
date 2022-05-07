@@ -1,4 +1,5 @@
 # type: ignore
+import typing as t
 from datasette import hookimpl
 from pathlib import Path
 from datasette.utils.asgi import Response
@@ -10,6 +11,7 @@ import html
 import uvicorn
 from doit import app, settings
 from doit.study.sqlalchemy.impl import SqlAlchemyRepo
+from doit.study.view import CodedColumnView, IndexColumnView
 
 defaults = settings.AppSettings()
 
@@ -72,24 +74,32 @@ async def render_measure_listing(scope, receive, datasette, request):
     )
 
 @cache
-def get_codemap(column, table, database, datasette):
+def get_codemap(column, table, database, datasette) -> t.Mapping[int, str]:
     try:
-        pass
-#        info = datasette._doit.query_column_info(column).content
-#        if isinstance(info, OrdinalMeasureItem) or isinstance(info, IndexColumn):
-#            return info.codemap.value_to_text_map()
-#        elif isinstance(info, SimpleMeasureItem) and info.type == 'bool':
-#            return { 0: 'false', 1: 'true' }
-#        else:
-#            return {}
+        info = datasette._doit.query_column(column)
+        print(info)
+        if isinstance(info, CodedColumnView | IndexColumnView):
+            return info.codes.tag_from_value
+        else:
+            return {}
     except:
         return {}
+
+@cache
+def remap_value(codemap: t.Sequence[t.Tuple[int, str]], value):
+    codemap=dict(codemap)
+    if isinstance(value, int):
+       return codemap.get(value)
+    else:
+        return list(codemap.get(i) for i in value)
+    
 
 @hookimpl
 def render_cell(value, column, table, database, datasette):
     codemap = get_codemap(column, table, database, datasette)
     if codemap and value is not None:
-        return markupsafe.Markup("{} <em>{}</em>".format(codemap.get(value), value))
+        result = remap_value(tuple(codemap.items()), value)
+        return markupsafe.Markup("{} <em>{}</em>".format(result, value))
     else:
         return None
 

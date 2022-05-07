@@ -136,22 +136,22 @@ def to_instrumentview(entry: InstrumentEntrySql):
 
 def to_instrumentlistingview(entries: t.Sequence[InstrumentEntrySql]):
     return InstrumentListingView(
-        items=tuple(
+        items=tuple(sorted((
             InstrumentListingItemView(
                 name=i.name,
                 title=i.title or SQL_MISSING_TEXT,
             ) for i in entries
-        )
+        ), key=lambda x: x.title))
     )
 
 def to_measurelistingview(entries: t.Sequence[MeasureEntrySql]):
     return MeasureListingView(
-        items=tuple(
+        items=tuple(sorted((
             MeasureListingItemView(
                 name=i.name,
                 title=i.title or SQL_MISSING_TEXT,
             ) for i in entries
-        )
+        ), key=lambda x: x.title))
     )
 
 
