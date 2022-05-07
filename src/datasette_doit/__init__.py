@@ -45,7 +45,6 @@ async def render_instrument(scope, receive, datasette, request):
     )
 
 async def render_measure(scope, receive, datasette, request):
-    print(datasette._doit.query_measure(request.url_vars.get("measure_name")))
     return Response.html(
         await datasette.render_template(
             "measure.html.j2", {

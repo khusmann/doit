@@ -149,6 +149,7 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
         description=spec.description,
         type=ColumnEntryType.INDEX,
         codemap=sql_from_codemap_spec(spec.values, "indices", index_name),
+        sortkey=0,
     )
 
 def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
@@ -170,6 +171,7 @@ def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
 
 class AddMeasureContext(t.NamedTuple):
     get_codemap_by_relname: t.Callable[[RelativeCodeMapName], CodemapSql]
+    sortkey = count(0)
 
     def sql_from_measure_spec(self, spec: MeasureSpec, name: str):
         return MeasureEntrySql(
@@ -192,20 +194,24 @@ class AddMeasureContext(t.NamedTuple):
                             type=sql_columnentrytype(spec),
                             prompt=spec.prompt,
                             codemap=codemap,
+                            sortkey=next(self.sortkey),
                         )]
                     case SimpleMeasureItemSpec():
                         return [ColumnEntrySql(
                             name=name,
                             prompt=spec.prompt,
                             type=sql_columnentrytype(spec),
+                            sortkey=next(self.sortkey),
                         )]
                     case MeasureItemGroupSpec():
+                        curr_key = next(self.sortkey)
                         items=self.sql_from_measurenode_spec(spec.items, name)
                         return [ColumnEntrySql(
                             name=name,
                             type=sql_columnentrytype(spec),
                             prompt=spec.prompt,
                             items=items,
+                            sortkey=curr_key,
                         ), *items]
         return [
             sql

@@ -47,7 +47,7 @@ class MeasureEntrySql(Base):
 
     items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
-        order_by="ColumnEntrySql.id",
+        order_by="ColumnEntrySql.sortkey",
     )
 
 class ColumnEntryType(enum.Enum):
@@ -68,6 +68,7 @@ class ColumnEntrySql(Base):
     codemap_id = OptionalColumn(Integer, ForeignKey(CodemapSql.id))
     name = RequiredColumn(String)
     shortname = OptionalColumn(String)
+    sortkey = RequiredColumn(Integer)
 
     type = RequiredEnumColumn(ColumnEntryType)
 
@@ -78,7 +79,7 @@ class ColumnEntrySql(Base):
     items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
         backref=backref("parent_node", remote_side=id),
-        order_by="ColumnEntrySql.id",
+        order_by="ColumnEntrySql.sortkey",
     )
 
     instrument_nodes: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
