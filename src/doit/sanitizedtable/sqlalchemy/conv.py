@@ -131,6 +131,7 @@ def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
                 prompt=info.prompt,
                 type=sql_columnentrytype(info),
                 sanitizer_checksum=info.sanitizer_checksum,
+                sortkey=info.sortkey,
             )
         case SanitizedCodedColumnInfo():
             return ColumnEntrySql(
@@ -138,6 +139,7 @@ def sql_from_columninfo(info: SanitizedColumnInfo) -> ColumnEntrySql:
                 prompt=info.prompt,
                 type=sql_columnentrytype(info),
                 codes=info.codes,
+                sortkey=info.sortkey,
             )
 
 def sql_from_tableinfo(info: SanitizedTableInfo) -> TableEntrySql:
@@ -156,7 +158,10 @@ def tableinfo_from_sql(entry: TableEntrySql) -> SanitizedTableInfo:
         data_checksum=entry.data_checksum,
         schema_checksum=entry.schema_checksum,
         columns=tuple(
-            columninfo_from_sql(column) for column in entry.columns
+            sorted(
+                (columninfo_from_sql(column) for column in entry.columns),
+                key=lambda x: x.sortkey,
+            )
         ),
     )
 
@@ -171,6 +176,7 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 prompt=entry.prompt,
                 sanitizer_checksum=entry.sanitizer_checksum,
                 value_type=entry.type.value,
+                sortkey=entry.sortkey,
             )
         case ColumnEntryType.ORDINAL | ColumnEntryType.MULTISELECT:
             return SanitizedCodedColumnInfo(
@@ -178,4 +184,5 @@ def columninfo_from_sql(entry: ColumnEntrySql) -> SanitizedColumnInfo:
                 prompt=entry.prompt,
                 codes=parse_obj_as(t.Mapping[int, str], entry.codes),
                 value_type=entry.type.value,
+                sortkey=entry.sortkey,
             )

@@ -70,6 +70,7 @@ class ColumnEntrySql(Base):
     parent_table_id = RequiredColumn(Integer, ForeignKey(TableEntrySql.id))
     name = RequiredColumn(String)
     type = RequiredEnumColumn(ColumnEntryType)
+    sortkey = RequiredColumn(String)
 
     prompt = OptionalColumn(String)
     sanitizer_checksum = OptionalColumn(String)

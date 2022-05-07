@@ -31,6 +31,7 @@ def load_sanitizedtable_csv(csv_text: str, name: str) -> SanitizedTable:
     return SanitizedTable(
         info=SanitizedTableInfo(
             name=name,
+            title=name,
             data_checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
             schema_checksum=hashlib.sha256(csv_lines[0].encode()).hexdigest(),
             columns=tuple(
@@ -38,7 +39,8 @@ def load_sanitizedtable_csv(csv_text: str, name: str) -> SanitizedTable:
                     id=cid,
                     prompt=cid.name,
                     sanitizer_checksum=None,
-                ) for cid in column_ids
+                    sortkey=str(i),
+                ) for i, cid in enumerate(column_ids)
             ),
 
         ),

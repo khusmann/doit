@@ -41,7 +41,8 @@ def load_unsanitizedtable_csv(csv_text: str, title: str) -> UnsanitizedTable:
             id=UnsanitizedColumnId(v if is_header_safe(v) else rename_unsafe_header(v)),
             prompt=rename_unsafe_header(v),
             is_safe=is_header_safe(v),
-        ) for v in header
+            sortkey=str(i).zfill(4),
+        ) for i, v in enumerate(header)
     )
 
     column_ids = tuple(c.id for c in schema)

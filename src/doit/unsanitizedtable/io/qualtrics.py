@@ -127,12 +127,14 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 id=id,
                 prompt=prompt,
                 is_safe=False,
+                sortkey="0", # TODO
             )
         case QualtricsNumericQuestion(description=prompt):
             return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
                 is_safe=False,
+                sortkey="0", # TODO
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):
             return UnsanitizedCodedColumnInfo(
@@ -140,6 +142,7 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 prompt=prompt,
                 codes={ i.const: i.label for i in items.oneOf },
                 value_type='multiselect',
+                sortkey="0", # TODO
             )
         case QualtricsOrdinalQuestion(description=prompt,oneOf=oneOf):
             return UnsanitizedCodedColumnInfo(
@@ -147,6 +150,7 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
                 prompt=prompt,
                 codes={ i.const: i.label for i in oneOf },
                 value_type='ordinal',
+                sortkey="0", # TODO
             )
         case QualtricsArrayQuestion(description=prompt):
             raise Exception("Not implemented: {}".format(value))
@@ -158,6 +162,7 @@ def parse_qualtrics_schema(qs: QualtricsSchema) -> QualtricsSchemaMapping:
             id=UnsanitizedColumnId('responseId'),
             prompt="Qualtrics response id",
             is_safe=True,
+            sortkey="0",
         )
     )
     responses = (

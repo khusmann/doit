@@ -12,12 +12,14 @@ class SanitizedSimpleColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
     sanitizer_checksum: t.Optional[str]
+    sortkey: str
     value_type: t.Literal['text'] = 'text'
 
 class SanitizedCodedColumnInfo(t.NamedTuple):
     id: SanitizedColumnId
     prompt: str
     codes: t.Mapping[int, str]
+    sortkey: str
     value_type: t.Literal['ordinal', 'multiselect']
 
 SanitizedColumnInfo = SanitizedSimpleColumnInfo | SanitizedCodedColumnInfo

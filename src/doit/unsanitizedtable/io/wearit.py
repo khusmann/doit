@@ -134,12 +134,17 @@ class MultiWearitColumnHelper(t.NamedTuple):
     wearit_item: MultisliderItem
     info_map: t.Mapping[int, UnsanitizedColumnInfo]
 
-def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> UnsanitizedColumnInfo | MultiWearitColumnHelper | None:
+def parse_column(
+    item_str: str,
+    item_lookup: t.Mapping[str, SurveyQuestion],
+    column_sort_order: t.Mapping[str, str],
+) -> UnsanitizedColumnInfo | MultiWearitColumnHelper | None:
     if item_str in ["submit_date", "complete_date", "pid"]:
         return UnsanitizedSimpleColumnInfo(
             id=UnsanitizedColumnId(item_str),
             prompt=item_str,
             is_safe=True,
+            sortkey=column_sort_order[item_str],
         )
 
     item = item_lookup.get(item_str)
@@ -157,7 +162,8 @@ def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> 
                         id=UnsanitizedColumnId("{}_{}".format(item_str, i.assRId)),
                         prompt="{} - {}".format(prompt, i.msd),
                         is_safe=True,
-                    ) for i in item.responses
+                        sortkey="{}_{}".format(column_sort_order[item_str], idx),
+                    ) for idx, i in enumerate(item.responses)
                 }
             )
         case SliderItem(qTx=prompt):
@@ -165,6 +171,7 @@ def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> 
                 id=UnsanitizedColumnId(item_str),
                 prompt=prompt,
                 is_safe=True,
+                sortkey=column_sort_order[item_str],
             )
         case MultiselectItem(qTx=prompt):
             return UnsanitizedCodedColumnInfo(
@@ -172,6 +179,7 @@ def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> 
                 prompt=prompt,
                 value_type='multiselect',
                 codes={ i.rDVal: i.rTx for i in item.responses },
+                sortkey=column_sort_order[item_str],
             )
         case ChoiceItem(qTx=prompt):
             return UnsanitizedCodedColumnInfo(
@@ -179,12 +187,14 @@ def parse_column(item_lookup: t.Mapping[str, SurveyQuestion], item_str: str) -> 
                 prompt=prompt,
                 value_type='ordinal',
                 codes={ i.rDVal: i.rTx for i in item.responses },
+                sortkey=column_sort_order[item_str],
             )
         case TextItem(qTx=prompt):
             return UnsanitizedSimpleColumnInfo(
                 id=UnsanitizedColumnId(item_str),
                 prompt=prompt,
                 is_safe=False,
+                sortkey=column_sort_order[item_str],
             )
 
 def parse_value(column: UnsanitizedColumnInfo | MultiWearitColumnHelper, value: str):
@@ -222,6 +232,7 @@ def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> Unsanitized
     wearit_schema = WearitSchema.parse_raw(schema_json)
 
     item_lookup = dict(flatten_schema_items(wearit_schema.survey.surveyDataItems))
+    column_sort_order = { wearit_id: str(i).zfill(6) for i, wearit_id in enumerate(FIRST_THREE_COLS + tuple(item_lookup)) }
 
     reader = csv.reader(io.StringIO(data_csv, newline=''))
 
@@ -229,7 +240,7 @@ def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> Unsanitized
 
     next(reader) # Throw out prompts
 
-    columns = tuple(parse_column(item_lookup, i) for i in header)
+    columns = tuple(parse_column(i, item_lookup, column_sort_order) for i in header)
 
     rows = tuple(
         UnsanitizedTableRowView(
@@ -240,7 +251,6 @@ def load_unsanitizedtable_wearit(schema_json: str, data_csv: str) -> Unsanitized
         ) for row in reader
     )
 
-    column_sort_order = { key: i for i, key in enumerate(FIRST_THREE_COLS + tuple(item_lookup)) }
 
     columns_nonempty = tuple(c for c in columns if c is not None)
 

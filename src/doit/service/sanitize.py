@@ -102,6 +102,7 @@ def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo
                 prompt=column_info.prompt,
                 sanitizer_checksum=None,
                 value_type=column_info.value_type,
+                sortkey=column_info.sortkey,
             )
         case UnsanitizedCodedColumnInfo():
             return SanitizedCodedColumnInfo(
@@ -109,6 +110,7 @@ def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo
                 prompt=column_info.prompt,
                 codes=column_info.codes,
                 value_type=column_info.value_type,
+                sortkey=column_info.sortkey,
             )
 
 def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedColumnInfo], sanitizer: RowSanitizer) -> t.Tuple[SanitizedColumnInfo, ...]:
@@ -119,6 +121,7 @@ def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedCo
                     id=id,
                     prompt="; ".join(column_lookup[c].prompt for c in sanitizer.key_col_ids),
                     sanitizer_checksum=sanitizer.checksum,
+                    sortkey="_".join(column_lookup[c].sortkey for c in sanitizer.key_col_ids)
                 ) for id in sanitizer.new_col_ids
             )
         case IdentitySanitizer():
@@ -148,11 +151,13 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
 
     column_info_lookup = { c.id: c for c in table.schema }
 
-    sanitized_columns = tuple(
+    sanitized_columns_unsorted = tuple(
         c
             for sanitizer in all_sanitizers
                 for c in sanitize_columns(column_info_lookup, sanitizer)
     )
+
+    sanitized_columns = sorted(sanitized_columns_unsorted, key=lambda x: x.sortkey)
 
     sanitized_rows = tuple(
         SanitizedTableRowView(
@@ -171,7 +176,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
             title=table.source_title,
             data_checksum=table.data_checksum,
             schema_checksum=table.schema_checksum,
-            columns=sanitized_columns,
+            columns=tuple(sanitized_columns),
         ),
         data=SanitizedTableData(
             column_ids=tuple(c.id for c in sanitized_columns),
