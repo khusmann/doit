@@ -77,7 +77,6 @@ async def render_measure_listing(scope, receive, datasette, request):
 def get_codemap(column, table, database, datasette) -> t.Mapping[int, str]:
     try:
         info = datasette._doit.query_column(column)
-        print(info)
         if isinstance(info, CodedColumnView | IndexColumnView):
             return info.codes.tag_from_value
         else:

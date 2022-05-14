@@ -147,6 +147,19 @@ class StudyTableView(t.NamedTuple):
 
 ### LinkerView
 
+### ExcludeFilter
+
+class MatchExcludeFilterSpec(t.NamedTuple):
+    type: t.Literal['match']
+    values: t.Mapping[str, str | None]
+
+class CompareExcludeFilterSpec(t.NamedTuple):
+    type: t.Literal['lt', 'gt', 'lte', 'gte']
+    column: str
+    value: str
+
+ExcludeFilterSpec = MatchExcludeFilterSpec | CompareExcludeFilterSpec
+
 class QuestionSrcLink(t.NamedTuple):
     source_column_name: str
     source_value_map: t.Mapping[str, str]
@@ -180,4 +193,5 @@ class LinkerSpec(t.NamedTuple):
 class InstrumentLinkerSpec(t.NamedTuple):
     studytable_name: str
     instrument_name: str
+    exclude_filters: t.Tuple[ExcludeFilterSpec, ...]
     linker_specs: t.Tuple[LinkerSpec, ...]

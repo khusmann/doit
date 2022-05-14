@@ -9,6 +9,7 @@ from sqlalchemy import (
     MetaData,
     Column,
     Enum,
+    or_,
 )
 
 from sqlalchemy.sql.type_api import TypeEngine
@@ -21,6 +22,12 @@ from sqlalchemy.orm import (
 from sqlalchemy.engine import Engine, ResultProxy
 
 from sqlalchemy.ext.declarative import declarative_base
+
+from .table import (
+    TableErrorReportItem,
+    ValuesAlreadyExistInRow,
+    ErrorValue,
+)
 
 class DeclarativeBase:
     metadata: t.ClassVar[MetaData]
@@ -89,6 +96,8 @@ class SessionWrapper:
         )
 
     def upsert_rows(self, table: Table, rows: t.Sequence[t.Mapping[str, t.Any]]):
+        upsert_errors: set[TableErrorReportItem] = set()
+
         for row in rows:
             index_filter = [k == row[k.name] for k in table.primary_key]
             
@@ -97,13 +106,7 @@ class SessionWrapper:
             ).first()
 
             if exists:
-                self.impl.execute( # type:ignore
-                    update(table)
-                        .where(*index_filter)
-                        .values(row)
-                )
-            else:
-                # TODO: test this... (insure we don't overwrite existing values...)
+                # TODO: make a unit test for this... (insure we don't overwrite existing values...)
                 non_null_value_filter = [ # type: ignore
                     c != None # type: ignore
                         for c in table.columns
@@ -111,15 +114,29 @@ class SessionWrapper:
                 ]
 
                 has_values : ResultProxy | None = self.impl.execute( # type:ignore
-                    select(table.columns).where(*index_filter, *non_null_value_filter)
+                    select(table.columns).where(*index_filter, or_(*non_null_value_filter)) # type: ignore
                 ).first() 
 
                 if has_values:
-                    raise Exception("Error: Values already exist in row. {}".format(has_values))
+                    upsert_errors.add(
+                        TableErrorReportItem(
+                            table_name=table.name,
+                            column_name="*",
+                            error_value=ErrorValue(ValuesAlreadyExistInRow(has_values, row)),
+                        )
+                    )
 
+                self.impl.execute( # type:ignore
+                    update(table)
+                        .where(*index_filter)
+                        .values(row)
+                )
+            else:
                 self.impl.execute( # type: ignore
                     insert(table)
                         .values(row)
                 )
+
+        return upsert_errors
 
 

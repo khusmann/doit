@@ -96,7 +96,11 @@ class MissingCode(t.NamedTuple):
     value: t.Any
     codes: t.Any
 
-ErrorReason = ColumnNotFoundInRow | LookupSanitizerMiss | IncorrectType | MissingCode
+class ValuesAlreadyExistInRow(t.NamedTuple):
+    row: t.Any
+    new_row: t.Any
+
+ErrorReason = ColumnNotFoundInRow | LookupSanitizerMiss | IncorrectType | MissingCode | ValuesAlreadyExistInRow
 
 class ErrorValue:
     stack: traceback.StackSummary
@@ -253,6 +257,8 @@ def write_error_report(f: io.TextIOBase, report: TableErrorReport, debug: bool =
                 row += ("LookupSanitizerMiss", reason.lookup, reason.sanitizer_map)
             case IncorrectType():
                 row += ("IncorrectType", reason.value, type(reason.value))
+            case ValuesAlreadyExistInRow():
+                row += ("ValuesAlreadyExistInRow", reason.row, reason.new_row)
         if debug:
             row += (item.error_value.traceback,)
         

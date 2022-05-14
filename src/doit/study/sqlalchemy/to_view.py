@@ -1,6 +1,8 @@
 import typing as t
 from pydantic import parse_obj_as
 
+from doit.study.spec import CompareExcludeFilter, MatchExcludeFilter
+
 from .sqlmodel import (
     CodemapSql,
     ColumnEntrySql,
@@ -14,11 +16,13 @@ from .sqlmodel import (
 
 from ..view import (
     CodemapRaw,
+    CompareExcludeFilterSpec,
     ConstantInstrumentNodeView,
     DstLink,
     CodedDstLink,
     InstrumentListingItemView,
     InstrumentListingView,
+    MatchExcludeFilterSpec,
     MeasureListingItemView,
     MeasureListingView,
     SimpleDstLink,
@@ -239,6 +243,24 @@ def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
         case ColumnEntryType.GROUP:
             raise Exception("Error: Group column types cannot be linked!")
 
+def to_excludefilter(raw: t.Any):
+    from ..spec import ExcludeFilter
+    spec_filter = parse_obj_as(ExcludeFilter, raw)
+
+    match spec_filter:
+        case MatchExcludeFilter():
+            return MatchExcludeFilterSpec(
+                type=spec_filter.type,
+                values=spec_filter.values,
+            )
+        case CompareExcludeFilter():
+            return CompareExcludeFilterSpec(
+                type=spec_filter.type,
+                column=spec_filter.column,
+                value=spec_filter.value,
+            )
+
+
 def to_instrumentlinkerspec(entry: InstrumentEntrySql):
     studytable = entry.studytable
     if studytable is None:
@@ -246,6 +268,7 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
     return InstrumentLinkerSpec(
         studytable_name=studytable.name,
         instrument_name=entry.name,
+        exclude_filters=tuple(to_excludefilter(ef) for ef in entry.exclude_filters) if entry.exclude_filters else (),
         linker_specs=tuple(
             LinkerSpec(
                 src=to_srcconnectionview(i),

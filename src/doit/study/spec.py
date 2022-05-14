@@ -94,11 +94,30 @@ InstrumentNodeSpec = t.Annotated[
     ], Field(discriminator='type')
 ]
 
+### ExcludeFilter
+
+class MatchExcludeFilter(ImmutableBaseModel):
+    type: t.Literal['match']
+    values: t.Mapping[str, t.Optional[str]]
+
+class CompareExcludeFilter(ImmutableBaseModel):
+    type: t.Literal['lt', 'gt', 'lte', 'gte']
+    column: str
+    value: str
+
+ExcludeFilter = t.Annotated[
+    t.Union[
+        MatchExcludeFilter,
+        CompareExcludeFilter,
+    ], Field(discriminator='type')
+]
+
 class InstrumentSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     instructions: t.Optional[str]
     items: t.Tuple[InstrumentNodeSpec, ...]
+    exclude_filters: t.Tuple[ExcludeFilter, ...] = ()
 
 RelativeIndexColumnName = t.NewType('RelativeIndexColumnName', str)
 

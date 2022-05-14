@@ -12,6 +12,8 @@ from ..study.model import (
 
 LinkFn = t.Callable[[SanitizedTableRowView], t.Tuple[LinkedColumnId, TableValue[t.Any]]]
 
+ExcludeFilterFn = t.Callable[[SanitizedTableRowView], bool]
+
 class Linker(t.NamedTuple):
     dst_col_id: LinkedColumnId
     dst_col_type: t.Literal['ordinal', 'categorical', 'index', 'real', 'integer', 'multiselect', 'text']
@@ -20,4 +22,5 @@ class Linker(t.NamedTuple):
 class InstrumentLinker(t.NamedTuple):
     studytable_name: str
     instrument_name: str
+    exclude_filters: t.Tuple[ExcludeFilterFn, ...]
     linkers: t.Tuple[Linker, ...]

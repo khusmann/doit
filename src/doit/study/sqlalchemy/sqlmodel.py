@@ -170,6 +170,7 @@ class InstrumentEntrySql(Base):
     source_title = OptionalColumn(String)
     data_checksum = OptionalColumn(String)
     schema_checksum = OptionalColumn(String)
+    exclude_filters = RequiredColumn(JSON)
 
     studytable: RelationshipProperty[StudyTableSql | None] = relationship(
         "StudyTableSql",

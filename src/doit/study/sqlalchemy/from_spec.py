@@ -251,6 +251,7 @@ class AddInstrumentContext(t.NamedTuple):
             description=spec.description,
             instructions=spec.instructions,
             items=self.sql_from_instrumentnode_spec(spec.items),
+            exclude_filters=tuple(i.dict() for i in spec.exclude_filters),
         )
 
     def sql_from_instrumentnode_spec(self, specs: t.Sequence[InstrumentNodeSpec]) -> t.List[InstrumentNodeSql]:
