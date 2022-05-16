@@ -6,9 +6,9 @@
 
 {% block nav %}
     <p class="crumbs">
-        <a href="{{ urls.instance() }}">home</a>
-        | <a href="/-/instruments">instruments</a>
-        | <a href="/-/measures">measures</a>
+        <a href="{{ urls.instance() }}">home</a> /
+        <a href="/-/instruments">instruments</a> /
+        <a href="/-/instruments/{{instrument.name}}">{{instrument.title}}</a>
     </p>
     {{ super() }}
 {% endblock %}
