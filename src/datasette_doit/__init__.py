@@ -168,3 +168,11 @@ def register_commands(cli):
         ds._doit = repo
         
         uvicorn.run(ds.app()) # Note -- doesn't run startup hook
+
+
+@hookimpl
+def extra_body_script():
+    return {
+        "module": False,
+        "script": "$(document).ready(function () {$('.table-wrapper').floatingScroll();});",
+    }
