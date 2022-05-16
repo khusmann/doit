@@ -23,7 +23,7 @@
     {% for item in measure.items recursive %}
         {% if not item.value_type %}
         <div id="{{item.name}}" class="doit-group">
-            <h2>{{item.name}} {% if item.prompt %}: {{item.prompt}} {% endif %}</h2>
+            {% if item.prompt %}<h3>{{item.prompt}}</h3>{% endif %}
             {{ loop(item.items) }}
         </div>
         {% else %}
