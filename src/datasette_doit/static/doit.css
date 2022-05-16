@@ -21,7 +21,7 @@
 }
 
 .doit-unlinked-item {
-    opacity: 0.4;
+    color: #999;
 }
 
 .doit-item-col {
@@ -37,6 +37,7 @@
 .doit-instrument-map-table {
     display: none;
     background-color: white;
+    color: #111A35;
 }
 
 .doit-instrument-map:hover + .doit-instrument-map-table {
