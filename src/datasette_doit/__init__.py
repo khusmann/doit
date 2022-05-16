@@ -7,6 +7,7 @@ from functools import cache
 import markupsafe
 import click
 import html
+import json
 
 import uvicorn
 from doit import app, settings
@@ -88,9 +89,9 @@ def get_codemap(column, table, database, datasette) -> t.Mapping[int, str]:
 def remap_value(codemap: t.Sequence[t.Tuple[int, str]], value):
     codemap=dict(codemap)
     if isinstance(value, int):
-       return codemap.get(value)
+        return codemap.get(value)
     else:
-        return list(codemap.get(i) for i in value)
+        return "[{}]".format(", ".join(codemap.get(i) for i in json.loads(value)))
     
 
 @hookimpl
