@@ -167,7 +167,7 @@ def register_commands(cli):
 
         ds._doit = repo
         
-        uvicorn.run(ds.app()) # Note -- doesn't run startup hook
+        uvicorn.run(ds.app(), port=8001) # Note -- doesn't run startup hook
 
 
 @hookimpl
