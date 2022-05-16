@@ -23,3 +23,8 @@
 .doit-unlinked-item {
     background-color: lightgray;
 }
+
+header .crumbs-right {
+    float: right;
+    margin-right: 1em;
+}

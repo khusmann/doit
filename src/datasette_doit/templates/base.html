@@ -46,6 +46,10 @@
         <strong>{{ display_actor(actor) }}</strong>
     </div>
     {% endif %}
+    <div class="crumbs-right">
+        <a href="/-/instruments">instruments</a> |
+        <a href="/-/measures">measures</a>
+    </div>
 {% endblock %}</nav></header>
 
 {% block messages %}
@@ -55,7 +59,6 @@
     {% endfor %}
 {% endif %}
 {% endblock %}
-<h1>asdfasdfasdf</h1>
 <section class="content">
 {% block content %}
 {% endblock %}
