@@ -27,6 +27,7 @@ SanitizedColumnInfo = SanitizedSimpleColumnInfo | SanitizedCodedColumnInfo
 class SanitizedTableInfo(t.NamedTuple):
     name: str
     title: str
+    source: str
     data_checksum: str
     schema_checksum: str
     columns: t.Tuple[SanitizedColumnInfo, ...]

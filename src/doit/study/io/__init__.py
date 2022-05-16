@@ -1,6 +1,6 @@
 import typing as t
 
-from .spec import (
+from ..spec import (
     StudySpec,
     MeasureSpec,
     InstrumentSpec,

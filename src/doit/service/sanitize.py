@@ -176,6 +176,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
             title=table.source_title,
             data_checksum=table.data_checksum,
             schema_checksum=table.schema_checksum,
+            source=table.source_name,
             columns=tuple(sanitized_columns),
         ),
         data=SanitizedTableData(

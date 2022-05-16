@@ -112,13 +112,6 @@ IGNORE_ITEMS = [
     ".*_DO",
 ]
 
-QUALTRICS_TYPE_MAP: t.Mapping[t.Type[QualtricsQuestionSchema], t.Literal['text', 'ordinal', 'bool', 'array']] = {
-    QualtricsOrdinalQuestion: 'ordinal',
-    QualtricsArrayQuestion: 'array',
-    QualtricsNumericQuestion: 'text',
-    QualtricsStringQuestion: 'text',
-}
-
 def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchema, column_sort_order: t.Mapping[str, str]) -> UnsanitizedColumnInfo:
     id = UnsanitizedColumnId(value.exportTag if value.dataType == 'question' else key)
     key_parts = key.split("_")

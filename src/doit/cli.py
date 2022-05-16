@@ -175,7 +175,12 @@ def stub(instrument_name: str | None):
 
     for name in items:
         table = sanitized_repo.read_table(name)
-        stub = stub_instrumentspec(table)
+        if table.info.source == "qualtrics":
+            from .study.io.qualtrics import stub_instrumentspec_from_qualtrics_blob
+            stub = stub_instrumentspec_from_qualtrics_blob(defaults.blob_from_instrument_name(name))
+        else:
+            stub = stub_instrumentspec(table)
+
         filename = app.write_instrument_spec_stub(
             name,
             stub,

@@ -51,6 +51,7 @@ class TableEntrySql(Base):
     id = RequiredColumn(Integer, primary_key=True)
     name = RequiredColumn(String, unique=True)
     title = RequiredColumn(String)
+    source = RequiredColumn(String)
     data_checksum = RequiredColumn(String)
     schema_checksum = RequiredColumn(String)
 
