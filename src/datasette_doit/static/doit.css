@@ -21,7 +21,28 @@
 }
 
 .doit-unlinked-item {
-    background-color: lightgray;
+    opacity: 0.4;
+}
+
+.doit-item-col {
+    text-align: center;
+}
+
+.doit-instrument-map {
+    color: blue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.doit-instrument-map-table {
+    display: none;
+    background-color: white;
+}
+
+.doit-instrument-map:hover + .doit-instrument-map-table {
+    position: absolute;
+    display: block;
+    z-index: 1000;
 }
 
 header .crumbs-right {
