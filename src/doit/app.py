@@ -205,7 +205,7 @@ def write_instrument_spec_stub(
     stub_path.parent.mkdir(exist_ok=True, parents=True)
 
     with open(stub_path, "w") as f:
-        yaml.dump(stub.dict(exclude_unset=True), f)
+        yaml.dump(stub.dict(exclude_unset=True), f, allow_unicode=True)
 
     return stub_path
 

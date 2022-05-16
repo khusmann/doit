@@ -81,10 +81,10 @@ class ConstantInstrumentItemSpec(ImmutableBaseModel):
     id: t.Optional[str]
 
 class InstrumentItemGroupSpec(ImmutableBaseModel):
+    title: t.Optional[str]
+    prompt: t.Optional[str]
     type: t.Literal['group']
     items: t.Tuple[InstrumentNodeSpec, ...]
-    prompt: t.Optional[str]
-    title: t.Optional[str]
 
 InstrumentNodeSpec = t.Annotated[
     t.Union[
