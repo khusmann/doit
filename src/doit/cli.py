@@ -329,6 +329,8 @@ def link():
         app.write_errors(errors, defaults.error_file_path)
     
     click.secho()
+    click.secho("View by running: {}".format(click.style("datasette {}".format(defaults.study_repo_path), fg="bright_cyan")))
+    click.secho()
 
 @cli.command()
 def debug():
