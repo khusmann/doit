@@ -11,6 +11,7 @@ class RemoteTableListing(t.NamedTuple):
 class LocalTableListing(t.NamedTuple):
     name: str
     title: str
+    uri: str
 
 ### Blob
 

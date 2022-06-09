@@ -1,3 +1,4 @@
+from threading import local
 import typing as t
 
 from dotenv import load_dotenv
@@ -77,14 +78,17 @@ def complete_instrument_name(ctx: click.Context, param: click.Parameter, incompl
 
 @source_cli.command(name="list")
 @click.argument('remote_service', required=False)
-def source_list(remote_service: str | None):
+@click.option('-a', '--all', "list_all", is_flag=True)
+def source_list(remote_service: str | None, list_all: bool):
     """List available instruments"""
     click.secho()
     if remote_service:
+        local_items = { uri for _, _, uri in app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name) }
         for uri, title in app.get_remote_source_listing(remote_service):
-            click.secho(" {} : {}".format(click.style(uri, fg='bright_cyan'), title))
+            if uri not in local_items or list_all:
+                click.secho(" {} : {}".format(click.style(uri, fg='bright_cyan'), title))
     else:
-        for name, title in app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name):
+        for name, title, _ in app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name):
             click.secho(" {} : {}".format(click.style(name, fg='bright_cyan'), title))
     click.secho()
 

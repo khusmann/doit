@@ -98,6 +98,7 @@ def get_local_source_listing(
         LocalTableListing(
             name=source,
             title=load_source_info(source, blob_from_instrument_name).title,
+            uri=load_source_info(source, blob_from_instrument_name).source_info.uri,
         ) for source in sources
     )
 
