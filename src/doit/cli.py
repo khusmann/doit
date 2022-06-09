@@ -1,4 +1,3 @@
-from threading import local
 import typing as t
 
 from dotenv import load_dotenv
