@@ -35,7 +35,7 @@ class QualtricsMultiselectQuestionType(ImmutableBaseModel):
 
 class QualtricsTextQuestionType(ImmutableBaseModel):
     type: t.Literal['TE']
-    selector: t.Literal['SL']
+    selector: t.Literal['SL', 'ML']
     subSelector: None
 
 class QualtricsHeaderQuestionType(ImmutableBaseModel):
