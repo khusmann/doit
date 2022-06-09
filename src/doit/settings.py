@@ -65,7 +65,7 @@ class AppSettings(BaseSettings):
     config_file = Path("./study.yaml")
 
     def instrument_stub_from_instrument_name(self, instrument_name: str):
-        return (self.instrument_dir / instrument_name).with_suffix(".yaml.stub")
+        return (self.instrument_dir / instrument_name).with_suffix(".yaml")
 
     # StudyRepo
 

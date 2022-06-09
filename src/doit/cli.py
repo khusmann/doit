@@ -87,7 +87,7 @@ def source_list(remote_service: str | None, list_all: bool):
             if uri not in local_items or list_all:
                 click.secho(" {} : {}".format(click.style(uri, fg='bright_cyan'), title))
     else:
-        for name, title, _ in app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name):
+        for name, title, _ in sorted(app.get_local_source_listing(defaults.source_dir, defaults.blob_from_instrument_name), key=lambda x: x.name):
             click.secho(" {} : {}".format(click.style(name, fg='bright_cyan'), title))
     click.secho()
 
@@ -184,12 +184,15 @@ def stub(instrument_name: str | None):
         else:
             stub = stub_instrumentspec(table)
 
-        filename = app.write_instrument_spec_stub(
-            name,
-            stub,
-            defaults.instrument_stub_from_instrument_name,
-        )
-        click.secho("Wrote: {}".format(click.style(filename, fg="bright_cyan")))
+        if defaults.instrument_stub_from_instrument_name(name).exists():
+            click.secho("Already exists: {}".format(click.style(name, fg="bright_cyan")))
+        else:
+            filename = app.write_instrument_spec_stub(
+                name,
+                stub,
+                defaults.instrument_stub_from_instrument_name,
+            )
+            click.secho("Wrote: {}".format(click.style(filename, fg="bright_cyan")))
 
     click.secho()
 

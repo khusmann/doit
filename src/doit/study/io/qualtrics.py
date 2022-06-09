@@ -1,3 +1,4 @@
+from __future__ import annotations
 from ...common import ImmutableBaseModel
 import typing as t
 from ..spec import InstrumentItemGroupSpec, InstrumentNodeSpec, InstrumentSpec, QuestionInstrumentItemSpec
@@ -43,18 +44,29 @@ class QualtricsHeaderQuestionType(ImmutableBaseModel):
     selector: t.Literal['TB']
     subSelector: None
 
+class QualtricsMultiselectQuestionType2(ImmutableBaseModel):
+    type: t.Literal['Matrix']
+    selector: t.Literal['Likert']
+    subSelector: t.Literal['DL']
+
 class QualtricsOrdinalGroupQuestionType(ImmutableBaseModel):
     type: t.Literal['Matrix']
     selector: t.Literal['Likert']
-    subSelector: t.Literal['SingleAnswer']
+    subSelector: t.Literal['SingleAnswer', 'MultipleAnswer']
 
-QualtricsQuestionType = t.Union[
-    QualtricsOrdinalQuestionType,
-    QualtricsTextQuestionType,
-    QualtricsOrdinalGroupQuestionType,
-    QualtricsMultiselectQuestionType,
-    QualtricsHeaderQuestionType,
-]
+class QualtricsGroupQuestionType2(ImmutableBaseModel):
+    type: t.Literal['Matrix']
+    selector: t.Literal['CS']
+    subSelector: t.Literal['WVTB']
+
+class QualtricsGroupQuestionType3(ImmutableBaseModel):
+    type: t.Literal['Matrix']
+    selector: t.Literal['TE']
+    subSelector: t.Literal['Short']
+
+class QualtricsSuperGroupQuestionType(ImmutableBaseModel):
+    type: t.Literal['SBS']
+    selector: t.Literal['SBSMatrix']
 
 class QualtricsSubquestion(ImmutableBaseModel):
     choiceText: str
@@ -67,21 +79,29 @@ class QualtricsSimpleQuestion(ImmutableBaseModel):
     questionText: str
 
 class QualtricsCodedQuestion(ImmutableBaseModel):
-    questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType]
+    questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2]
     questionText: str
     choices: t.Mapping[str, QualtricsCodes]
 
 class QualtricsGroupQuestion(ImmutableBaseModel):
-    questionType: QualtricsOrdinalGroupQuestionType
+    questionType: t.Union[QualtricsOrdinalGroupQuestionType, QualtricsGroupQuestionType2, QualtricsGroupQuestionType3]
     questionText: str
     subQuestions: t.Mapping[str, QualtricsSubquestion]
     choices: t.Mapping[str, QualtricsCodes]
 
+class QualtricsSuperGroupQuestion(ImmutableBaseModel):
+    questionType: QualtricsSuperGroupQuestionType
+    questionText: str
+    columns: t.Mapping[str, QualtricsQuestion]
+
 QualtricsQuestion = t.Union[
     QualtricsSimpleQuestion,
     QualtricsGroupQuestion,
+    QualtricsSuperGroupQuestion,
     QualtricsCodedQuestion,
 ]
+
+QualtricsSuperGroupQuestion.update_forward_refs()
 
 ### Root Survey
 
@@ -118,7 +138,20 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                         remote_id=None,
                         id=None,
                     )
+        case QualtricsSuperGroupQuestion():
+            return InstrumentItemGroupSpec(
+                prompt=prompt,
+                type='group',
+                items=tuple(convert_question(qid+"#"+key+"_4", c, export_tags) for key, c in qualtrics_question.columns.items())
+            )
         case QualtricsGroupQuestion():
+            match qualtrics_question.questionType:
+                case QualtricsOrdinalGroupQuestionType():
+                    postfix=""
+                case QualtricsGroupQuestionType2():
+                    postfix="_1"
+                case QualtricsGroupQuestionType3():
+                    postfix="_4"
             return InstrumentItemGroupSpec(
                 prompt=prompt,
                 type='group',
@@ -126,7 +159,7 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                     QuestionInstrumentItemSpec(
                         prompt=extract_text(i.choiceText),
                         type='question',
-                        remote_id=export_tags["{}_{}".format(qid, sub_id)],
+                        remote_id=export_tags["{}_{}{}".format(qid, sub_id, postfix)],
                         id=None,
                         map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
                     ) for sub_id, i in qualtrics_question.subQuestions.items()),

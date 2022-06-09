@@ -163,8 +163,14 @@ def parse_qualtrics_schema(qs: QualtricsSchema, column_sort_order: t.Mapping[str
     responses = (
         (key, unsanitizedcolumninfo_from_qualtrics(key, value, column_sort_order))
             for key, value in qs.properties.values.properties.items()
-                if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS))
+                if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS)) and not isinstance(value, QualtricsArrayQuestion)
     )
+
+    arrayQs = tuple(value for key, value in qs.properties.values.properties.items() if all(map(lambda i: not re.match(i, key), IGNORE_ITEMS)) and isinstance(value, QualtricsArrayQuestion))
+
+    if arrayQs:
+        print("Warning, ignoring array type: {}".format(arrayQs))
+
     qmapping = (responseId, *responses)
     return QualtricsSchemaMapping(
         tuple(qid for qid, _ in qmapping),
