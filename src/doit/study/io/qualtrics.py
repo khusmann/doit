@@ -156,9 +156,6 @@ def stub_instrumentspec_qualtrics(survey_json: str, schema_json: str) -> Instrum
 
     export_tags = { key: value.exportTag for key, value in qs.properties.values.properties.items() }
 
-#    export_tags = { (c.subQuestion if c.subQuestion else c.question):exportId for exportId, c in survey.exportColumnMap.items()}
-#    print(export_tags)
-
     return InstrumentSpec(
         title=survey.name,
         description="enter description here",
