@@ -115,15 +115,13 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
             index_columns = [i for i in all_columns if i.type == ColumnEntryType.INDEX]
 
-            if not index_columns:
-                raise Exception("Error: instrument {} has no indices".format(instrument.name))
+            if index_columns:
+                table_name = "-".join(sorted(i.shortname for i in index_columns if i.shortname))
 
-            table_name = "-".join(sorted(i.shortname for i in index_columns if i.shortname))
+                table = session.get_or_create_by_name(StudyTableSql, table_name)
 
-            table = session.get_or_create_by_name(StudyTableSql, table_name)
-
-            table.columns.extend(i for i in all_columns if i not in table.columns)
-            table.instruments.append(instrument)
+                table.columns.extend(i for i in all_columns if i not in table.columns)
+                table.instruments.append(instrument)
 
         # Verify each column belongs to only one Studytable (TODO: Test this)
         for column in session.get_all(ColumnEntrySql):
