@@ -108,7 +108,7 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                     return QuestionInstrumentItemSpec(
                         prompt=prompt,
                         type='question',
-                        remote_id=export_tags[qid],
+                        remote_id=export_tags[qid+"_TEXT"],
                         id=None,
                     )
                 case QualtricsHeaderQuestionType():
@@ -126,7 +126,7 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                     QuestionInstrumentItemSpec(
                         prompt=extract_text(i.choiceText),
                         type='question',
-                        remote_id=export_tags["{}.subQuestions.{}".format(qid, sub_id)],
+                        remote_id=export_tags["{}_{}".format(qid, sub_id)],
                         id=None,
                         map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
                     ) for sub_id, i in qualtrics_question.subQuestions.items()),
@@ -140,7 +140,9 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                 map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
             )
 
-def stub_instrumentspec_qualtrics(survey_json: str) -> InstrumentSpec:
+from ...unsanitizedtable.io.qualtrics import QualtricsSchema
+
+def stub_instrumentspec_qualtrics(survey_json: str, schema_json: str) -> InstrumentSpec:
     survey = QualtricsSurvey.parse_raw(survey_json)
 
     question_list = tuple(
@@ -150,7 +152,12 @@ def stub_instrumentspec_qualtrics(survey_json: str) -> InstrumentSpec:
                     if e.type == 'Question'
     )
 
-    export_tags = { (c.subQuestion if c.subQuestion else c.question):exportId for exportId, c in survey.exportColumnMap.items()}
+    qs = QualtricsSchema.parse_raw(schema_json)
+
+    export_tags = { key: value.exportTag for key, value in qs.properties.values.properties.items() }
+
+#    export_tags = { (c.subQuestion if c.subQuestion else c.question):exportId for exportId, c in survey.exportColumnMap.items()}
+#    print(export_tags)
 
     return InstrumentSpec(
         title=survey.name,
@@ -162,8 +169,10 @@ def stub_instrumentspec_qualtrics(survey_json: str) -> InstrumentSpec:
 def stub_instrumentspec_from_qualtrics_blob(filename: Path | str):
     import tarfile
     with tarfile.open(filename, 'r:gz') as tf:
-        member = tf.getmember('survey.json')
-        data = tf.extractfile(member)
-        if not data:
+        survey = tf.getmember('survey.json')
+        survey_data = tf.extractfile(survey)
+        schema = tf.getmember('schema.json')
+        schema_data = tf.extractfile(schema)
+        if not survey_data or not schema_data:
             raise Exception("Error: no data in survey.json")
-        return stub_instrumentspec_qualtrics(data.read().decode('utf-8'))
+        return stub_instrumentspec_qualtrics(survey_data.read().decode('utf-8'), schema_data.read().decode('utf-8'))
