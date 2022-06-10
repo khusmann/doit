@@ -26,7 +26,7 @@ class QualtricsBlock(ImmutableBaseModel):
 
 class QualtricsOrdinalQuestionType(ImmutableBaseModel):
     type: t.Literal['MC']
-    selector: t.Literal['SAVR']
+    selector: t.Literal['SAVR', 'SAHR']
     subSelector: t.Literal['TX']
 
 class QualtricsMultiselectQuestionType(ImmutableBaseModel):
@@ -34,9 +34,15 @@ class QualtricsMultiselectQuestionType(ImmutableBaseModel):
     selector: t.Literal['MAVR']
     subSelector: t.Literal['TX']
 
+class QualtricsMultiselectQuestionType3(ImmutableBaseModel):
+    type: t.Literal['MC']
+    selector: t.Literal['MACOL']
+    subSelector: t.Literal['TX']
+
+
 class QualtricsTextQuestionType(ImmutableBaseModel):
     type: t.Literal['TE']
-    selector: t.Literal['SL', 'ML']
+    selector: t.Literal['SL', 'ML', 'FORM', 'ESTB']
     subSelector: None
 
 class QualtricsHeaderQuestionType(ImmutableBaseModel):
@@ -62,7 +68,7 @@ class QualtricsGroupQuestionType2(ImmutableBaseModel):
 class QualtricsGroupQuestionType3(ImmutableBaseModel):
     type: t.Literal['Matrix']
     selector: t.Literal['TE']
-    subSelector: t.Literal['Short']
+    subSelector: t.Literal['Short', 'Medium']
 
 class QualtricsSuperGroupQuestionType(ImmutableBaseModel):
     type: t.Literal['SBS']
@@ -79,7 +85,7 @@ class QualtricsSimpleQuestion(ImmutableBaseModel):
     questionText: str
 
 class QualtricsCodedQuestion(ImmutableBaseModel):
-    questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2]
+    questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2, QualtricsMultiselectQuestionType3]
     questionText: str
     choices: t.Optional[t.Mapping[str, QualtricsCodes]]
 
@@ -129,7 +135,7 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                     return QuestionInstrumentItemSpec(
                         prompt=prompt,
                         type='question',
-                        remote_id=export_tags[qid+"_TEXT"],
+                        remote_id=export_tags[qid+"_1"] if qualtrics_question.questionType.selector == 'FORM' else export_tags[qid+"_TEXT"],
                         id=None,
                     )
                 case QualtricsHeaderQuestionType():
@@ -151,23 +157,34 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
         case QualtricsGroupQuestion():
             match qualtrics_question.questionType:
                 case QualtricsOrdinalGroupQuestionType() | QualtricsMultiselectQuestionType2():
-                    postfix=""
-                case QualtricsGroupQuestionType2():
-                    postfix="_1"
-                case QualtricsGroupQuestionType3():
-                    postfix="_4"
-            return InstrumentItemGroupSpec(
-                prompt=prompt,
-                type='group',
-                items=tuple(
-                    QuestionInstrumentItemSpec(
-                        prompt=extract_text(i.choiceText),
-                        type='question',
-                        remote_id=export_tags["{}_{}{}".format(qid, sub_id, postfix)],
-                        id=None,
-                        map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
-                    ) for sub_id, i in qualtrics_question.subQuestions.items()),
-            )
+                    return InstrumentItemGroupSpec(
+                        prompt=prompt,
+                        type='group',
+                        items=tuple(
+                            QuestionInstrumentItemSpec(
+                                prompt=extract_text(i.choiceText),
+                                type='question',
+                                remote_id=export_tags["{}_{}".format(qid, sub_id)],
+                                id=None,
+                                map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
+                            ) for sub_id, i in qualtrics_question.subQuestions.items()),
+                    )
+                case QualtricsGroupQuestionType2() | QualtricsGroupQuestionType3():
+                    return InstrumentItemGroupSpec(
+                        prompt=prompt,
+                        type='group',
+                        items=tuple(
+                            QuestionInstrumentItemSpec(
+                                prompt=extract_text(i.choiceText),
+                                type='question',
+                                remote_id=export_tags["{}_{}_{}".format(qid, sub_id, ch)],
+                                id=None,
+                                map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
+                            ) for sub_id, i in qualtrics_question.subQuestions.items()
+                                for ch, _ in qualtrics_question.choices.items()
+                            ),
+                    )
+
         case QualtricsCodedQuestion():
             if qualtrics_question.choices:
                 return QuestionInstrumentItemSpec(
