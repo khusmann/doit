@@ -93,6 +93,7 @@ class QualtricsSuperGroupQuestion(ImmutableBaseModel):
     questionType: QualtricsSuperGroupQuestionType
     questionText: str
     columns: t.Mapping[str, QualtricsQuestion]
+    subQuestions: t.Mapping[str, QualtricsSubquestion]
 
 QualtricsQuestion = t.Union[
     QualtricsSimpleQuestion,
@@ -142,7 +143,10 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
             return InstrumentItemGroupSpec(
                 prompt=prompt,
                 type='group',
-                items=tuple(convert_question(qid+"#"+key+"_4", c, export_tags) for key, c in qualtrics_question.columns.items())
+                items=tuple(convert_question(qid+"#"+key+"_"+sub, c, export_tags) 
+                    for key, c in qualtrics_question.columns.items()
+                        for sub, _ in qualtrics_question.subQuestions.items()
+                )
             )
         case QualtricsGroupQuestion():
             match qualtrics_question.questionType:
