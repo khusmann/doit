@@ -103,7 +103,7 @@ class ColumnEntrySql(Base):
         back_populates="column_entries"
     )
 
-def datatablecolumn_from_columnentrytype(type: ColumnEntryType):
+def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
     match type:
         case (
             ColumnEntryType.INDEX |
@@ -119,7 +119,7 @@ def datatablecolumn_from_columnentrytype(type: ColumnEntryType):
         case ColumnEntryType.REAL:
             return Float
         case ColumnEntryType.GROUP:
-            raise Exception("Error: cannot make a datatable column from a column group")
+            raise Exception("Error: cannot make a datatable column from a column group {}".format(name))
 
 def setup_datatable(metadata: MetaData, table: StudyTableSql):
     return Table(
@@ -128,7 +128,7 @@ def setup_datatable(metadata: MetaData, table: StudyTableSql):
         *[
             Column(
                 i.name,
-                datatablecolumn_from_columnentrytype(i.type),
+                datatablecolumn_from_columnentrytype(i.type, i.name),
                 primary_key=(i.type == ColumnEntryType.INDEX),
             ) for i in sorted(table.columns, key=lambda x: x.sortkey)
         ]
