@@ -180,7 +180,7 @@ def parse_qualtrics_schema(qs: QualtricsSchema, column_sort_order: t.Mapping[str
 def from_qualtrics_value(column: UnsanitizedColumnInfo, value: str | t.Sequence[str] | None):
     # TODO: encode missing values for unasked questions (due to branching, etc) as NotAsked() or something
     match value:
-        case None:
+        case None | "":
             return Omitted()
 
         case str():

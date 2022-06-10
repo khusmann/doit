@@ -126,7 +126,7 @@ def update_sanitizer(
     workdir.mkdir(parents=True, exist_ok=True)
 
     for update in sanitizer_updates:
-        sanitizer_path = (workdir / update.name).with_suffix(".csv")
+        sanitizer_path = Path(str(workdir / update.name) + ".csv")
         if update.new:
             if sanitizer_path.exists():
                 raise Exception("Error: attempting to create new sanitizer but {} already exists".format(sanitizer_path))
