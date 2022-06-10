@@ -39,10 +39,18 @@ class QualtricsMultiselectQuestionType3(ImmutableBaseModel):
     selector: t.Literal['MACOL']
     subSelector: t.Literal['TX']
 
+class QualtricsMultiselectQuestionType4(ImmutableBaseModel):
+    type: t.Literal['MC']
+    selector: t.Literal['DL']
 
 class QualtricsTextQuestionType(ImmutableBaseModel):
     type: t.Literal['TE']
-    selector: t.Literal['SL', 'ML', 'FORM', 'ESTB']
+    selector: t.Literal['SL', 'ML', 'ESTB']
+    subSelector: None
+
+class QualtricsTextGroupQuestionType(ImmutableBaseModel):
+    type: t.Literal['TE']
+    selector: t.Literal['FORM']
     subSelector: None
 
 class QualtricsHeaderQuestionType(ImmutableBaseModel):
@@ -84,8 +92,13 @@ class QualtricsSimpleQuestion(ImmutableBaseModel):
     questionType: t.Union[QualtricsHeaderQuestionType, QualtricsTextQuestionType]
     questionText: str
 
+class QualtricsFormQuestion(ImmutableBaseModel):
+    questionType: QualtricsTextGroupQuestionType
+    questionText: str
+    choices: t.Mapping[str, QualtricsCodes]
+
 class QualtricsCodedQuestion(ImmutableBaseModel):
-    questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2, QualtricsMultiselectQuestionType3]
+    questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2, QualtricsMultiselectQuestionType3, QualtricsMultiselectQuestionType4]
     questionText: str
     choices: t.Optional[t.Mapping[str, QualtricsCodes]]
 
@@ -104,6 +117,7 @@ class QualtricsSuperGroupQuestion(ImmutableBaseModel):
 QualtricsQuestion = t.Union[
     QualtricsSimpleQuestion,
     QualtricsGroupQuestion,
+    QualtricsFormQuestion,
     QualtricsSuperGroupQuestion,
     QualtricsCodedQuestion,
 ]
@@ -135,7 +149,7 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                     return QuestionInstrumentItemSpec(
                         prompt=prompt,
                         type='question',
-                        remote_id=export_tags[qid+"_1"] if qualtrics_question.questionType.selector == 'FORM' else export_tags[qid+"_TEXT"],
+                        remote_id=export_tags[qid+"_TEXT"],
                         id=None,
                     )
                 case QualtricsHeaderQuestionType():
@@ -145,6 +159,19 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                         remote_id=None,
                         id=None,
                     )
+        case QualtricsFormQuestion():
+            return InstrumentItemGroupSpec(
+                prompt=prompt,
+                type='group',
+                items=tuple(
+                    QuestionInstrumentItemSpec(
+                        prompt=i.choiceText,
+                        type="question",
+                        remote_id=export_tags[qid+"_"+ch],
+                        id=None
+                    ) for ch, i in qualtrics_question.choices.items()
+                )
+            )
         case QualtricsSuperGroupQuestion():
             return InstrumentItemGroupSpec(
                 prompt=prompt,
