@@ -81,10 +81,10 @@ class QualtricsSimpleQuestion(ImmutableBaseModel):
 class QualtricsCodedQuestion(ImmutableBaseModel):
     questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2]
     questionText: str
-    choices: t.Mapping[str, QualtricsCodes]
+    choices: t.Optional[t.Mapping[str, QualtricsCodes]]
 
 class QualtricsGroupQuestion(ImmutableBaseModel):
-    questionType: t.Union[QualtricsOrdinalGroupQuestionType, QualtricsGroupQuestionType2, QualtricsGroupQuestionType3]
+    questionType: t.Union[QualtricsOrdinalGroupQuestionType, QualtricsGroupQuestionType2, QualtricsGroupQuestionType3, QualtricsMultiselectQuestionType2]
     questionText: str
     subQuestions: t.Mapping[str, QualtricsSubquestion]
     choices: t.Mapping[str, QualtricsCodes]
@@ -146,7 +146,7 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
             )
         case QualtricsGroupQuestion():
             match qualtrics_question.questionType:
-                case QualtricsOrdinalGroupQuestionType():
+                case QualtricsOrdinalGroupQuestionType() | QualtricsMultiselectQuestionType2():
                     postfix=""
                 case QualtricsGroupQuestionType2():
                     postfix="_1"
@@ -165,13 +165,21 @@ def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tag
                     ) for sub_id, i in qualtrics_question.subQuestions.items()),
             )
         case QualtricsCodedQuestion():
-            return QuestionInstrumentItemSpec(
-                prompt=prompt,
-                type='question',
-                remote_id=export_tags[qid],
-                id=None,
-                map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
-            )
+            if qualtrics_question.choices:
+                return QuestionInstrumentItemSpec(
+                    prompt=prompt,
+                    type='question',
+                    remote_id=export_tags[qid],
+                    id=None,
+                    map={ extract_text(c.choiceText): None for c in qualtrics_question.choices.values() },
+                )
+            else:
+                return QuestionInstrumentItemSpec(
+                    prompt=prompt,
+                    type='question',
+                    remote_id=None,
+                    id=None,
+                )
 
 from ...unsanitizedtable.io.qualtrics import QualtricsSchema
 
