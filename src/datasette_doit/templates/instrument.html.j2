@@ -29,11 +29,11 @@
             {% else %}
             <div class="pure-g doit-item doit-unlinked-item">
             {% endif %}
-                <div class="pure-u-1-3">
-                    {{item.prompt}}
-                </div>
                 <div class="pure-u-1-3 doit-item-col">
                     <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a>
+                </div>
+                <div class="pure-u-1-3">
+                    {{item.prompt}}
                 </div>
                 <div class="pure-u-1-3 doit-item-col">
                     {{item.column_info.value_type}}
