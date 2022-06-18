@@ -18,7 +18,9 @@
     <div class="doit-header">
         <h1>{{measure.title}}</h1>
         <h2>Description:</h2>
-        <p>{{measure.description}}</p>
+        {% for line in measure.description.splitlines() %}
+            <p>{{line}}</p>
+        {% endfor %}
     </div>
     {% for item in measure.items recursive %}
         {% if not item.value_type %}

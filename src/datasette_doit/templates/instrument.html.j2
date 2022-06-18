@@ -18,9 +18,13 @@
     <div class="doit-header">
         <h1>{{instrument.title}}</h1>
         <h2>Description:</h2>
-        <p>{{instrument.description}}</p>
+        {% for line in instrument.description.splitlines() %}
+            <p>{{line}}</p>
+        {% endfor %}
         <h2>Instructions:</h2>
-        <p>{{instrument.instructions}}</p>
+        {% for line in instrument.instructions.splitlines() %}
+            <p>{{line}}</p>
+        {% endfor %}
     </div>
     {% for item in instrument.nodes recursive %}
         {% if item.type == 'question' %}
