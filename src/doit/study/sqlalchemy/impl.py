@@ -20,6 +20,7 @@ from .sqlmodel import (
     InstrumentEntrySql,
     MeasureEntrySql,
     setup_datatable,
+    setup_measureview,
 )
 
 from ..model import LinkedTable
@@ -105,14 +106,29 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
     @classmethod
     def create_datatables(cls, engine: Engine) -> MetaData:
-        # Create datatables
+        # Create instrument datatables
         session = SessionWrapper(engine)
         
         datatable_metadata = MetaData()
-        for entry in session.get_all(InstrumentEntrySql):
+
+        instrument_tables = tuple(
             setup_datatable(datatable_metadata, entry)
+                for entry in session.get_all(InstrumentEntrySql)
+        )
 
         datatable_metadata.create_all(engine) 
+
+        # Create measure views
+        measure_views = tuple(
+            setup_measureview(datatable_metadata, entry, instrument_tables)
+                for entry in session.get_all(MeasureEntrySql)
+        )
+
+        for view in measure_views:
+            if view is not None:
+                engine.execute(view) # type: ignore
+
+        # TODO: create package views
 
         return datatable_metadata
  

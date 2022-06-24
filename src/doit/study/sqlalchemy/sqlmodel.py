@@ -10,6 +10,8 @@ from sqlalchemy import (
     Float,
     MetaData,
     Column,
+    select,
+    union_all,
 )
 
 from sqlalchemy.orm import (
@@ -24,6 +26,8 @@ from ...common.sqlalchemy import (
     RequiredColumn,
     RequiredEnumColumn,
 )
+
+from sqlalchemy_views import CreateView # type: ignore
 
 Base = declarative_base()
 
@@ -131,6 +135,22 @@ def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
             ) for i in columns
         ]
     )
+
+def setup_measureview(metadata: MetaData, measure: MeasureEntrySql, instruments: t.Sequence[Table]):
+    from sqlalchemy.sql.expression import null
+    cols = tuple(
+        tuple(i.c[j.name] if j.name in i.c else null().label(j.name) for j in measure.items if j.type != ColumnEntryType.GROUP) for i in instruments
+    )
+
+    queries = tuple(
+        select(i) for i in cols if any(j is not None for j in i)
+    )
+
+    if queries:
+        view = Table(measure.name, metadata)
+        return CreateView(view, union_all(*queries))
+    else:
+        return None
 
 class InstrumentEntrySql(Base):
     __tablename__ = "__instrument_entries__"
