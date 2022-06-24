@@ -63,6 +63,7 @@ MeasureNodeSpec = t.Annotated[
 class MeasureSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
+    indices: t.Optional[t.Tuple[str, ...]]
     items: t.Tuple[MeasureNodeSpec, ...]
     codes: t.Mapping[RelativeCodeMapName, CodeMapSpec] = {}
 

@@ -48,6 +48,7 @@ class MeasureEntrySql(Base):
     name = RequiredColumn(String, unique=True)
     title = OptionalColumn(String)
     description = OptionalColumn(String)
+    indices = RequiredColumn(JSON)
 
     items: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
@@ -136,19 +137,32 @@ def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
         ]
     )
 
-def setup_measureview(metadata: MetaData, measure: MeasureEntrySql, instruments: t.Sequence[Table]):
+def makequery(measure: MeasureEntrySql, i: Table):
     from sqlalchemy.sql.expression import null
-    cols = tuple(
-        tuple(i.c[j.name] if j.name in i.c else null().label(j.name) for j in measure.items if j.type != ColumnEntryType.GROUP) for i in instruments
-    )
 
+    if all(m.name not in i.c for m in measure.items):
+        return None
+
+    for idx in measure.indices:
+        if idx not in i.c:
+            raise Exception("Index {} not found in {}".format(idx, i.name))
+
+
+    indices = tuple(i.c[j] for j in measure.indices)
+    datacols = tuple(i.c[m.name] if m.name in i.c else null().label(m.name) for m in measure.items)
+
+    return select((*indices, *datacols))
+
+def setup_measureview(metadata: MetaData, measure: MeasureEntrySql, instruments: t.Sequence[Table]):
     queries = tuple(
-        select(i) for i in cols if any(j is not None for j in i)
+        makequery(measure, i) for i in instruments    
     )
 
-    if queries:
+    filtered_queries = tuple(q for q in queries if q is not None)
+
+    if filtered_queries:
         view = Table(measure.name, metadata)
-        return CreateView(view, union_all(*queries))
+        return CreateView(view, union_all(*filtered_queries))
     else:
         return None
 

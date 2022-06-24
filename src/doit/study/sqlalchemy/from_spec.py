@@ -190,6 +190,7 @@ class AddMeasureContext(t.NamedTuple):
             name=name,
             title=spec.title,
             description=spec.description,
+            indices=tuple(".".join(("indices", i)) for i in spec.indices) if spec.indices else [],
             items=self.sql_from_measurenode_spec(spec.items, name),
         )
 
