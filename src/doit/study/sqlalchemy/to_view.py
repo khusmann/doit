@@ -11,7 +11,6 @@ from .sqlmodel import (
     InstrumentNodeSql,
     InstrumentNodeType,
     MeasureEntrySql,
-    StudyTableSql,
 )
 
 from ..view import (
@@ -43,7 +42,6 @@ from ..view import (
     SrcLink,
     ConstantSrcLink,
     QuestionSrcLink,
-    StudyTableView,
     LinkerSpec,
     InstrumentLinkerSpec,
 )
@@ -160,7 +158,6 @@ def to_measurelistingview(entries: t.Sequence[MeasureEntrySql]):
 
 
 def to_columnview(entry: ColumnEntrySql) -> ColumnView:
-    studytable_name = entry.studytables[0].name if len(entry.studytables) == 1 else None
     match entry.type:
         case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.MULTISELECT:
             if not entry.codemap:
@@ -170,7 +167,6 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 name=entry.name,
                 prompt=entry.prompt or SQL_MISSING_TEXT,
                 value_type=entry.type.value,
-                studytable_name=studytable_name,
                 codes=to_codemapview(entry.codemap)
             )
 
@@ -190,19 +186,12 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
             return SimpleColumnView(
                 name=entry.name,
                 prompt=entry.prompt or SQL_MISSING_TEXT,
-                studytable_name=studytable_name,
                 value_type=entry.type.value,
             )
 
         case ColumnEntryType.GROUP:
             raise Exception("Error: Group columns cannot be returned as ColumnViews")
 
-
-def to_studytableview(entry: StudyTableSql) -> StudyTableView:
-    return StudyTableView(
-        name=entry.name,
-        columns=tuple(to_columnview(i) for i in entry.columns),
-    )
 
 def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
     match entry.type:
@@ -262,11 +251,7 @@ def to_excludefilter(raw: t.Any):
 
 
 def to_instrumentlinkerspec(entry: InstrumentEntrySql):
-    studytable = entry.studytable
-    if studytable is None:
-        raise Exception("Error: Instrument entry has no StudyTable")
     return InstrumentLinkerSpec(
-        studytable_name=studytable.name,
         instrument_name=entry.name,
         exclude_filters=tuple(to_excludefilter(ef) for ef in entry.exclude_filters) if entry.exclude_filters else (),
         linker_specs=tuple(

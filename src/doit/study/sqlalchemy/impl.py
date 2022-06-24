@@ -1,5 +1,5 @@
 from __future__ import annotations
-import typing as t
+#import typing as t
 
 from sqlalchemy import (
     create_engine,
@@ -17,10 +17,8 @@ from .sqlmodel import (
     Base,
     CodemapSql,
     ColumnEntrySql,
-    ColumnEntryType,
     InstrumentEntrySql,
     MeasureEntrySql,
-    StudyTableSql,
     setup_datatable,
 )
 
@@ -38,7 +36,6 @@ from .to_view import (
     to_instrumentview,
     to_measureview,
     to_columnview,
-    to_studytableview,
     to_instrumentlinkerspec,
     to_instrumentlistingview,
     to_measurelistingview,
@@ -62,7 +59,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         session = SessionWrapper(engine)
 
         datatable_metadata = MetaData()
-        for entry in session.get_all(StudyTableSql):
+        for entry in session.get_all(InstrumentEntrySql):
             setup_datatable(datatable_metadata, entry)
 
         return cls(engine, datatable_metadata)
@@ -105,48 +102,25 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
                 )
             )
 
-        # Add Studytables
-        for instrument in session.get_all(InstrumentEntrySql):
-            all_columns: t.List[ColumnEntrySql] = [
-                i.column_entry
-                    for i in instrument.items
-                        if i.column_entry is not None
-            ]
-
-            index_columns = [i for i in all_columns if i.type == ColumnEntryType.INDEX]
-
-            if index_columns:
-                table_name = "-".join(sorted(i.shortname for i in index_columns if i.shortname))
-
-                table = session.get_or_create_by_name(StudyTableSql, table_name)
-
-                table.columns.extend(i for i in all_columns if i not in table.columns)
-                table.instruments.append(instrument)
-
-        # Verify each column belongs to only one Studytable (TODO: Test this)
-        for column in session.get_all(ColumnEntrySql):
-            if len(column.studytables) > 1 and column.type != ColumnEntryType.INDEX:
-                raise Exception("Error: column {} found in muliple tables. Check the indices in the associated instruments".format(column.name))
-
+        # Create datatables
         datatable_metadata = MetaData()
-        for entry in session.get_all(StudyTableSql):
-            table = setup_datatable(datatable_metadata, entry)
+        for entry in session.get_all(InstrumentEntrySql):
+            setup_datatable(datatable_metadata, entry)
 
         session.commit()
 
-        for table in datatable_metadata.tables.values():
-            table.create(engine)
+        datatable_metadata.create_all(engine) 
         
         return cls(engine, datatable_metadata)
         
     def write_table(self, linked_table: LinkedTable):
         session = SessionWrapper(self.engine)
 
-        sql_table = self.datatable_metadata.tables[linked_table.studytable_name]
+        sql_table = self.datatable_metadata.tables[linked_table.instrument_name]
 
         rows, errors = render_tabledata(linked_table)
 
-        upsert_errors = session.upsert_rows(sql_table, rows)
+        upsert_errors = session.upsert_rows(sql_table, rows) # TODO: this should just insert rows now, not upsert
 
         session.commit()
 
@@ -178,22 +152,22 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         )
 
     def query_studytable_by_instrument(self, instrument_name: str): # TODO return type Linker
-        session = SessionWrapper(self.engine)
-        instrument = session.get_by_name(InstrumentEntrySql, instrument_name)
-
-        if instrument.studytable is None:
-            raise Exception("Error: Instrument {} is not connected to a StudyTable".format(instrument_name))
-
-        return to_studytableview(
-            instrument.studytable
-        )
+        raise Exception("TODO: Not implemented")
+#        session = SessionWrapper(self.engine)
+#        instrument = session.get_by_name(InstrumentEntrySql, instrument_name)
+#
+#        if instrument.studytable is None:
+#            raise Exception("Error: Instrument {} is not connected to a StudyTable".format(instrument_name))
+#
+#        return to_studytableview(
+#            instrument.studytable
+#        )
 
     def query_instrumentlinkerspecs(self):
         session = SessionWrapper(self.engine)
         entries = session.get_all(InstrumentEntrySql)
         return tuple(
             to_instrumentlinkerspec(i) for i in entries
-                if i.studytable is not None
         )
     
     def query_column(self, column_name: str):

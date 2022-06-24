@@ -87,12 +87,6 @@ class ColumnEntrySql(Base):
         order_by="InstrumentNodeSql.id"        
     )
 
-    studytables: RelationshipProperty[t.List[StudyTableSql]] = relationship(
-        "StudyTableSql",
-        secondary=lambda: TableColumnAssociationSql,
-        back_populates="columns",
-    )
-
     parent_measure: RelationshipProperty[MeasureEntrySql | None] = relationship(
         "MeasureEntrySql",
         back_populates="items",
@@ -121,7 +115,11 @@ def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
         case ColumnEntryType.GROUP:
             raise Exception("Error: cannot make a datatable column from a column group {}".format(name))
 
-def setup_datatable(metadata: MetaData, table: StudyTableSql):
+def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
+    columns = tuple((
+        *(i.column_entry for i in table.items if i.column_entry and i.column_entry.type == ColumnEntryType.INDEX),
+        *(i.column_entry for i in table.items if i.column_entry and i.column_entry.type != ColumnEntryType.INDEX),
+    ))
     return Table(
         table.name,
         metadata,
@@ -130,39 +128,14 @@ def setup_datatable(metadata: MetaData, table: StudyTableSql):
                 i.name,
                 datatablecolumn_from_columnentrytype(i.type, i.name),
                 primary_key=(i.type == ColumnEntryType.INDEX),
-            ) for i in sorted(table.columns, key=lambda x: x.sortkey)
+            ) for i in columns
         ]
     )
-
-class StudyTableSql(Base):
-    __tablename__ = "__table_info__"
-    id = RequiredColumn(Integer, primary_key=True)
-    name = RequiredColumn(String, unique=True)
-
-    columns: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
-        "ColumnEntrySql",
-        secondary=lambda: TableColumnAssociationSql,
-        back_populates="studytables",
-    )
-
-    instruments: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
-        "InstrumentEntrySql",
-        back_populates="studytable",
-        order_by="InstrumentEntrySql.id",
-    )
-
-TableColumnAssociationSql = Table(
-    "__table_column_association__",
-    Base.metadata,
-    Column('studytable_id', ForeignKey(StudyTableSql.id), primary_key=True),
-    Column('column_entry_id', ForeignKey(ColumnEntrySql.id), primary_key=True),
-)
 
 class InstrumentEntrySql(Base):
     __tablename__ = "__instrument_entries__"
     id = RequiredColumn(Integer, primary_key=True)
     name = RequiredColumn(String, unique=True)
-    studytable_id = OptionalColumn(Integer, ForeignKey(StudyTableSql.id))
     title = OptionalColumn(String)
     description = OptionalColumn(String)
     instructions = OptionalColumn(String)
@@ -171,10 +144,6 @@ class InstrumentEntrySql(Base):
     data_checksum = OptionalColumn(String)
     schema_checksum = OptionalColumn(String)
     exclude_filters = RequiredColumn(JSON)
-
-    studytable: RelationshipProperty[StudyTableSql | None] = relationship(
-        "StudyTableSql",
-    )
 
     items: RelationshipProperty[t.List[InstrumentNodeSql]] = relationship(
         "InstrumentNodeSql",

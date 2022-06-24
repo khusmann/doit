@@ -21,7 +21,6 @@ class CodemapView(t.NamedTuple):
 
 class CodedColumnView(t.NamedTuple):
     name: str
-    studytable_name: t.Optional[str]
     prompt: str
     value_type: t.Literal['ordinal', 'categorical', 'multiselect']
     codes: CodemapView
@@ -35,7 +34,6 @@ class IndexColumnView(t.NamedTuple):
 
 class SimpleColumnView(t.NamedTuple):
     name: str
-    studytable_name: t.Optional[str]
     prompt: str
     value_type: t.Literal['text', 'integer', 'real']
 
@@ -139,12 +137,6 @@ class MeasureView(t.NamedTuple):
     description: t.Optional[str]
     items: t.Tuple[MeasureNodeView, ...]
 
-### Studytable View
-
-class StudyTableView(t.NamedTuple):
-    name: str
-    columns: t.Tuple[ColumnView, ...]
-
 ### LinkerView
 
 ### ExcludeFilter
@@ -191,7 +183,6 @@ class LinkerSpec(t.NamedTuple):
     dst: DstLink
 
 class InstrumentLinkerSpec(t.NamedTuple):
-    studytable_name: str
     instrument_name: str
     exclude_filters: t.Tuple[ExcludeFilterSpec, ...]
     linker_specs: t.Tuple[LinkerSpec, ...]

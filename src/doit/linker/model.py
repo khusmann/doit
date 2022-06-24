@@ -20,7 +20,6 @@ class Linker(t.NamedTuple):
     link_fn: LinkFn
 
 class InstrumentLinker(t.NamedTuple):
-    studytable_name: str
     instrument_name: str
     exclude_filters: t.Tuple[ExcludeFilterFn, ...]
     linkers: t.Tuple[Linker, ...]

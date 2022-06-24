@@ -168,7 +168,6 @@ def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: Instrum
         return lambda row: to_dst(src_fn(row), spec.dst)
 
     return InstrumentLinker(
-        studytable_name=instrumentlinker_spec.studytable_name,
         instrument_name=instrumentlinker_spec.instrument_name,
         exclude_filters=tuple(
             exclude_fn_from_spec(column_lookup, spec) for spec in instrumentlinker_spec.exclude_filters
@@ -199,7 +198,6 @@ def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -
     )
 
     return LinkedTable(
-        studytable_name=instrument_linker.studytable_name,
         instrument_name=instrument_linker.instrument_name,
         columns=dst_column_info,
         data=LinkedTableData(
