@@ -42,7 +42,8 @@ async def render_instrument(scope, receive, datasette, request):
     return Response.html(
         await datasette.render_template(
             "instrument.html.j2", {
-                "instrument": datasette._doit.query_instrument(request.url_vars.get("instrument_name"))
+                "instrument": datasette._doit.query_instrument(request.url_vars.get("instrument_name")),
+                "database": list(datasette.databases.keys())[1]
             }, request=request
         )
     )
@@ -51,7 +52,8 @@ async def render_measure(scope, receive, datasette, request):
     return Response.html(
         await datasette.render_template(
             "measure.html.j2", {
-                "measure": datasette._doit.query_measure(request.url_vars.get("measure_name"))
+                "measure": datasette._doit.query_measure(request.url_vars.get("measure_name")),
+                "database": list(datasette.databases.keys())[1]
             }, request=request
         )
     )

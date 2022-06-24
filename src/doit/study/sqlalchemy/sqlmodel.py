@@ -149,7 +149,7 @@ def makequery(measure: MeasureEntrySql, i: Table):
 
 
     indices = tuple(i.c[j] for j in measure.indices)
-    datacols = tuple(i.c[m.name] if m.name in i.c else null().label(m.name) for m in measure.items)
+    datacols = tuple(i.c[m.name] if m.name in i.c else null().label(m.name) for m in measure.items if m.type != ColumnEntryType.GROUP)
 
     return select((*indices, *datacols))
 

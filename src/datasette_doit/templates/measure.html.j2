@@ -16,7 +16,7 @@
 {% block content %}
 <div class="doit-main">
     <div class="doit-header">
-        <h1>{{measure.title}}</h1>
+        <h1>{{measure.title}} (<a href="/{{database}}/{{measure.name}}">data</a>)</h1>
         <h2>Description:</h2>
         {% if measure.description %}
             {% for line in measure.description.splitlines() %}
