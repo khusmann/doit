@@ -18,14 +18,20 @@
     <div class="doit-header">
         <h1>{{measure.title}}</h1>
         <h2>Description:</h2>
-        {% for line in measure.description.splitlines() %}
-            <p>{{line}}</p>
-        {% endfor %}
+        {% if measure.description %}
+            {% for line in measure.description.splitlines() %}
+                <p>{{line}}</p>
+            {% endfor %}
+        {% endif %}
     </div>
     {% for item in measure.items recursive %}
         {% if not item.value_type %}
         <div id="{{item.name}}" class="doit-group">
-            {% if item.prompt %}<h3>{{item.prompt}}</h3>{% endif %}
+            {% if item.prompt %}
+                {% for line in item.prompt.splitlines() %}
+                    <h3>{{line}}</h3>
+                {% endfor %}
+            {% endif %}
             {{ loop(item.items) }}
         </div>
         {% else %}
@@ -34,10 +40,12 @@
                 {{item.name}}
             </div>
             <div class="pure-u-1-3">
-                {% for line in item.prompt.splitlines() if item.prompt else [] %}
-                    {{line}}
+            {% if item.prompt %}
+                {% for line in item.prompt.splitlines() %}
+                    <p>{{line}}</p>
                 {% endfor %}
                 {% if item.is_idx %}(Index){% endif %}
+            {% endif %}
             </div>
             <div class="pure-u-1-3 doit-item-col">
                 {{item.value_type}}

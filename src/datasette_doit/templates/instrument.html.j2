@@ -18,13 +18,17 @@
     <div class="doit-header">
         <h1>{{instrument.title}}</h1>
         <h2>Description:</h2>
-        {% for line in (instrument.description.splitlines() if instrument.description else []) %}
-            <p>{{line}}</p>
-        {% endfor %}
+        {% if instrument.description %}
+            {% for line in instrument.description.splitlines() %}
+                <p>{{line}}</p>
+            {% endfor %}
+        {% endif %}
         <h2>Instructions:</h2>
-        {% for line in (instrument.instructions.splitlines() if instrument.instructions else []) %}
-            <p>{{line}}</p>
-        {% endfor %}
+        {% if instrument.instructions %}
+            {% for line in instrument.instructions.splitlines() %}
+                <p>{{line}}</p>
+            {% endfor %}
+        {% endif %}
     </div>
     {% for item in instrument.nodes recursive %}
         {% if item.type == 'question' %}
@@ -37,9 +41,11 @@
                     <a href="/-/measures/{{ item.column_info.name|base_id }}#{{item.column_info.name}}">{{item.column_info.name}}</a>
                 </div>
                 <div class="pure-u-1-3">
-                    {% for line in (item.prompt.splitlines() if item.prompt else []) %}
-                        {{line}}
+                {% if item.prompt %}
+                    {% for line in item.prompt.splitlines() %}
+                        <p>{{line}}</p>
                     {% endfor %}
+                {% endif %}
                 </div>
                 <div class="pure-u-1-3 doit-item-col">
                     {{item.column_info.value_type}}
@@ -74,7 +80,11 @@
         {% if item.type == 'group' %}
         <div class="doit-group">
             {% if item.title %}<h2>{{item.title}}</h2>{% endif %}
-            {% if item.prompt %}<h3>{{item.prompt}}</h3>{% endif %}
+            {% if item.prompt %}
+                {% for line in item.prompt.splitlines() %}
+                    <h3>{{line}}</h3>
+                {% endfor %}
+            {% endif %}
             {{ loop(item.items) }}
         </div>
         {% endif %}
