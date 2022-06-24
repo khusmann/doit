@@ -56,13 +56,8 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
     @classmethod
     def open(cls, filename: str = "") -> StudyRepoReader:
         engine = cls.create_engine(filename)
-        session = SessionWrapper(engine)
-
-        datatable_metadata = MetaData()
-        for entry in session.get_all(InstrumentEntrySql):
-            setup_datatable(datatable_metadata, entry)
-
-        return cls(engine, datatable_metadata)
+        datatables = cls.create_datatables(engine)
+        return cls(engine, datatables)
 
     @classmethod
     def new(cls, spec: StudySpec, filename: str = "") -> StudyRepoWriter:
@@ -102,16 +97,25 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
                 )
             )
 
+        session.commit()
+
+        datatables = cls.create_datatables(engine)
+       
+        return cls(engine, datatables)
+
+    @classmethod
+    def create_datatables(cls, engine: Engine) -> MetaData:
         # Create datatables
+        session = SessionWrapper(engine)
+        
         datatable_metadata = MetaData()
         for entry in session.get_all(InstrumentEntrySql):
             setup_datatable(datatable_metadata, entry)
 
-        session.commit()
-
         datatable_metadata.create_all(engine) 
-        
-        return cls(engine, datatable_metadata)
+
+        return datatable_metadata
+ 
         
     def write_table(self, linked_table: LinkedTable):
         session = SessionWrapper(self.engine)
