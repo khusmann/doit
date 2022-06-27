@@ -34,6 +34,17 @@
     cursor: pointer;
 }
 
+a.doit-data-icon {
+    color: black;
+    font-weight: normal;
+}
+
+table tr .doit-listing-link {
+    color: #1E90FF;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .doit-instrument-map-table {
     display: none;
     background-color: white;

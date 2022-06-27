@@ -142,6 +142,8 @@ def to_instrumentlistingview(entries: t.Sequence[InstrumentEntrySql]):
             InstrumentListingItemView(
                 name=i.name,
                 title=i.title or SQL_MISSING_TEXT,
+                description=i.description or SQL_MISSING_TEXT,
+                indices=tuple(idx.column_entry.name for idx in i.items if idx.column_entry and idx.column_entry.type == ColumnEntryType.INDEX)
             ) for i in entries
         ), key=lambda x: x.title))
     )
@@ -152,6 +154,8 @@ def to_measurelistingview(entries: t.Sequence[MeasureEntrySql]):
             MeasureListingItemView(
                 name=i.name,
                 title=i.title or SQL_MISSING_TEXT,
+                description=i.description or SQL_MISSING_TEXT,
+                indices=tuple(i.indices),
             ) for i in entries
         ), key=lambda x: x.title))
     )

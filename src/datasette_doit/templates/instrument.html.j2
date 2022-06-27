@@ -7,7 +7,6 @@
 {% block nav %}
     <p class="crumbs">
         <a href="{{ urls.instance() }}">home</a> /
-        <a href="/-/instruments">instruments</a> /
         <a href="/-/instruments/{{instrument.name}}">{{instrument.title}}</a>
     </p>
     {{ super() }}
@@ -16,7 +15,7 @@
 {% block content %}
 <div class="doit-main">
     <div class="doit-header">
-        <h1>{{instrument.title}} (<a href="/{{database}}/{{instrument.name}}">data</a>)</h1>
+        <h1>{{instrument.title}} <a href="/{{database}}/{{instrument.name}}" class="doit-data-icon">📊</a></h1>
         <h2>Description:</h2>
         {% if instrument.description %}
             {% for line in instrument.description.splitlines() %}

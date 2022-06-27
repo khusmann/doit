@@ -86,6 +86,8 @@ class InstrumentView(t.NamedTuple):
 class InstrumentListingItemView(t.NamedTuple):
     name: str
     title: str
+    description: str
+    indices: t.Tuple[str, ...]
 
 class InstrumentListingView(t.NamedTuple):
     items: t.Tuple[InstrumentListingItemView, ...]
@@ -95,6 +97,8 @@ class InstrumentListingView(t.NamedTuple):
 class MeasureListingItemView(t.NamedTuple):
     name: str
     title: str
+    description: str
+    indices: t.Tuple[str, ...]
 
 class MeasureListingView(t.NamedTuple):
     items: t.Tuple[MeasureListingItemView, ...]

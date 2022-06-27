@@ -21,8 +21,7 @@ defaults = settings.AppSettings()
 @hookimpl
 def menu_links(datasette, actor):
     return [
-        {"href": datasette.urls.path("/-/instruments"), "label": "Instruments"},
-        {"href": datasette.urls.path("/-/measures"), "label": "Measures"},
+#       {"href": datasette.urls.path("/-/instruments"), "label": "Instruments"},
     ]
 
 @hookimpl
@@ -32,11 +31,22 @@ def prepare_jinja2_environment(env):
 @hookimpl
 def register_routes():
     return [
-        (r"^/-/instruments$", render_instrument_listing),
-        (r"^/-/measures$", render_measure_listing),
+        (r"/(?P<as_format>(\.jsono?)?$)", render_index),
         (r"^/-/instruments/(?P<instrument_name>.*)$", render_instrument),
         (r"^/-/measures/(?P<measure_name>.*)$", render_measure),
     ]
+
+async def render_index(scope, receive, datasette, request):
+    return Response.html(
+        await datasette.render_template(
+            "index.html.j2", {
+                "instruments": datasette._doit.query_instrumentlisting(),
+                "measures": datasette._doit.query_measurelisting(),
+                "title": datasette._doit_title,
+                "database": list(datasette.databases.keys())[1],
+            }, request=request
+        )
+    )
 
 async def render_instrument(scope, receive, datasette, request):
     return Response.html(
@@ -54,24 +64,6 @@ async def render_measure(scope, receive, datasette, request):
             "measure.html.j2", {
                 "measure": datasette._doit.query_measure(request.url_vars.get("measure_name")),
                 "database": list(datasette.databases.keys())[1]
-            }, request=request
-        )
-    )
-
-async def render_instrument_listing(scope, receive, datasette, request):
-    return Response.html(
-        await datasette.render_template(
-            "instrument_listing.html.j2", {
-                "listing": datasette._doit.query_instrumentlisting()
-            }, request=request
-        )
-    )
-
-async def render_measure_listing(scope, receive, datasette, request):
-    return Response.html(
-        await datasette.render_template(
-            "measure_listing.html.j2", {
-                "listing": datasette._doit.query_measurelisting()
             }, request=request
         )
     )
@@ -111,6 +103,8 @@ def extra_css_urls():
         "/-/static-plugins/doit/jquery.floatingscroll.css",
         "https://unpkg.com/purecss@2.1.0/build/pure-min.css",
         "/-/static-plugins/doit/doit.css",
+        "//cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css",
+        "https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css",
     ]
 
 @hookimpl
@@ -118,6 +112,8 @@ def extra_js_urls():
     return [
         "https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js",
         "/-/static-plugins/doit/jquery.floatingscroll.min.js",
+        "//cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js",
+        "//code.jquery.com/ui/1.12.1/jquery-ui.js",
     ]
 
 @hookimpl
@@ -150,6 +146,7 @@ def startup(datasette):
         repo = SqlAlchemyRepo.new(study_spec, "")
 
         datasette._doit = repo
+        datasette._doit_title = study_spec.config.title
     return inner
 
 @hookimpl
@@ -169,6 +166,7 @@ def register_commands(cli):
         ds = Datasette()
 
         ds._doit = repo
+        ds._doit_title = study_spec.config.title
         
         uvicorn.run(ds.app(), port=8001) # Note -- doesn't run startup hook
 

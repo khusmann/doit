@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Doit Main{% endblock %}
+
+{% block body_class %}index{% endblock %}
+
+{% block content %}
+<h1>{{title}}</h1>
+
+<div id="tabs">
+  <ul>
+    <li><a href="#fragment-1">Measures</a></li>
+    <li><a href="#fragment-2">Instruments</a></li>
+    <li><a href="#fragment-3">Packages</a></li>
+  </ul>
+  <div id="fragment-1">
+    <table id="measureTable">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Indices</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for measure in measures.items %}
+    <tr>
+        <td><a href="/-/measures/{{measure.name}}" class="doit-listing-link">{{measure.title}}</a> <a href="/{{database}}/{{measure.name}}">📊</a></td>
+        <td>{{measure.description}}</td>
+        <td>{% for i in measure.indices %}{{i | replace('indices.','')}}{{ ", " if not loop.last else "" }}{% endfor %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+  </div>
+  <div id="fragment-2">
+    <table id="instrumentTable">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Indices</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for instrument in instruments.items %}
+    <tr>
+        <td><a href="/-/instruments/{{instrument.name}}" class="doit-listing-link">{{instrument.title}}</a> <a href="/{{database}}/{{instrument.name}}">📊</a></td>
+        <td>{{instrument.description}}</td>
+        <td>{% for i in instrument.indices %}{{i | replace('indices.','')}}{{ ", " if not loop.last else "" }}{% endfor %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+  </div>
+  <div id="fragment-3" style="height: 5em;">
+    Coming soon...
+  </div>
+</div>
+
+<script>
+$(document).ready( function () {
+    $('#instrumentTable').DataTable({
+        "paging": false,
+    });
+    $('#measureTable').DataTable({
+        "paging": false,
+    });
+    $( "#tabs" ).tabs();
+} );
+</script>
+
+
+
+{% endblock %}
