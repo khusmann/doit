@@ -13,6 +13,7 @@ from .view import (
     MeasureView,
     ColumnView,
     InstrumentLinkerSpec,
+    ColumnRawView,
 )
 
 class StudyRepoWriter(ABC):
@@ -35,6 +36,9 @@ class StudyRepoReader(ABC):
 
     @abstractmethod
     def query_column(self, column_name: str) -> ColumnView: ...
+
+    @abstractmethod
+    def query_column_raw(self, patterns: t.Sequence[str]) -> t.Tuple[ColumnRawView, ...]: ...
 
     # def query_table(self, columns: t.Sequence[str]) -> SubsetView: ...
 

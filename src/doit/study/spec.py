@@ -127,6 +127,29 @@ class IndexColumnSpec(ImmutableBaseModel):
     description: t.Optional[str]
     values: CodeMapSpec
 
+### Package
+
+class PivotTransformSpec(ImmutableBaseModel):
+    type: t.Literal['pivot']
+    index: str
+
+
+class RenameTransformSpec(ImmutableBaseModel):
+    type: t.Literal['rename']
+    map: t.Mapping[str, str]
+
+PackageTransformSpec = t.Union[
+    PivotTransformSpec,
+    RenameTransformSpec
+]
+
+class PackageSpec(ImmutableBaseModel):
+    title: str
+    description: t.Optional[str]
+    output: str
+    items: t.Tuple[str, ...]
+    transforms: t.Tuple[PackageTransformSpec, ...]
+
 ### Config
 
 class StudyConfigSpec(ImmutableBaseModel):
@@ -138,6 +161,7 @@ class StudySpec(t.NamedTuple):
     config: StudyConfigSpec
     measures: t.Mapping[str, MeasureSpec]
     instruments: t.Mapping[str, InstrumentSpec]
+    packages: t.Mapping[str, PackageSpec]
 
 MeasureItemGroupSpec.update_forward_refs()
 CodeMapSpec.update_forward_refs()

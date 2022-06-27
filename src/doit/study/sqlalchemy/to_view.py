@@ -15,6 +15,7 @@ from .sqlmodel import (
 
 from ..view import (
     CodemapRaw,
+    ColumnRawView,
     CompareExcludeFilterSpec,
     ConstantInstrumentNodeView,
     DstLink,
@@ -266,4 +267,14 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
                 if i.column_entry is not None and
                     (i.type == InstrumentNodeType.CONSTANT or i.source_column_name is not None)
         ),
+    )
+
+def to_columnrawview(entry: ColumnEntrySql):
+    if not entry.parent_measure:
+        raise Exception("Error, no parent measure for {}".format(entry))
+
+    return ColumnRawView(
+        name=entry.name,
+        table_name=entry.parent_measure.name,
+        indices=tuple(entry.parent_measure.indices),
     )

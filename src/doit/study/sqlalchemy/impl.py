@@ -1,5 +1,5 @@
 from __future__ import annotations
-#import typing as t
+import typing as t
 
 from sqlalchemy import (
     create_engine,
@@ -7,6 +7,8 @@ from sqlalchemy import (
 )
 
 from sqlalchemy.engine import Engine
+
+from doit.study.view import ColumnRawView
 
 from ...common.sqlalchemy import SessionWrapper
 
@@ -17,6 +19,7 @@ from .sqlmodel import (
     Base,
     CodemapSql,
     ColumnEntrySql,
+    ColumnEntryType,
     InstrumentEntrySql,
     MeasureEntrySql,
     setup_datatable,
@@ -40,6 +43,7 @@ from .to_view import (
     to_instrumentlinkerspec,
     to_instrumentlistingview,
     to_measurelistingview,
+    to_columnrawview,
 )
 
 class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
@@ -163,6 +167,18 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
         return to_measurelistingview(
             session.get_all(MeasureEntrySql)
         )
+
+    def query_column_raw(self, patterns: t.Sequence[str]) -> t.Tuple[ColumnRawView, ...]:
+        session = SessionWrapper(self.engine)
+        all_entries = session.get_all(ColumnEntrySql)
+        filtered_entries = {
+            i
+                for i in all_entries
+                    for p in patterns
+                        if i.name.startswith(p) and i.type != ColumnEntryType.GROUP
+        }
+
+        return tuple(to_columnrawview(e) for e in filtered_entries)
 
 
     def query_measure(self, measure_name: str):

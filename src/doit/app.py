@@ -173,12 +173,14 @@ def load_study_spec(
     config_file: Path,
     instrument_dir: Path,
     measure_dir: Path,
+    package_dir: Path,
 ) -> StudySpec:
     import yaml
     return load_studyspec_str(
         config=config_file.read_text(),
         measures={ i.stem: i.read_text() for i in measure_dir.glob("*.yaml")},
         instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")},
+        packages={ i.stem: i.read_text() for i in package_dir.glob("*.yaml")},
         parser=yaml.safe_load,
     )
 
@@ -209,8 +211,6 @@ def write_instrument_spec_stub(
         yaml.dump(stub.dict(exclude_unset=True), f, allow_unicode=True)
 
     return stub_path
-
-
 
 def write_errors(
     report: TableErrorReport,

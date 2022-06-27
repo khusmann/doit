@@ -190,3 +190,10 @@ class InstrumentLinkerSpec(t.NamedTuple):
     instrument_name: str
     exclude_filters: t.Tuple[ExcludeFilterSpec, ...]
     linker_specs: t.Tuple[LinkerSpec, ...]
+
+### ColumnRawView
+
+class ColumnRawView(t.NamedTuple):
+    name: str
+    table_name: str
+    indices: t.Tuple[str, ...]

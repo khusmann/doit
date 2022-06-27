@@ -2,6 +2,8 @@ import typing as t
 
 from dotenv import load_dotenv
 
+from doit.study.repo import StudyRepoReader
+
 load_dotenv('.env')
 
 import click
@@ -300,6 +302,7 @@ def link():
         defaults.config_file,
         defaults.instrument_dir,
         defaults.measure_dir,
+        defaults.package_dir,
     )
 
     linked_repo = app.new_study_repo(
@@ -339,6 +342,11 @@ def link():
     click.secho("View by running: {}".format(click.style("datasette {}".format(defaults.study_repo_path), fg="bright_cyan")))
     click.secho()
 
+    from .package import package_data
+    assert(isinstance(linked_repo, StudyRepoReader))
+    for p in study_spec.packages.values():
+        package_data(p, linked_repo, defaults.package_repo_dir)
+
 @cli.command()
 def debug():
     """Debug"""
@@ -348,6 +356,7 @@ def debug():
         defaults.config_file,
         defaults.instrument_dir,
         defaults.measure_dir,
+        defaults.package_dir,
     )
 
     print(table)

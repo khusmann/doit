@@ -62,6 +62,7 @@ class AppSettings(BaseSettings):
 
     instrument_dir = Path("./instruments")
     measure_dir = Path("./measures")
+    package_dir = Path("./packages")
     config_file = Path("./study.yaml")
 
     def instrument_stub_from_instrument_name(self, instrument_name: str):
@@ -85,6 +86,8 @@ class AppSettings(BaseSettings):
     error_file_path = Path("./doit-errors.csv")
 
     ###
+
+    package_repo_dir = Path("./build/safe/packaged")
 
     class Config(BaseSettings.Config):
         env_file_encoding = 'utf-8'
