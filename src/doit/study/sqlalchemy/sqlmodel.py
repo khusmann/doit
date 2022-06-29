@@ -125,22 +125,26 @@ def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
         *(i.column_entry for i in table.items if i.column_entry and i.column_entry.type == ColumnEntryType.INDEX),
         *(i.column_entry for i in table.items if i.column_entry and i.column_entry.type != ColumnEntryType.INDEX),
     ))
-    return Table(
-        table.name,
-        metadata,
-        *[
-            Column(
-                i.name,
-                datatablecolumn_from_columnentrytype(i.type, i.name),
-                primary_key=(i.type == ColumnEntryType.INDEX),
-            ) for i in columns
-        ]
-    )
+
+    if columns:
+        return Table(
+            table.name,
+            metadata,
+            *[
+                Column(
+                    i.name,
+                    datatablecolumn_from_columnentrytype(i.type, i.name),
+                    primary_key=(i.type == ColumnEntryType.INDEX),
+                ) for i in columns
+            ]
+        )
+    else:
+        return None
 
 def makequery(measure: MeasureEntrySql, i: Table):
     from sqlalchemy.sql.expression import null
 
-    if all(m.name not in i.c for m in measure.items):
+    if all(i is None or (m.name not in i.c) for m in measure.items):
         return None
 
     for idx in measure.indices:
