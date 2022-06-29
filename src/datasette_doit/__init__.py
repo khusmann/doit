@@ -141,6 +141,7 @@ def startup(datasette):
             defaults.config_file,
             defaults.instrument_dir,
             defaults.measure_dir,
+            defaults.package_dir,
         )
 
         repo = SqlAlchemyRepo.new(study_spec, "")
@@ -159,6 +160,7 @@ def register_commands(cli):
             defaults.config_file,
             defaults.instrument_dir,
             defaults.measure_dir,
+            defaults.package_dir,
         )
 
         repo = SqlAlchemyRepo.new(study_spec, "")
