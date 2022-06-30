@@ -205,7 +205,7 @@ def to_srcconnectionview(entry: InstrumentNodeSql) -> SrcLink:
                 raise Exception("Error: cannot make question instrument connection without source column name")
             return QuestionSrcLink(
                 source_column_name=entry.source_column_name,
-                source_value_map=parse_obj_as(t.Mapping[str, str], entry.source_value_map) if entry.source_value_map else {},
+                source_value_map=parse_obj_as(t.Mapping[str, t.Optional[str]], entry.source_value_map) if entry.source_value_map else {},
             )
         case InstrumentNodeType.CONSTANT:
             if not entry.constant_value:

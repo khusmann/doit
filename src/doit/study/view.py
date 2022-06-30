@@ -158,7 +158,7 @@ ExcludeFilterSpec = MatchExcludeFilterSpec | CompareExcludeFilterSpec
 
 class QuestionSrcLink(t.NamedTuple):
     source_column_name: str
-    source_value_map: t.Mapping[str, str]
+    source_value_map: t.Mapping[str, t.Optional[str]]
 
 class ConstantSrcLink(t.NamedTuple):
     constant_value: str

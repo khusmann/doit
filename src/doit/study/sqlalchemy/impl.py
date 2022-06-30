@@ -7,6 +7,7 @@ from sqlalchemy import (
 )
 
 from sqlalchemy.engine import Engine
+from doit.common.table import TableErrorReportItem
 
 from doit.study.view import ColumnRawView
 
@@ -124,7 +125,7 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         # Create measure views
         measure_views = tuple(
-            setup_measureview(datatable_metadata, entry, instrument_tables)
+            setup_measureview(datatable_metadata, entry, tuple(i for i in instrument_tables if i is not None))
                 for entry in session.get_all(MeasureEntrySql)
         )
 
@@ -140,15 +141,19 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
     def write_table(self, linked_table: LinkedTable):
         session = SessionWrapper(self.engine)
 
-        sql_table = self.datatable_metadata.tables[linked_table.instrument_name]
+        sql_table = self.datatable_metadata.tables.get(linked_table.instrument_name)
 
-        rows, errors = render_tabledata(linked_table)
+        if sql_table is not None:
 
-        upsert_errors = session.upsert_rows(sql_table, rows) # TODO: this should just insert rows now, not upsert
+            rows, errors = render_tabledata(linked_table)
 
-        session.commit()
+            upsert_errors = session.upsert_rows(sql_table, rows) # TODO: this should just insert rows now, not upsert
 
-        return errors | upsert_errors
+            session.commit()
+
+            return errors | upsert_errors
+        else:
+            return set[TableErrorReportItem]() 
 
     def query_instrument(self, instrument_name: str):
         session = SessionWrapper(self.engine)
