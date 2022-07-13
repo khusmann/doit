@@ -20,7 +20,7 @@ class CodeMapSpec(ImmutableBaseModel):
         if isinstance(input[0], dict):
             return input
         else:
-            return [ {'value': i, 'tag': v, 'text': v} for (i, v) in enumerate(input) ]
+            return [ {'value': int(v), 'tag': v, 'text': v} for v in input ]
 
     ## TODO: Validate uniqueness of pair.*
 
