@@ -129,6 +129,7 @@ def get_metadata(datasette, key, database, table):
                     "__measure_entries__": { "hidden": True },
                     "__table_column_association__": { "hidden": True },
                     "__table_info__": { "hidden": True },
+                    "__column_entry_dependencies__": { "hidden": True },
                 }
             }
         }
