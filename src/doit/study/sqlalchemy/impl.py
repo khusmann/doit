@@ -33,6 +33,7 @@ from .from_spec import (
     AddInstrumentContext,
     AddMeasureContext,
     sql_from_codemap_spec,
+    sql_from_composite_column_spec,
     sql_from_index_column_spec,
     render_tabledata,
 )
@@ -83,14 +84,22 @@ class SqlAlchemyRepo(StudyRepoWriter, StudyRepoReader):
 
         # Add Measures
         for measure_name, measure in spec.measures.items():
-            session.add(
-                AddMeasureContext(
-                    get_codemap_by_relname=lambda codemap_relname: session.get_by_name(CodemapSql, ".".join((measure_name, codemap_relname)))
-                ).sql_from_measure_spec(
-                    measure,
-                    measure_name
-                )
+            m_sql = AddMeasureContext(
+                get_codemap_by_relname=lambda codemap_relname: session.get_by_name(CodemapSql, ".".join((measure_name, codemap_relname)))
+            ).sql_from_measure_spec(
+                measure,
+                measure_name
             )
+            session.add(m_sql)
+            # Add composite measures
+            for i, composite in enumerate(measure.composites):
+                sql_from_composite_column_spec(
+                    composite,
+                    m_sql,
+                    lambda column_relname: session.get_by_name(ColumnEntrySql, ".".join((measure_name, column_relname))),
+                    i+9999,
+                )
+
 
         # Add Instruments    
         for instrument_name, instrument in spec.instruments.items():

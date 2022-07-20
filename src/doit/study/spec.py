@@ -60,12 +60,21 @@ MeasureNodeSpec = t.Annotated[
     ], Field(discriminator='type')
 ]
 
+class MeasureCompositeMeanSpec(ImmutableBaseModel):
+    id: RelativeMeasureNodeName
+    title: str
+    type: t.Literal['mean']
+    items: t.Tuple[RelativeMeasureNodeName, ...]
+
+MeasureCompositeSpec = MeasureCompositeMeanSpec
+
 class MeasureSpec(ImmutableBaseModel):
     title: str
     description: t.Optional[str]
     indices: t.Optional[t.Tuple[str, ...]]
     items: t.Tuple[MeasureNodeSpec, ...]
     codes: t.Mapping[RelativeCodeMapName, CodeMapSpec] = {}
+    composites: t.Tuple[MeasureCompositeSpec, ...] = ()
 
 ### Instrument
 

@@ -32,11 +32,14 @@ from ..spec import (
     InstrumentItemGroupSpec,
     InstrumentNodeSpec,
     InstrumentSpec,
+    MeasureCompositeMeanSpec,
+    MeasureCompositeSpec,
     MeasureSpec,
     MeasureNodeSpec,
     CodedMeasureItemSpec,
     QuestionInstrumentItemSpec,
     RelativeCodeMapName,
+    RelativeMeasureNodeName,
     SimpleMeasureItemSpec,
     MeasureItemGroupSpec,
 )
@@ -163,6 +166,22 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
         codemap=sql_from_codemap_spec(spec.values, "indices", index_name),
         sortkey=-1,
     )
+
+def sql_from_composite_column_spec(spec: MeasureCompositeSpec, measure: MeasureEntrySql, get_column_by_relname: t.Callable[[RelativeMeasureNodeName], ColumnEntrySql], sortkey: int):
+    name = ".".join((measure.name, spec.id))
+    dependencies = [get_column_by_relname(i) for i in spec.items]
+    match spec:
+        case MeasureCompositeMeanSpec():
+            return ColumnEntrySql(
+                name=name,
+                shortname=spec.id,
+                parent_measure=measure,
+                title=spec.title,
+                type=ColumnEntryType.COMPOSITE_MEAN,
+                dependencies=dependencies,
+                sortkey=sortkey,
+            )
+
 
 def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
     match spec.type:

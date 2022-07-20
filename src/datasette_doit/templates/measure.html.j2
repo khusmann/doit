@@ -25,13 +25,33 @@
     </div>
     {% for item in measure.items recursive %}
         {% if not item.value_type %}
-        <div id="{{item.name}}" class="doit-group">
-            {% if item.prompt %}
-                {% for line in item.prompt.splitlines() %}
-                    <h3>{{line}}</h3>
-                {% endfor %}
+            {% if not item.composite_type %}
+            <div id="{{item.name}}" class="doit-group">
+                {% if item.prompt %}
+                    {% for line in item.prompt.splitlines() %}
+                        <h3>{{line}}</h3>
+                    {% endfor %}
+                {% endif %}
+                {{ loop(item.items) }}
+            {% else %}
+                <div id="{{item.name}}" class="doit-item pure-g">
+                    <div class="pure-u-1-3 doit-item-col">
+                        {{item.name}}
+                    </div>
+                    <div class="pure-u-1-3">
+                    {% if item.title %}
+                        {% for line in item.title.splitlines() %}
+                            <p>{{line}}</p>
+                        {% endfor %}
+                    {% endif %}
+                    <p>({% for dep in item.dependencies %}{{dep}} {% endfor %})</p>
+                    </div>
+                    <div class="pure-u-1-3 doit-item-col">
+                        {{item.composite_type}}
+                    </div>
+                </div>
+                
             {% endif %}
-            {{ loop(item.items) }}
         </div>
         {% else %}
         <div id="{{item.name}}" class="doit-item pure-g">

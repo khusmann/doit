@@ -64,6 +64,7 @@ class ColumnEntryType(enum.Enum):
     GROUP = 'group'
     INDEX = 'index'
     MULTISELECT = 'multiselect'
+    COMPOSITE_MEAN = 'composite_mean'
 
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries__"
@@ -87,6 +88,15 @@ class ColumnEntrySql(Base):
         order_by="ColumnEntrySql.sortkey",
     )
 
+    dependencies: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
+        "ColumnEntrySql",
+        secondary=lambda: columnentry_dependencies,
+        primaryjoin="ColumnEntrySql.id==__column_entry_dependencies__.c.column_id",
+        secondaryjoin="ColumnEntrySql.id==__column_entry_dependencies__.c.dependency",
+        backref=backref("used_by", remote_side=id),
+        order_by="ColumnEntrySql.sortkey",
+    )
+
     instrument_nodes: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
         "InstrumentNodeSql",
         order_by="InstrumentNodeSql.id"        
@@ -101,6 +111,11 @@ class ColumnEntrySql(Base):
         "CodemapSql",
         back_populates="column_entries"
     )
+
+columnentry_dependencies = Table("__column_entry_dependencies__", Base.metadata,
+    Column("column_id", Integer, ForeignKey(ColumnEntrySql.id), primary_key=True),
+    Column("dependency", Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
+)
 
 def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
     match type:
@@ -117,6 +132,8 @@ def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
             return String
         case ColumnEntryType.REAL:
             return Float
+        case ColumnEntryType.COMPOSITE_MEAN:
+            return Float
         case ColumnEntryType.GROUP:
             raise Exception("Error: cannot make a datatable column from a column group {}".format(name))
 
@@ -125,6 +142,14 @@ def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
         *(i.column_entry for i in table.items if i.column_entry and i.column_entry.type == ColumnEntryType.INDEX),
         *(i.column_entry for i in table.items if i.column_entry and i.column_entry.type != ColumnEntryType.INDEX),
     ))
+
+    measures = { c.parent_measure for c in columns if c.parent_measure }
+
+    composites = tuple(
+        c for m in measures
+            for c in m.items
+                if c.type == ColumnEntryType.COMPOSITE_MEAN
+    )
 
     if columns:
         return Table(
@@ -135,7 +160,7 @@ def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
                     i.name,
                     datatablecolumn_from_columnentrytype(i.type, i.name),
                     primary_key=(i.type == ColumnEntryType.INDEX),
-                ) for i in columns
+                ) for i in (columns + composites)
             ]
         )
     else:

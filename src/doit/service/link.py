@@ -17,6 +17,7 @@ from ..study.spec import (
 )
 
 from ..linker.model import (
+    Aggregator,
     Linker,
     InstrumentLinker,
     LinkFn,
@@ -24,6 +25,7 @@ from ..linker.model import (
 )
 
 from ..study.view import (
+    AggregateSpec,
     CodedDstLink,
     CompareExcludeFilterSpec,
     DstLink,
@@ -66,7 +68,7 @@ def from_source_fn(
             if not column_info:
                 raise Exception("Error: cannot find column in instrument source table ({})".format(src.source_column_name))
 
-            return partial(from_source_question, column_info, src.source_value_map)
+            return partial(from_source_question, column_info, { k: v for k, v in src.source_value_map.items() if v is not None })
 
         case ConstantSrcLink():
             return lambda _: Some(src.constant_value)
@@ -160,6 +162,24 @@ def exclude_fn_from_spec(column_lookup: t.Mapping[str, SanitizedColumnInfo], spe
         case CompareExcludeFilterSpec():
             raise Exception("Error: Compare Exclude Fitler not implemented")
 
+def build_aggregator(spec: AggregateSpec) -> Aggregator:
+    linked_name = LinkedColumnId(spec.linked_name)
+    match spec.composite_type:
+        case 'mean':
+            def fn(row: LinkedTableRowView) -> t.Tuple[LinkedColumnId, TableValue[t.Any]]:
+                agg = Some(0.0)
+                for i in spec.items:
+                    tv = row.get(LinkedColumnId(i)).bind(cast_fn(float))
+                    agg = agg.bind(lambda curr: tv.map(lambda v: curr+v))
+
+                agg = agg.map(lambda v: v / len(spec.items))
+                return (linked_name, agg)
+
+            return Aggregator(
+                linked_id=linked_name,
+                aggregate_fn=fn,
+            )
+
 def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:
     column_lookup = { c.id.name: c for c in tableinfo.columns }
 
@@ -179,15 +199,24 @@ def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: Instrum
                 link_fn=build_link_fn(spec),
             ) for spec in instrumentlinker_spec.linker_specs
         ),
+        aggregators=tuple(build_aggregator(spec) for spec in instrumentlinker_spec.aggregate_specs)
     )
 
 def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -> LinkedTable:
-    dst_column_info = tuple(
-        LinkedColumnInfo(
-            id=row_linker.dst_col_id,
-            value_type=row_linker.dst_col_type,
-        ) for row_linker in instrument_linker.linkers
-    )
+    dst_column_info = tuple((
+        *(
+            LinkedColumnInfo(
+                id=row_linker.dst_col_id,
+                value_type=row_linker.dst_col_type,
+            ) for row_linker in instrument_linker.linkers
+        ),
+        *(
+            LinkedColumnInfo(
+                id=row_agg.linked_id,
+                value_type='real',
+            ) for row_agg in instrument_linker.aggregators
+        )
+    ))
 
     rows = tuple(
         LinkedTableRowView(
@@ -197,12 +226,19 @@ def link_table(table: SanitizedTableData, instrument_linker: InstrumentLinker) -
                 not any(i == Some("__EXCLUDE__") for i in row.values())
     )
 
+    aggregated_rows = tuple(
+        LinkedTableRowView((
+            *row.items(),
+            *(agg.aggregate_fn(row) for agg in instrument_linker.aggregators)
+        )) for row in rows
+    )
+
     return LinkedTable(
         instrument_name=instrument_linker.instrument_name,
         columns=dst_column_info,
         data=LinkedTableData(
             column_ids=tuple(c.id for c in dst_column_info),
-            rows=rows,
+            rows=aggregated_rows,
         )
     )
 

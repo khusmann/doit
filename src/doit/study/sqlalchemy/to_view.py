@@ -14,9 +14,12 @@ from .sqlmodel import (
 )
 
 from ..view import (
+    AggregateSpec,
     CodemapRaw,
     ColumnRawView,
     CompareExcludeFilterSpec,
+    CompositeColumnView,
+    CompositeMeasureNodeView,
     ConstantInstrumentNodeView,
     DstLink,
     CodedDstLink,
@@ -96,6 +99,13 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                 items=tuple(
                     to_measurenodeview(i) for i in entry.items
                 ),
+            )
+        case ColumnEntryType.COMPOSITE_MEAN:
+            return CompositeMeasureNodeView(
+                name=entry.name,
+                title=entry.title or SQL_MISSING_TEXT,
+                composite_type='mean',
+                dependencies=tuple(d.name for d in entry.dependencies)
             )
         case ColumnEntryType.INDEX:
             raise Exception("Error: Found index column {} in a measure definition".format(entry.name))
@@ -194,6 +204,13 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 value_type=entry.type.value,
             )
 
+        case ColumnEntryType.COMPOSITE_MEAN:
+            return CompositeColumnView(
+                name=entry.name,
+                title=entry.title or SQL_MISSING_TEXT,
+                composite_type='mean',
+            )
+
         case ColumnEntryType.GROUP:
             raise Exception("Error: Group columns cannot be returned as ColumnViews")
 
@@ -234,6 +251,8 @@ def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
                 linked_name=entry.name,
                 value_type=entry.type.value,
             )
+        case ColumnEntryType.COMPOSITE_MEAN:
+            raise Exception("Error: Composite column types cannot be linked!")
         case ColumnEntryType.GROUP:
             raise Exception("Error: Group column types cannot be linked!")
 
@@ -256,6 +275,19 @@ def to_excludefilter(raw: t.Any):
 
 
 def to_instrumentlinkerspec(entry: InstrumentEntrySql):
+    linkable_columns = tuple(
+        i for i in entry.items 
+            if (i.type == InstrumentNodeType.CONSTANT or i.source_column_name is not None)
+    )
+
+    connected_measures = { i.column_entry.parent_measure for i in entry.items if i.column_entry is not None and i.column_entry.parent_measure is not None}
+
+    composites = tuple(
+        c for m in connected_measures
+            for c in m.items
+                if c.type == ColumnEntryType.COMPOSITE_MEAN
+    )
+
     return InstrumentLinkerSpec(
         instrument_name=entry.name,
         exclude_filters=tuple(to_excludefilter(ef) for ef in entry.exclude_filters) if entry.exclude_filters else (),
@@ -263,10 +295,15 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
             LinkerSpec(
                 src=to_srcconnectionview(i),
                 dst=to_dstconnectionview(i.column_entry),
-            ) for i in entry.items
-                if i.column_entry is not None and
-                    (i.type == InstrumentNodeType.CONSTANT or i.source_column_name is not None)
+            ) for i in linkable_columns if i.column_entry is not None
         ),
+        aggregate_specs=tuple(
+           AggregateSpec(
+               linked_name=i.name,
+               composite_type='mean',
+               items=tuple(j.name for j in i.dependencies),
+           ) for i in composites
+        )
     )
 
 def to_columnrawview(entry: ColumnEntrySql):

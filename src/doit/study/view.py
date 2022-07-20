@@ -37,10 +37,16 @@ class SimpleColumnView(t.NamedTuple):
     prompt: str
     value_type: t.Literal['text', 'integer', 'real']
 
+class CompositeColumnView(t.NamedTuple):
+    name: str
+    title: str
+    composite_type: t.Literal['mean']
+
 ColumnView = t.Union[
     CodedColumnView,
     SimpleColumnView,
     IndexColumnView,
+    CompositeColumnView,
 ]
 
 ### InstrumentView - Info to populate an instrument's page
@@ -129,10 +135,17 @@ class GroupMeasureNodeView(t.NamedTuple):
     prompt: t.Optional[str]
     items: t.Tuple[MeasureNodeView, ...]
 
+class CompositeMeasureNodeView(t.NamedTuple):
+    name: str
+    title: str
+    composite_type: t.Literal['mean']
+    dependencies: t.Tuple[str]
+
 MeasureNodeView = t.Union[
     CodedMeasureNodeView,
     SimpleMeasureNodeView,
     GroupMeasureNodeView,
+    CompositeMeasureNodeView,
 ]
 
 class MeasureView(t.NamedTuple):
@@ -186,10 +199,16 @@ class LinkerSpec(t.NamedTuple):
     src: SrcLink
     dst: DstLink
 
+class AggregateSpec(t.NamedTuple):
+    linked_name: str
+    composite_type: t.Literal['mean']
+    items: t.Tuple[str, ...]
+
 class InstrumentLinkerSpec(t.NamedTuple):
     instrument_name: str
     exclude_filters: t.Tuple[ExcludeFilterSpec, ...]
     linker_specs: t.Tuple[LinkerSpec, ...]
+    aggregate_specs: t.Tuple[AggregateSpec, ...]
 
 ### ColumnRawView
 
