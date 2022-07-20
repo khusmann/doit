@@ -169,7 +169,7 @@ def build_aggregator(spec: AggregateSpec) -> Aggregator:
             def fn(row: LinkedTableRowView) -> t.Tuple[LinkedColumnId, TableValue[t.Any]]:
                 agg = Some(0.0)
                 for i in spec.items:
-                    tv = row.get(LinkedColumnId(i)).bind(cast_fn(float))
+                    tv: TableValue[int] = row.get(LinkedColumnId(i.name)).assert_type(int).map(lambda v: i.value_map.get(v, v))
                     agg = agg.bind(lambda curr: tv.map(lambda v: curr+v))
 
                 agg = agg.map(lambda v: v / len(spec.items))

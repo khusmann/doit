@@ -18,6 +18,7 @@ from ...common.table import (
 from .sqlmodel import (
     CodemapSql,
     ColumnEntryType,
+    CompositeDependencySql,
     InstrumentNodeType,
     MeasureEntrySql,
     ColumnEntrySql,
@@ -169,23 +170,26 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
 
 def sql_from_composite_column_spec(spec: MeasureCompositeSpec, measure: MeasureEntrySql, get_column_by_relname: t.Callable[[RelativeMeasureNodeName], ColumnEntrySql], sortkey: int):
     name = ".".join((measure.name, spec.id))
-#    dependencies = [
-#        CompositeDependencySql(
-#            dependency=get_column_by_relname(i),
-#         ) for i in spec.items
-#    ]
-    dependencies = [get_column_by_relname(i) for i in spec.items]
     match spec:
         case MeasureCompositeMeanSpec():
-            return ColumnEntrySql(
+            entry = ColumnEntrySql(
                 name=name,
                 shortname=spec.id,
                 parent_measure=measure,
                 title=spec.title,
                 type=ColumnEntryType.COMPOSITE_MEAN,
                 sortkey=sortkey,
-                dependencies=dependencies,
             )
+    [
+        CompositeDependencySql(
+            column=entry,
+            dependency=get_column_by_relname(i.name),
+            reverse_coded=i.reverse_coded,
+        ) for i in spec.items
+    ]
+    return entry
+
+
 
 
 def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:

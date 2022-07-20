@@ -7,6 +7,7 @@ from .sqlmodel import (
     CodemapSql,
     ColumnEntrySql,
     ColumnEntryType,
+    CompositeDependencySql,
     InstrumentEntrySql,
     InstrumentNodeSql,
     InstrumentNodeType,
@@ -14,6 +15,7 @@ from .sqlmodel import (
 )
 
 from ..view import (
+    AggregateItemSpec,
     AggregateSpec,
     CodemapRaw,
     ColumnRawView,
@@ -74,6 +76,11 @@ def to_codemapview(entry: CodemapSql) -> CodemapView:
         values=codemap,
     )
 
+def dep_to_str(dep: CompositeDependencySql) -> str:
+    if dep.reverse_coded:
+        return "rev({})".format(dep.dependency.name)
+    return dep.dependency.name
+
 def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
     match entry.type:
         case ColumnEntryType.ORDINAL | ColumnEntryType.CATEGORICAL | ColumnEntryType.MULTISELECT:
@@ -105,7 +112,7 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                 name=entry.name,
                 title=entry.title or SQL_MISSING_TEXT,
                 composite_type='mean',
-                dependencies=tuple(d.name for d in entry.dependencies)
+                dependencies=tuple(dep_to_str(d) for d in entry.dependencies)
             )
         case ColumnEntryType.INDEX:
             raise Exception("Error: Found index column {} in a measure definition".format(entry.name))
@@ -273,6 +280,20 @@ def to_excludefilter(raw: t.Any):
                 value=spec_filter.value,
             )
 
+def to_aggregateitemspec(dep: CompositeDependencySql):
+    if dep.reverse_coded:
+        if not dep.dependency.codemap:
+            raise Exception("Expected codemap for: {}".format(dep.dependency.name))
+        forward = sorted(i['value'] for i in to_codemapview(dep.dependency.codemap).values)
+        reverse = reversed(forward)
+        return AggregateItemSpec(
+            name=dep.dependency.name,
+            value_map={f: r for f, r in zip(forward, reverse)},
+        )
+    return AggregateItemSpec(
+        name=dep.dependency.name,
+        value_map={},
+    )
 
 def to_instrumentlinkerspec(entry: InstrumentEntrySql):
     linkable_columns = tuple(
@@ -301,7 +322,7 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
            AggregateSpec(
                linked_name=i.name,
                composite_type='mean',
-               items=tuple(j.name for j in i.dependencies),
+               items=tuple(to_aggregateitemspec(j) for j in i.dependencies),
            ) for i in composites
         )
     )

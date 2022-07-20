@@ -199,10 +199,14 @@ class LinkerSpec(t.NamedTuple):
     src: SrcLink
     dst: DstLink
 
+class AggregateItemSpec(t.NamedTuple):
+    name: str
+    value_map: t.Mapping[int, int]
+
 class AggregateSpec(t.NamedTuple):
     linked_name: str
     composite_type: t.Literal['mean']
-    items: t.Tuple[str, ...]
+    items: t.Tuple[AggregateItemSpec, ...]
 
 class InstrumentLinkerSpec(t.NamedTuple):
     instrument_name: str

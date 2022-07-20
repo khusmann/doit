@@ -9,6 +9,7 @@ from sqlalchemy import (
     Table,
     Float,
     MetaData,
+    Boolean,
     Column,
     select,
     union_all,
@@ -88,14 +89,15 @@ class ColumnEntrySql(Base):
         order_by="ColumnEntrySql.sortkey",
     )
 
-    dependencies: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
-        "ColumnEntrySql",
-        secondary="__column_entry_dependencies__",
-        primaryjoin="ColumnEntrySql.id==__column_entry_dependencies__.c.column_id",
-        secondaryjoin="ColumnEntrySql.id==__column_entry_dependencies__.c.dependency",
-        backref=backref("used_by", remote_side=id),
-        order_by="ColumnEntrySql.sortkey",
+    dependencies: RelationshipProperty[t.List[CompositeDependencySql]] = relationship(
+        "CompositeDependencySql",
+        primaryjoin="ColumnEntrySql.id==CompositeDependencySql.column_id",
     )
+
+    used_by: RelationshipProperty[t.List[CompositeDependencySql]] = relationship(
+        "CompositeDependencySql",
+        primaryjoin="ColumnEntrySql.id==CompositeDependencySql.dependency_id",
+    )   
 
     instrument_nodes: RelationshipProperty[t.List[InstrumentEntrySql]] = relationship(
         "InstrumentNodeSql",
@@ -115,7 +117,18 @@ class ColumnEntrySql(Base):
 class CompositeDependencySql(Base):
     __tablename__ = "__column_entry_dependencies__"
     column_id = RequiredColumn(Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
-    dependency = RequiredColumn(Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
+    dependency_id = RequiredColumn(Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
+    reverse_coded = RequiredColumn(Boolean)
+    column: RelationshipProperty[ColumnEntrySql] = relationship(
+        "ColumnEntrySql",
+        primaryjoin="ColumnEntrySql.id==CompositeDependencySql.column_id",
+        back_populates="dependencies",
+    )   
+    dependency: RelationshipProperty[ColumnEntrySql] = relationship(
+        "ColumnEntrySql",
+        primaryjoin="ColumnEntrySql.id==CompositeDependencySql.dependency_id",
+        back_populates="used_by",
+    )
 
 def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
     match type:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing as t
 from pydantic import Field, validator
+import re
 
 from ..common import ImmutableBaseModel
 
@@ -60,11 +61,31 @@ MeasureNodeSpec = t.Annotated[
     ], Field(discriminator='type')
 ]
 
+class CompositeItemSpec(ImmutableBaseModel):
+    name: RelativeMeasureNodeName
+    reverse_coded: bool
+
+def composite_item_spec_from_str(value: str):
+    reverse_coded = re.search(r'^rev\((.*)\)', value)
+    if reverse_coded:
+        return CompositeItemSpec(
+            name=reverse_coded.group(1),
+            reverse_coded=True,
+        )
+    return CompositeItemSpec(
+        name=value,
+        reverse_coded=False,
+    )
+
 class MeasureCompositeMeanSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     title: str
     type: t.Literal['mean']
-    items: t.Tuple[RelativeMeasureNodeName, ...]
+    items: t.Tuple[CompositeItemSpec, ...]
+
+    @validator('items', pre=True)
+    def item_spec(cls, values: t.Tuple[str]):
+        return tuple(composite_item_spec_from_str(v) for v in values)
 
 MeasureCompositeSpec = MeasureCompositeMeanSpec
 
