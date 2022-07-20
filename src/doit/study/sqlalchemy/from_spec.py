@@ -169,6 +169,11 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
 
 def sql_from_composite_column_spec(spec: MeasureCompositeSpec, measure: MeasureEntrySql, get_column_by_relname: t.Callable[[RelativeMeasureNodeName], ColumnEntrySql], sortkey: int):
     name = ".".join((measure.name, spec.id))
+#    dependencies = [
+#        CompositeDependencySql(
+#            dependency=get_column_by_relname(i),
+#         ) for i in spec.items
+#    ]
     dependencies = [get_column_by_relname(i) for i in spec.items]
     match spec:
         case MeasureCompositeMeanSpec():
@@ -178,8 +183,8 @@ def sql_from_composite_column_spec(spec: MeasureCompositeSpec, measure: MeasureE
                 parent_measure=measure,
                 title=spec.title,
                 type=ColumnEntryType.COMPOSITE_MEAN,
-                dependencies=dependencies,
                 sortkey=sortkey,
+                dependencies=dependencies,
             )
 
 

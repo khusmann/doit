@@ -90,7 +90,7 @@ class ColumnEntrySql(Base):
 
     dependencies: RelationshipProperty[t.List[ColumnEntrySql]] = relationship(
         "ColumnEntrySql",
-        secondary=lambda: columnentry_dependencies,
+        secondary="__column_entry_dependencies__",
         primaryjoin="ColumnEntrySql.id==__column_entry_dependencies__.c.column_id",
         secondaryjoin="ColumnEntrySql.id==__column_entry_dependencies__.c.dependency",
         backref=backref("used_by", remote_side=id),
@@ -112,10 +112,10 @@ class ColumnEntrySql(Base):
         back_populates="column_entries"
     )
 
-columnentry_dependencies = Table("__column_entry_dependencies__", Base.metadata,
-    Column("column_id", Integer, ForeignKey(ColumnEntrySql.id), primary_key=True),
-    Column("dependency", Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
-)
+class CompositeDependencySql(Base):
+    __tablename__ = "__column_entry_dependencies__"
+    column_id = RequiredColumn(Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
+    dependency = RequiredColumn(Integer, ForeignKey(ColumnEntrySql.id), primary_key=True)
 
 def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
     match type:
