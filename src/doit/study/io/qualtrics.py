@@ -48,6 +48,11 @@ class QualtricsTextQuestionType(ImmutableBaseModel):
     selector: t.Literal['SL', 'ML', 'ESTB']
     subSelector: None
 
+class QualtricsUploadQuestionType(ImmutableBaseModel):
+    type: t.Literal['FileUpload']
+    selector: t.Literal['FileUpload']
+    subSelector: None
+
 class QualtricsTextGroupQuestionType(ImmutableBaseModel):
     type: t.Literal['TE']
     selector: t.Literal['FORM']
@@ -97,6 +102,10 @@ class QualtricsFormQuestion(ImmutableBaseModel):
     questionText: str
     choices: t.Mapping[str, QualtricsCodes]
 
+class QualtricsUploadQuestion(ImmutableBaseModel):
+    questionType: QualtricsUploadQuestionType
+    questionText: str
+
 class QualtricsCodedQuestion(ImmutableBaseModel):
     questionType: t.Union[QualtricsOrdinalQuestionType, QualtricsMultiselectQuestionType, QualtricsMultiselectQuestionType2, QualtricsMultiselectQuestionType3, QualtricsMultiselectQuestionType4]
     questionText: str
@@ -120,6 +129,7 @@ QualtricsQuestion = t.Union[
     QualtricsFormQuestion,
     QualtricsSuperGroupQuestion,
     QualtricsCodedQuestion,
+    QualtricsUploadQuestion,
 ]
 
 QualtricsSuperGroupQuestion.update_forward_refs()
@@ -143,6 +153,13 @@ def extract_text(html: str):
 def convert_question(qid: str, qualtrics_question: QualtricsQuestion, export_tags: t.Mapping[str, str]) -> InstrumentNodeSpec:
     prompt = extract_text(qualtrics_question.questionText)
     match qualtrics_question:
+        case QualtricsUploadQuestion():
+            return QuestionInstrumentItemSpec(
+                prompt=prompt,
+                type='question',
+                remote_id=None,
+                id=None,
+            )
         case QualtricsSimpleQuestion():
             match qualtrics_question.questionType:
                 case QualtricsTextQuestionType():
