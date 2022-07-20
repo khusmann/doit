@@ -218,7 +218,7 @@ class TableData(t.Generic[ColumnIdT]):
 
     def subset(self, keys: t.Collection[ColumnIdT]):
         return TableData(
-            column_ids=self.column_ids,
+            column_ids=self.column_ids, # TODO: Mistake? not subsetting column_ids?
             rows=tuple(row.subset(keys) for row in self.rows)
         )
 
