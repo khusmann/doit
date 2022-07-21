@@ -107,11 +107,12 @@ def to_measurenodeview(entry: ColumnEntrySql) -> MeasureNodeView:
                     to_measurenodeview(i) for i in entry.items
                 ),
             )
-        case ColumnEntryType.COMPOSITE_MEAN:
+        case ColumnEntryType.COMPOSITE:
+            assert entry.composite_type
             return CompositeMeasureNodeView(
                 name=entry.name,
                 title=entry.title or SQL_MISSING_TEXT,
-                composite_type='mean',
+                composite_type=entry.composite_type.value,
                 dependencies=tuple(dep_to_str(d) for d in entry.dependencies)
             )
         case ColumnEntryType.INDEX:
@@ -211,11 +212,12 @@ def to_columnview(entry: ColumnEntrySql) -> ColumnView:
                 value_type=entry.type.value,
             )
 
-        case ColumnEntryType.COMPOSITE_MEAN:
+        case ColumnEntryType.COMPOSITE:
+            assert entry.composite_type
             return CompositeColumnView(
                 name=entry.name,
                 title=entry.title or SQL_MISSING_TEXT,
-                composite_type='mean',
+                composite_type=entry.composite_type.value,
             )
 
         case ColumnEntryType.GROUP:
@@ -258,7 +260,7 @@ def to_dstconnectionview(entry: ColumnEntrySql) -> DstLink:
                 linked_name=entry.name,
                 value_type=entry.type.value,
             )
-        case ColumnEntryType.COMPOSITE_MEAN:
+        case ColumnEntryType.COMPOSITE:
             raise Exception("Error: Composite column types cannot be linked!")
         case ColumnEntryType.GROUP:
             raise Exception("Error: Group column types cannot be linked!")
@@ -306,7 +308,7 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
     composites = tuple(
         c for m in connected_measures
             for c in m.items
-                if c.type == ColumnEntryType.COMPOSITE_MEAN
+                if c.type == ColumnEntryType.COMPOSITE
     )
 
     return InstrumentLinkerSpec(
@@ -321,9 +323,9 @@ def to_instrumentlinkerspec(entry: InstrumentEntrySql):
         aggregate_specs=tuple(
            AggregateSpec(
                linked_name=i.name,
-               composite_type='mean',
+               composite_type=i.composite_type.value,
                items=tuple(to_aggregateitemspec(j) for j in i.dependencies),
-           ) for i in composites
+           ) for i in composites if i.composite_type # Hrumph, don't like this if... need better typing...
         )
     )
 

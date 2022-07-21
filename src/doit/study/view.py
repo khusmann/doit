@@ -205,7 +205,7 @@ class AggregateItemSpec(t.NamedTuple):
 
 class AggregateSpec(t.NamedTuple):
     linked_name: str
-    composite_type: t.Literal['mean']
+    composite_type: t.Literal['mean', 'sum']
     items: t.Tuple[AggregateItemSpec, ...]
 
 class InstrumentLinkerSpec(t.NamedTuple):

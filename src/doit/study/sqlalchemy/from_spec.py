@@ -19,6 +19,7 @@ from .sqlmodel import (
     CodemapSql,
     ColumnEntryType,
     CompositeDependencySql,
+    CompositeType,
     InstrumentNodeType,
     MeasureEntrySql,
     ColumnEntrySql,
@@ -33,7 +34,6 @@ from ..spec import (
     InstrumentItemGroupSpec,
     InstrumentNodeSpec,
     InstrumentSpec,
-    MeasureCompositeMeanSpec,
     MeasureCompositeSpec,
     MeasureSpec,
     MeasureNodeSpec,
@@ -170,16 +170,15 @@ def sql_from_index_column_spec(spec: IndexColumnSpec, index_name: str):
 
 def sql_from_composite_column_spec(spec: MeasureCompositeSpec, measure: MeasureEntrySql, get_column_by_relname: t.Callable[[RelativeMeasureNodeName], ColumnEntrySql], sortkey: int):
     name = ".".join((measure.name, spec.id))
-    match spec:
-        case MeasureCompositeMeanSpec():
-            entry = ColumnEntrySql(
-                name=name,
-                shortname=spec.id,
-                parent_measure=measure,
-                title=spec.title,
-                type=ColumnEntryType.COMPOSITE_MEAN,
-                sortkey=sortkey,
-            )
+    entry = ColumnEntrySql(
+        name=name,
+        shortname=spec.id,
+        parent_measure=measure,
+        title=spec.title,
+        type=ColumnEntryType.COMPOSITE,
+        composite_type=sql_compositetype(spec),
+        sortkey=sortkey,
+    )
     [
         CompositeDependencySql(
             column=entry,
@@ -190,7 +189,12 @@ def sql_from_composite_column_spec(spec: MeasureCompositeSpec, measure: MeasureE
     return entry
 
 
-
+def sql_compositetype(spec: MeasureCompositeSpec) -> CompositeType:
+    match spec.type:
+        case 'sum':
+            return CompositeType.SUM
+        case 'mean':
+            return CompositeType.MEAN
 
 def sql_columnentrytype(spec: MeasureNodeSpec) -> ColumnEntryType:
     match spec.type:

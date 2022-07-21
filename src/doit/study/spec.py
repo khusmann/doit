@@ -77,17 +77,15 @@ def composite_item_spec_from_str(value: str):
         reverse_coded=False,
     )
 
-class MeasureCompositeMeanSpec(ImmutableBaseModel):
+class MeasureCompositeSpec(ImmutableBaseModel):
     id: RelativeMeasureNodeName
     title: str
-    type: t.Literal['mean']
+    type: t.Literal['mean', 'sum']
     items: t.Tuple[CompositeItemSpec, ...]
 
     @validator('items', pre=True)
     def item_spec(cls, values: t.Tuple[str]):
         return tuple(composite_item_spec_from_str(v) for v in values)
-
-MeasureCompositeSpec = MeasureCompositeMeanSpec
 
 class MeasureSpec(ImmutableBaseModel):
     title: str

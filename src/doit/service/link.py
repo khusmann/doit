@@ -3,6 +3,8 @@ import typing as t
 from functools import partial
 
 from ..common.table import (
+    ErrorValue,
+    IncorrectType,
     Some,
     Omitted,
     TableValue,
@@ -164,20 +166,32 @@ def exclude_fn_from_spec(column_lookup: t.Mapping[str, SanitizedColumnInfo], spe
 
 def build_aggregator(spec: AggregateSpec) -> Aggregator:
     linked_name = LinkedColumnId(spec.linked_name)
+
+    def sum_fn(row: LinkedTableRowView) -> t.Tuple[LinkedColumnId, TableValue[t.Any]]:
+        agg = Some(0.0)
+        for i in spec.items:
+            tv: TableValue[int] = row.get(LinkedColumnId(i.name)).assert_type(int).map(lambda v: i.value_map.get(v, v))
+            agg = agg.bind(lambda curr: tv.map(lambda v: curr+v))
+        return (linked_name, agg)
+
+    def mean_fn(row: LinkedTableRowView) -> t.Tuple[LinkedColumnId, TableValue[t.Any]]:
+        linked_name, agg = sum_fn(row)
+        if len(spec.items) > 0:
+            agg = agg.map(lambda v: v / len(spec.items))
+        else:
+            agg = ErrorValue(IncorrectType("Cannot take mean with 0 items"))
+        return (linked_name, agg)
+
     match spec.composite_type:
         case 'mean':
-            def fn(row: LinkedTableRowView) -> t.Tuple[LinkedColumnId, TableValue[t.Any]]:
-                agg = Some(0.0)
-                for i in spec.items:
-                    tv: TableValue[int] = row.get(LinkedColumnId(i.name)).assert_type(int).map(lambda v: i.value_map.get(v, v))
-                    agg = agg.bind(lambda curr: tv.map(lambda v: curr+v))
-
-                agg = agg.map(lambda v: v / len(spec.items))
-                return (linked_name, agg)
-
             return Aggregator(
                 linked_id=linked_name,
-                aggregate_fn=fn,
+                aggregate_fn=mean_fn,
+            )
+        case 'sum':
+            return Aggregator(
+                linked_id=linked_name,
+                aggregate_fn=sum_fn,
             )
 
 def link_tableinfo(tableinfo: SanitizedTableInfo, instrumentlinker_spec: InstrumentLinkerSpec) -> InstrumentLinker:

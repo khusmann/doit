@@ -49,6 +49,9 @@ def RequiredEnumColumn(type: t.Type[EnumT], constraint: t.Any | None = None, pri
 def OptionalColumn(type: t.Type[TypeEngine[T]], constraint: t.Any | None = None, unique: bool = False) -> Column[T | None]:
     return Column(type, constraint, nullable=True, unique=unique)
 
+def OptionalEnumColumn(type: t.Type[EnumT], constraint: t.Any | None = None, primary_key: bool = False, unique: bool = False) -> Column[t.Optional[EnumT]]:
+    return t.cast(Column[t.Optional[EnumT]], Column(Enum(type), constraint, nullable=True, primary_key=primary_key, unique=unique))
+
 class SessionWrapper:
     impl: Session
     def __init__(self, engine: Engine):

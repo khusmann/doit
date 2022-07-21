@@ -22,6 +22,7 @@ from sqlalchemy.orm import (
 
 from ...common.sqlalchemy import (
     OptionalColumn,
+    OptionalEnumColumn,
     declarative_base,
     backref,
     RequiredColumn,
@@ -65,7 +66,11 @@ class ColumnEntryType(enum.Enum):
     GROUP = 'group'
     INDEX = 'index'
     MULTISELECT = 'multiselect'
-    COMPOSITE_MEAN = 'composite_mean'
+    COMPOSITE = 'composite'
+
+class CompositeType(enum.Enum):
+    SUM = 'sum'
+    MEAN = 'mean'
 
 class ColumnEntrySql(Base):
     __tablename__ = "__column_entries__"
@@ -78,6 +83,7 @@ class ColumnEntrySql(Base):
     sortkey = RequiredColumn(Integer)
 
     type = RequiredEnumColumn(ColumnEntryType)
+    composite_type = OptionalEnumColumn(CompositeType)
 
     prompt = OptionalColumn(String)
     title = OptionalColumn(String)
@@ -145,7 +151,7 @@ def datatablecolumn_from_columnentrytype(type: ColumnEntryType, name: str):
             return String
         case ColumnEntryType.REAL:
             return Float
-        case ColumnEntryType.COMPOSITE_MEAN:
+        case ColumnEntryType.COMPOSITE:
             return Float
         case ColumnEntryType.GROUP:
             raise Exception("Error: cannot make a datatable column from a column group {}".format(name))
@@ -161,7 +167,7 @@ def setup_datatable(metadata: MetaData, table: InstrumentEntrySql):
     composites = tuple(
         c for m in measures
             for c in m.items
-                if c.type == ColumnEntryType.COMPOSITE_MEAN
+                if c.type == ColumnEntryType.COMPOSITE
     )
 
     if columns:
