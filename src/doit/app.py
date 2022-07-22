@@ -175,13 +175,15 @@ def load_study_spec(
     measure_dir: Path,
     package_dir: Path,
 ) -> StudySpec:
-    import yaml
+    from ruamel.yaml import YAML
+    yaml = YAML(typ='base')
+
     return load_studyspec_str(
         config=config_file.read_text(),
         measures={ i.stem: i.read_text() for i in measure_dir.glob("*.yaml")},
         instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")},
         packages={ i.stem: i.read_text() for i in package_dir.glob("*.yaml")},
-        parser=yaml.safe_load,
+        parser=yaml.load, # type: ignore
     )
 
 def write_instrument_spec_stub(

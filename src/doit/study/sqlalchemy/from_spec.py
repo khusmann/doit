@@ -296,14 +296,14 @@ class AddInstrumentContext(t.NamedTuple):
                         source_column_name=spec.remote_id,
                         source_value_map=spec.map,
                         type=sql_instrumentnodetype(spec),
-                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id),
+                        column_entry=self.get_column_by_name(spec.id) if spec.id else None,
                         sortkey=next(self.sortkey),
                     )]
                 case ConstantInstrumentItemSpec():
                     return [InstrumentNodeSql(
                         constant_value=spec.value,
                         type=sql_instrumentnodetype(spec),
-                        column_entry=None if spec.id is None else self.get_column_by_name(spec.id),
+                        column_entry=self.get_column_by_name(spec.id) if spec.id else None,
                         sortkey=next(self.sortkey),
                     )]
                 case InstrumentItemGroupSpec():
