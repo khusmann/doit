@@ -183,7 +183,7 @@ def load_study_spec(
         measures={ i.stem: i.read_text() for i in measure_dir.glob("*.yaml")},
         instruments={ i.stem: i.read_text() for i in instrument_dir.glob("*.yaml")},
         packages={ i.stem: i.read_text() for i in package_dir.glob("*.yaml")},
-        parser=yaml.load, # type: ignore
+        parser=yaml.load,
     )
 
 def write_instrument_spec_stub(
@@ -194,23 +194,32 @@ def write_instrument_spec_stub(
     # This dumper makes dictionary keys dump in order. This is so the
     # ordering of keys in the stubs of instrument yamls take the same
     # order that they are defined in the InstrumentSpec object.
-    import yaml
+    from ruamel.yaml import YAML
+    from ruamel.yaml.representer import Representer
 
-    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
+    
+    yaml = YAML(typ='safe')
+    yaml.default_flow_style = False
+
+    def ordered_dict_dumper(dumper: Representer, data: t.Dict[t.Any, t.Any]):
         return dumper.represent_dict(data.items())
 
-    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
+    def tuple_dumper(dumper: Representer, tuple: t.Tuple[t.Any, ...]):
         return dumper.represent_list(tuple)
 
-    yaml.add_representer(dict, ordered_dict_dumper)
-    yaml.add_representer(tuple, tuple_dumper)
+    def none_dumper(dumper: Representer, none: None):
+        return dumper.represent_str("")
+
+    yaml.representer.add_representer(type(None), none_dumper)
+    yaml.representer.add_representer(dict, ordered_dict_dumper)
+    yaml.representer.add_representer(tuple, tuple_dumper)
 
     stub_path = instrument_stub_from_instrument_name(instrument_name)
 
     stub_path.parent.mkdir(exist_ok=True, parents=True)
 
     with open(stub_path, "w") as f:
-        yaml.dump(stub.dict(exclude_unset=True), f, allow_unicode=True)
+        yaml.dump(stub.dict(exclude_unset=True), f)
 
     return stub_path
 
