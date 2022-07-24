@@ -68,6 +68,9 @@ class Omitted:
         return self
 
 class Redacted:
+    value: str
+    def __init__(self, value: str):
+        self.value=value
     def __hash__(self):
         return hash(())
     def __eq__(self, o: t.Any):

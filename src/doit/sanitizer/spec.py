@@ -2,26 +2,19 @@ import typing as t
 
 from ..common import ImmutableBaseModel
 
-class TableLookupSanitizerSpec(ImmutableBaseModel):
-    remote_id: str
-    action: t.Literal['sanitize']
-    sanitizer: str
-
-class SanitizerItemSpec(ImmutableBaseModel):
+class UnsafeSanitizerItemSpec(ImmutableBaseModel):
+    checksum: str
     unsafe: str
-    safe: str
 
-class MultilineSimpleSanitizerSpec(ImmutableBaseModel):
-    remote_id: str
-    prompt: str
-    action: t.Literal['sanitize']
-    sanitizer: t.Tuple[SanitizerItemSpec, ...]
+class SafeSanitizerItemSpec(ImmutableBaseModel):
+    checksum: str
+    safe: str
 
 class SimpleSanitizerSpec(ImmutableBaseModel):
     remote_id: str
     prompt: str
     action: t.Literal['sanitize']
-    sanitizer: t.Mapping[str, str]
+    sanitizer: t.Tuple[t.Union[SafeSanitizerItemSpec, UnsafeSanitizerItemSpec], ...]
 
 class IdentitySanitizerSpec(ImmutableBaseModel):
     remote_id: str
@@ -34,11 +27,9 @@ class OmitSanitizerSpec(ImmutableBaseModel):
     action: t.Literal['omit']
 
 SanitizerSpec = t.Union[
-    TableLookupSanitizerSpec,
     IdentitySanitizerSpec,
-    MultilineSimpleSanitizerSpec,
-    SimpleSanitizerSpec,
     OmitSanitizerSpec,
+    SimpleSanitizerSpec,
 ]
 
 class StudySanitizerSpec(ImmutableBaseModel):

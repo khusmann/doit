@@ -12,19 +12,10 @@ from ..sanitizedtable.model import (
 )
 
 class LookupSanitizer(t.NamedTuple):
-    name: str
+    key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
+    new_col_ids: t.Tuple[SanitizedColumnId, ...]
     prompt: str
-    map: t.Mapping[UnsanitizedTableRowView, t.Tuple[t.Tuple[SanitizedColumnId, TableValue[t.Any]], ...]]
-    header: t.Tuple[UnsanitizedColumnId | SanitizedColumnId, ...]
-    checksum: str
-
-    @property
-    def key_col_ids(self):
-        return tuple(c for c in self.header if isinstance(c, UnsanitizedColumnId))
-    
-    @property
-    def new_col_ids(self):
-        return tuple(c for c in self.header if isinstance(c, SanitizedColumnId))
+    map: t.Mapping[str, t.Tuple[t.Tuple[SanitizedColumnId, TableValue[t.Any]], ...]]
 
 class OmitSanitizer(t.NamedTuple):
     name: str
