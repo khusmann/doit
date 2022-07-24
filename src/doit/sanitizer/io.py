@@ -6,6 +6,7 @@ import io
 
 from ..sanitizer.spec import (
     IdentitySanitizerSpec,
+    MultiSanitizerSpec,
     OmitSanitizerSpec,
     SafeSanitizerItemSpec,
     SanitizerSpec,
@@ -97,6 +98,15 @@ def sanitizer_fromspec(spec: SanitizerSpec):
                     san.checksum: ((SanitizedColumnId(spec.remote_id), Some(san.safe) if isinstance(san, SafeSanitizerItemSpec) else Redacted(san.unsafe)),) for san in spec.sanitizer
                 },
             )
+        case MultiSanitizerSpec():
+            return LookupSanitizer(
+                key_col_ids=tuple(UnsanitizedColumnId(i) for i in spec.src_remote_ids),
+                new_col_ids=(SanitizedColumnId(spec.dst_remote_id),),
+                prompt=spec.prompt,
+                map={
+                    san.checksum: ((SanitizedColumnId(spec.dst_remote_id), Some(san.safe) if isinstance(san, SafeSanitizerItemSpec) else Redacted(san.unsafe)),) for san in spec.sanitizer
+                },
+            )
         case OmitSanitizerSpec():
             return OmitSanitizer(
                 name=spec.remote_id,
@@ -132,14 +142,25 @@ def sanitizeritem_tospec(checksum: str, item: TableValue[t.Any]):
 def sanitizer_tospec(sanitizer: RowSanitizer):
     match sanitizer:
         case LookupSanitizer():
-            return SimpleSanitizerSpec(
-                remote_id=sanitizer.key_col_ids[0].unsafe_name,
-                prompt=sanitizer.prompt,
-                action="sanitize",
-                sanitizer=tuple(
-                    sanitizeritem_tospec(checksum, item) for checksum, ((_, item),) in sanitizer.map.items()
+            if len(sanitizer.key_col_ids) == 1:
+                return SimpleSanitizerSpec(
+                    remote_id=sanitizer.key_col_ids[0].unsafe_name,
+                    prompt=sanitizer.prompt,
+                    action="sanitize",
+                    sanitizer=tuple(
+                        sanitizeritem_tospec(checksum, item) for checksum, ((_, item),) in sanitizer.map.items()
+                    )
                 )
-            )
+            else:
+                return MultiSanitizerSpec(
+                    src_remote_ids=tuple(i.unsafe_name for i in sanitizer.key_col_ids),
+                    dst_remote_id=sanitizer.new_col_ids[0].name,
+                    prompt=sanitizer.prompt,
+                    action="sanitize",
+                    sanitizer=tuple(
+                        sanitizeritem_tospec(checksum, item) for checksum, ((_, item),) in sanitizer.map.items()
+                    )
+                )
         case IdentitySanitizer():
             return IdentitySanitizerSpec(
                 remote_id=sanitizer.name,

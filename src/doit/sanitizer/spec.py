@@ -16,6 +16,13 @@ class SimpleSanitizerSpec(ImmutableBaseModel):
     action: t.Literal['sanitize']
     sanitizer: t.Tuple[t.Union[SafeSanitizerItemSpec, UnsafeSanitizerItemSpec], ...]
 
+class MultiSanitizerSpec(ImmutableBaseModel):
+    src_remote_ids: t.Tuple[str, ...]
+    dst_remote_id: str
+    prompt: str
+    action: t.Literal['sanitize']
+    sanitizer: t.Tuple[t.Union[SafeSanitizerItemSpec, UnsafeSanitizerItemSpec], ...]
+
 class IdentitySanitizerSpec(ImmutableBaseModel):
     remote_id: str
     prompt: str
@@ -29,6 +36,7 @@ class OmitSanitizerSpec(ImmutableBaseModel):
 SanitizerSpec = t.Union[
     IdentitySanitizerSpec,
     OmitSanitizerSpec,
+    MultiSanitizerSpec,
     SimpleSanitizerSpec,
 ]
 
