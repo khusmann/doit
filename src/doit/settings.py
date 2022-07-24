@@ -36,7 +36,7 @@ class AppSettings(BaseSettings):
 
     sanitizer_repo_dir = Path("./build/unsafe/sanitizers")
 
-    sanitizer_repo_filename = sanitizer_repo_dir / "sanitizers.toml"
+    sanitizer_repo_filename = sanitizer_repo_dir / "sanitizers.yaml"
 
     def sanitizer_dir_from_instrument_name(self, instrument_name: str) -> Path:
         return self.sanitizer_repo_dir / instrument_name

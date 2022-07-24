@@ -108,10 +108,10 @@ def load_study_sanitizers(
     from .sanitizer.spec import StudySanitizerSpec
     from .sanitizer.io import studysanitizer_fromspec
     from pydantic import parse_obj_as
-    import tomli
+    import yaml
 
     if sanitizer_repo_filename.exists():
-        all_specs = parse_obj_as(StudySanitizerSpec, tomli.loads(sanitizer_repo_filename.read_text()))
+        all_specs = parse_obj_as(StudySanitizerSpec, yaml.safe_load(sanitizer_repo_filename.read_text()))
         return studysanitizer_fromspec(all_specs)
     else:
         return StudySanitizer(
@@ -125,15 +125,24 @@ def update_sanitizer(
     sanitizer_repo_bkup_path: t.Callable[[datetime], Path]
 ):
     from .sanitizer.io import studysanitizer_tospec
-    import tomli_w
+    import yaml
+
+    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
+        return dumper.represent_dict(data.items())
+
+    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
+        return dumper.represent_list(tuple)
+
+    yaml.add_representer(dict, ordered_dict_dumper)
+    yaml.add_representer(tuple, tuple_dumper)
 
     sanitizer_repo_filename.parent.mkdir(parents=True, exist_ok=True)
 
     if sanitizer_repo_filename.exists():
         sanitizer_repo_filename.rename(sanitizer_repo_bkup_path(datetime.now(timezone.utc)))
 
-    with open(sanitizer_repo_filename, 'wb') as f:
-        tomli_w.dump(studysanitizer_tospec(sanitizer_updates), f, multiline_strings=True)
+    with open(sanitizer_repo_filename, 'w') as f:
+        yaml.dump(studysanitizer_tospec(sanitizer_updates), f)
 
 def new_sanitizedtable_repo(
     sanitized_repo_name: Path,

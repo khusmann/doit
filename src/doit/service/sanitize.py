@@ -71,17 +71,17 @@ def update_tablesanitizer(table: UnsanitizedTable, table_sanitizer: TableSanitiz
 
     return TableSanitizer(
         table_name=table_sanitizer.table_name,
-        sanitizers={
-            s.name: update_lookupsanitizer(table, s) if (isinstance(s, LookupSanitizer)) else s
-                for s in (tuple(table_sanitizer.sanitizers.values()) + missing_columns)
-        }
+        sanitizers=tuple(
+            update_lookupsanitizer(table, s) if (isinstance(s, LookupSanitizer)) else s
+                for s in (table_sanitizer.sanitizers + missing_columns)
+        )
     )
 
 def update_studysanitizers(table_name: str, table: UnsanitizedTable, study_sanitizer: StudySanitizer):
     missing_tables = {
         table_name: TableSanitizer(
             table_name=table_name,
-            sanitizers={}
+            sanitizers=()
         )
     } if table_name not in study_sanitizer.table_sanitizers else {}
 
@@ -165,7 +165,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
 
     sanitized_columns_unsorted = tuple(
         c
-            for sanitizer in table_sanitizer.sanitizers.values()
+            for sanitizer in table_sanitizer.sanitizers
                 for c in sanitize_columns(column_info_lookup, sanitizer)
     )
 
@@ -174,7 +174,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
     sanitized_rows = tuple(
         SanitizedTableRowView(
             v
-                for sanitizer in table_sanitizer.sanitizers.values()
+                for sanitizer in table_sanitizer.sanitizers
                     for v in sanitize_row(row, sanitizer) 
         )
             for row in table.data.rows

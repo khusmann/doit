@@ -51,7 +51,7 @@ RowSanitizer = LookupSanitizer | IdentitySanitizer | OmitSanitizer
 
 class TableSanitizer(t.NamedTuple):
     table_name: str
-    sanitizers: t.Mapping[str, RowSanitizer]
+    sanitizers: t.Tuple[RowSanitizer, ...]
 
 class StudySanitizer(t.NamedTuple):
     table_sanitizers: t.Mapping[str, TableSanitizer]
