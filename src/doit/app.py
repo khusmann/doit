@@ -2,7 +2,7 @@ import typing as t
 from pathlib import Path
 from datetime import datetime, timezone
 
-from .sanitizer.model import SanitizerUpdate, TableSanitizer
+from .sanitizer.model import StudySanitizer 
 
 from .unsanitizedtable.model import UnsanitizedTable
 
@@ -102,41 +102,38 @@ def get_local_source_listing(
         ) for source in sources
     )
 
-def load_table_sanitizer(
-    instrument_name: str,
-    sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
-):
-    from .sanitizer.io import load_sanitizer_csv
-    return TableSanitizer(
-        table_name=instrument_name,
-        sanitizers=tuple(
-            load_sanitizer_csv(i.read_text(), i.stem)
-                for i in sanitizer_dir_from_instrument_name(instrument_name).glob("*.csv")
+def load_study_sanitizers(
+    sanitizer_repo_filename: Path,
+) -> StudySanitizer:
+    from .sanitizer.spec import StudySanitizerSpec
+    from .sanitizer.io import studysanitizer_fromspec
+    from pydantic import parse_obj_as
+    import tomli
+
+    if sanitizer_repo_filename.exists():
+        all_specs = parse_obj_as(StudySanitizerSpec, tomli.loads(sanitizer_repo_filename.read_text()))
+        return studysanitizer_fromspec(all_specs)
+    else:
+        return StudySanitizer(
+            table_sanitizers={},
         )
-    )
+
 
 def update_sanitizer(
-    instrument_name: str,
-    sanitizer_updates: t.Sequence[SanitizerUpdate],
-    sanitizer_dir_from_instrument_name: t.Callable[[str], Path],
+    sanitizer_updates: StudySanitizer,
+    sanitizer_repo_filename: Path,
+    sanitizer_repo_bkup_path: t.Callable[[datetime], Path]
 ):
-    from .sanitizer.io import write_sanitizer_update
+    from .sanitizer.io import studysanitizer_tospec
+    import tomli_w
 
-    workdir = sanitizer_dir_from_instrument_name(instrument_name)
-    workdir.mkdir(parents=True, exist_ok=True)
+    sanitizer_repo_filename.parent.mkdir(parents=True, exist_ok=True)
 
-    for update in sanitizer_updates:
-        sanitizer_path = Path(str(workdir / update.name) + ".csv")
-        if update.new:
-            if sanitizer_path.exists():
-                raise Exception("Error: attempting to create new sanitizer but {} already exists".format(sanitizer_path))
-            with open(sanitizer_path, "w", newline='') as f:
-                write_sanitizer_update(f, update, True)
-        else:
-            if not sanitizer_path.exists():
-                raise Exception("Error: attempting to update sanitizer but {} does not exist".format(sanitizer_path))
-            with open(sanitizer_path, "a", newline='') as f:
-                write_sanitizer_update(f, update, False)
+    if sanitizer_repo_filename.exists():
+        sanitizer_repo_filename.rename(sanitizer_repo_bkup_path(datetime.now(timezone.utc)))
+
+    with open(sanitizer_repo_filename, 'wb') as f:
+        tomli_w.dump(studysanitizer_tospec(sanitizer_updates), f, multiline_strings=True)
 
 def new_sanitizedtable_repo(
     sanitized_repo_name: Path,

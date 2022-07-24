@@ -4,6 +4,18 @@ import re
 import hashlib
 import io
 
+from ..sanitizer.spec import (
+    IdentitySanitizerSpec,
+    MultilineSimpleSanitizerSpec,
+    OmitSanitizerSpec,
+    SanitizerItemSpec,
+    SanitizerSpec,
+#    SimpleSanitizerSpec,
+    StudySanitizerSpec,
+    TableLookupSanitizerSpec,
+    TableSanitizerSpec
+)
+
 from ..common.table import (
     Omitted,
     Redacted,
@@ -24,9 +36,14 @@ from ..sanitizedtable.model import (
 )
 
 from .model import (
+    IdentitySanitizer,
+    OmitSanitizer,
+    RowSanitizer,
     SanitizedColumnId,
     LookupSanitizer,
     SanitizerUpdate,
+    StudySanitizer,
+    TableSanitizer,
 )
 
 def is_header_safe(header: str):
@@ -63,6 +80,21 @@ def write_sanitizer_update(f: io.TextIOBase, update: SanitizerUpdate, new: bool)
                 for cid in update.header
         ) for row in update.rows
     ))
+
+def write_sanitizer_csv(sanitizer: LookupSanitizer):
+    import io
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow((to_csv_header(cid) for cid in sanitizer.header))
+
+    writer.writerows((
+        (
+            to_csv_value(unsafe.get(cid)) if isinstance(cid, UnsanitizedColumnId) else dict(safe).get(cid)
+                for unsafe, safe in sanitizer.map.items()
+        ) for cid in sanitizer.header
+    ))
+
+    return buffer.getvalue()
 
 def load_sanitizer_csv(csv_text: str, name: str) -> LookupSanitizer:
     reader = csv.reader(io.StringIO(csv_text, newline=''))
@@ -104,7 +136,107 @@ def load_sanitizer_csv(csv_text: str, name: str) -> LookupSanitizer:
 
     return LookupSanitizer(
         name=name,
+        prompt="",
         map=dict(zip(keys, values)),
         header=header,
         checksum=hashlib.sha256(csv_text.encode()).hexdigest(),
     )
+
+def sanitizer_fromspec(name: str, spec: SanitizerSpec):
+    match spec:
+        case TableLookupSanitizerSpec():
+            return load_sanitizer_csv(spec.sanitizer, name)
+        case IdentitySanitizerSpec():
+            return IdentitySanitizer(
+                name=name,
+                key_col_ids=(UnsanitizedColumnId(name),),
+                prompt=spec.prompt,
+            )
+#        case SimpleSanitizerSpec():
+#            return LookupSanitizer(
+#                name=name,
+#                prompt=spec.prompt,
+#                map={
+#                    UnsanitizedTableRowView(
+#                        ((UnsanitizedColumnId(name), Some(unsafe)),)
+#                    ): ((SanitizedColumnId(name), Some(safe)),) for unsafe, safe in spec.sanitizer.items()
+#                },
+#                header=(UnsanitizedColumnId(name), SanitizedColumnId(name)),
+#                checksum="",
+#            )
+        case OmitSanitizerSpec():
+            return OmitSanitizer(
+                name=name,
+                prompt=spec.prompt,
+            )
+        case MultilineSimpleSanitizerSpec():
+            return LookupSanitizer(
+                name=name,
+                prompt=spec.prompt,
+                map={
+                    UnsanitizedTableRowView(
+                        ((UnsanitizedColumnId(name), Some(item.unsafe)),)
+                    ): ((SanitizedColumnId(name), Some(item.safe)),) for item in spec.sanitizer
+                },
+                header=(UnsanitizedColumnId(name), SanitizedColumnId(name)),
+                checksum="",
+            )
+
+
+def tablesanitizer_fromspec(table_name: str, spec: TableSanitizerSpec):
+    return TableSanitizer(
+        table_name=table_name,
+        sanitizers={ name: sanitizer_fromspec(name, san) for name, san in spec.items() },
+    )
+
+def studysanitizer_fromspec(spec: StudySanitizerSpec):
+    return StudySanitizer(
+        table_sanitizers={ name: tablesanitizer_fromspec(name, san) for name, san in spec.items() }
+    )
+
+def sanitizer_tospec(sanitizer: RowSanitizer):
+    match sanitizer:
+        case LookupSanitizer():
+            if len(sanitizer.key_col_ids) == 1 and len(sanitizer.new_col_ids) == 1:
+                return MultilineSimpleSanitizerSpec(
+                    prompt=sanitizer.prompt,
+                    action="sanitize",
+                    sanitizer=tuple(
+                        SanitizerItemSpec(
+                            unsafe=to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name))),
+                            safe=to_csv_value(safe)
+                        )
+                            for unsafe, ((_, safe),) in sanitizer.map.items()
+                    )
+                )
+#                return SimpleSanitizerSpec(
+#                    prompt=sanitizer.prompt,
+#                    action="sanitize",
+#                    sanitizer={
+#                        to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name))): to_csv_value(safe)
+#                            for unsafe, ((_, safe),) in sanitizer.map.items()
+#                    }
+#                )
+            else:
+                return TableLookupSanitizerSpec(
+                    prompt=sanitizer.prompt,
+                    action="sanitize",
+                    sanitizer=write_sanitizer_csv(sanitizer),
+                )
+        case IdentitySanitizer():
+            return IdentitySanitizerSpec(
+                prompt=sanitizer.prompt,
+                action="bless",
+            )
+        case OmitSanitizer():
+            return OmitSanitizerSpec(
+                prompt=sanitizer.prompt,
+                action="omit",
+            )
+
+def studysanitizer_tospec(study_sanitizer: StudySanitizer):
+    return {
+        t.table_name: {
+                s.name: sanitizer_tospec(s).dict() for s in t.sanitizers.values()
+        } for t in sorted(study_sanitizer.table_sanitizers.values(), key=lambda i: i.table_name)
+    }

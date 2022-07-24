@@ -112,6 +112,15 @@ IGNORE_ITEMS = [
     ".*_DO",
 ]
 
+SAFE_ITEMS = [
+    "duration",
+    "progress",
+    "endDate",
+    "startDate",
+    "userLanguage",
+    "recordedDate",
+]
+
 def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchema, column_sort_order: t.Mapping[str, str]) -> UnsanitizedColumnInfo:
     id = UnsanitizedColumnId(value.exportTag if value.dataType == 'question' else key)
     key_parts = key.split("_")
@@ -121,14 +130,14 @@ def unsanitizedcolumninfo_from_qualtrics(key: str, value: QualtricsQuestionSchem
             return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
-                is_safe=False,
+                is_safe=id.unsafe_name in SAFE_ITEMS,
                 sortkey=sortkey,
             )
         case QualtricsNumericQuestion(description=prompt):
             return UnsanitizedSimpleColumnInfo(
                 id=id,
                 prompt=prompt,
-                is_safe=False,
+                is_safe=id.unsafe_name in SAFE_ITEMS,
                 sortkey=sortkey,
             )
         case QualtricsOrdinalArrayQuestion(description=prompt,items=items):

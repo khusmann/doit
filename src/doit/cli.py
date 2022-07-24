@@ -39,7 +39,7 @@ def source_cli():
 @click.argument('uri')
 def source_add(instrument_name: str, uri: str):
     """Add an instrument source"""
-    from .service.sanitize import update_tablesanitizer
+    from .service.sanitize import update_studysanitizers
     from .remote.blob import load_blob
     click.secho()
     progress = progress_callback()
@@ -52,17 +52,16 @@ def source_add(instrument_name: str, uri: str):
 
     table = load_blob(blob)
 
-    existing_sanitizers = app.load_table_sanitizer(
-        instrument_name,
-        defaults.sanitizer_dir_from_instrument_name,
+    existing_sanitizers = app.load_study_sanitizers(
+        defaults.sanitizer_repo_filename,
     )
 
-    updates = update_tablesanitizer(table, existing_sanitizers)
+    updated_sanitizers = update_studysanitizers(instrument_name, table, existing_sanitizers)
 
     app.update_sanitizer(
-        instrument_name,
-        updates,
-        defaults.sanitizer_dir_from_instrument_name,
+        updated_sanitizers,
+        defaults.sanitizer_repo_filename,
+        defaults.sanitized_repo_bkup_path,
     )
 
     click.secho()
@@ -113,7 +112,7 @@ def sanitizer_add():
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
 def sanitizer_update(instrument_name: str | None):
     """Update sanitizers with new data"""
-    from .service.sanitize import update_tablesanitizer
+    from .service.sanitize import update_studysanitizers
     if instrument_name:
         items = (instrument_name,)
     else:
@@ -125,31 +124,22 @@ def sanitizer_update(instrument_name: str | None):
 
     click.secho()
 
+    study_sanitizer = app.load_study_sanitizers(
+        defaults.sanitizer_repo_filename,
+    )
+
     for name in items:
         table = app.load_unsanitizedtable(
             name,
             defaults.blob_from_instrument_name,
         )
-        table_sanitizer = app.load_table_sanitizer(
-            name,
-            defaults.sanitizer_dir_from_instrument_name,
-        )
+        study_sanitizer = update_studysanitizers(name, table, study_sanitizer)
 
-        updates = update_tablesanitizer(table, table_sanitizer)
-
-        if updates:
-            click.secho("Updating sanitizers for {}".format(click.style(name, fg="bright_cyan")))
-            for u in updates:
-                if u.new:
-                    click.secho("    Creating new sanitizer {} ({}) items".format(u.name, len(u.rows)))
-                else:
-                    click.secho("    Updating sanitizer {} ({}) items".format(u.name, len(u.rows)))
-
-        app.update_sanitizer(
-            name,
-            updates,
-            defaults.sanitizer_dir_from_instrument_name
-        )
+    app.update_sanitizer(
+        study_sanitizer,
+        defaults.sanitizer_repo_filename,
+        defaults.sanitizer_repo_bkup_path,
+    )
 
     click.secho()
 
@@ -204,7 +194,7 @@ def stub(instrument_name: str | None):
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
 def fetch(instrument_name: str | None):
     """Fetch data from sources"""
-    from .service.sanitize import update_tablesanitizer
+    from .service.sanitize import update_studysanitizers
     click.secho()
 
     if instrument_name:
@@ -216,6 +206,10 @@ def fetch(instrument_name: str | None):
         )
         items = tuple(l.name for l in listing)
 
+    study_sanitizers = app.load_study_sanitizers(
+        defaults.sanitizer_repo_filename,
+    )
+
     for name in tqdm(items):
         progress = progress_callback(leave=False, desc=name)
 
@@ -226,18 +220,14 @@ def fetch(instrument_name: str | None):
             defaults.blob_bkup_filename,
         )
 
-        sanitizer = app.load_table_sanitizer(
-            name,
-            defaults.sanitizer_dir_from_instrument_name,
-        )
+        study_sanitizers = update_studysanitizers(name, table, study_sanitizers)
 
-        updates = update_tablesanitizer(table, sanitizer)
 
-        app.update_sanitizer(
-            name,
-            updates,
-            defaults.sanitizer_dir_from_instrument_name,
-        )
+    app.update_sanitizer(
+        study_sanitizers,
+        defaults.sanitizer_repo_filename,
+        defaults.sanitized_repo_bkup_path,
+    )
 
     click.secho()
 
@@ -259,6 +249,10 @@ def sanitize():
     
     errors: TableErrorReport = set()
 
+    study_sanitizers = app.load_study_sanitizers(
+        defaults.sanitizer_repo_filename,
+    )
+
     click.secho()
     for entry in tqdm(listing):
         unsanitized = app.load_unsanitizedtable(
@@ -266,12 +260,7 @@ def sanitize():
             defaults.blob_from_instrument_name
         )
 
-        sanitizer = app.load_table_sanitizer(
-            entry.name,
-            defaults.sanitizer_dir_from_instrument_name,
-        )
-
-        sanitized = sanitize_table(unsanitized, sanitizer)
+        sanitized = sanitize_table(unsanitized, study_sanitizers.table_sanitizers[entry.name])
         new_errors = repo.write_table(sanitized)
         errors |= new_errors
 
