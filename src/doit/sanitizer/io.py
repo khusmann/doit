@@ -10,6 +10,7 @@ from ..sanitizer.spec import (
     OmitSanitizerSpec,
     SanitizerItemSpec,
     SanitizerSpec,
+    SimpleSanitizerSpec,
 #    SimpleSanitizerSpec,
     StudySanitizerSpec,
     TableLookupSanitizerSpec,
@@ -152,18 +153,18 @@ def sanitizer_fromspec(name: str, spec: SanitizerSpec):
                 key_col_ids=(UnsanitizedColumnId(name),),
                 prompt=spec.prompt,
             )
-#        case SimpleSanitizerSpec():
-#            return LookupSanitizer(
-#                name=name,
-#                prompt=spec.prompt,
-#                map={
-#                    UnsanitizedTableRowView(
-#                        ((UnsanitizedColumnId(name), Some(unsafe)),)
-#                    ): ((SanitizedColumnId(name), Some(safe)),) for unsafe, safe in spec.sanitizer.items()
-#                },
-#                header=(UnsanitizedColumnId(name), SanitizedColumnId(name)),
-#                checksum="",
-#            )
+        case SimpleSanitizerSpec():
+            return LookupSanitizer(
+                name=name,
+                prompt=spec.prompt,
+                map={
+                    UnsanitizedTableRowView(
+                        ((UnsanitizedColumnId(name), Some(unsafe)),)
+                    ): ((SanitizedColumnId(name), Some(safe)),) for unsafe, safe in spec.sanitizer.items()
+                },
+                header=(UnsanitizedColumnId(name), SanitizedColumnId(name)),
+                checksum="",
+            )
         case OmitSanitizerSpec():
             return OmitSanitizer(
                 name=name,
@@ -198,25 +199,27 @@ def sanitizer_tospec(sanitizer: RowSanitizer):
     match sanitizer:
         case LookupSanitizer():
             if len(sanitizer.key_col_ids) == 1 and len(sanitizer.new_col_ids) == 1:
-                return MultilineSimpleSanitizerSpec(
-                    prompt=sanitizer.prompt,
-                    action="sanitize",
-                    sanitizer=tuple(
-                        SanitizerItemSpec(
-                            unsafe=to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name))),
-                            safe=to_csv_value(safe)
-                        )
-                            for unsafe, ((_, safe),) in sanitizer.map.items()
+                if all(len(to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name)))) < 20 for unsafe in sanitizer.map):
+                    return SimpleSanitizerSpec(
+                        prompt=sanitizer.prompt,
+                        action="sanitize",
+                        sanitizer={
+                            to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name))): to_csv_value(safe)
+                                for unsafe, ((_, safe),) in sanitizer.map.items()
+                        }
                     )
-                )
-#                return SimpleSanitizerSpec(
-#                    prompt=sanitizer.prompt,
-#                    action="sanitize",
-#                    sanitizer={
-#                        to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name))): to_csv_value(safe)
-#                            for unsafe, ((_, safe),) in sanitizer.map.items()
-#                    }
-#                )
+                else:
+                    return MultilineSimpleSanitizerSpec(
+                        prompt=sanitizer.prompt,
+                        action="sanitize",
+                        sanitizer=tuple(
+                            SanitizerItemSpec(
+                                unsafe=to_csv_value(unsafe.get(UnsanitizedColumnId(sanitizer.name))),
+                                safe=to_csv_value(safe)
+                            )
+                                for unsafe, ((_, safe),) in sanitizer.map.items()
+                        )
+                    )
             else:
                 return TableLookupSanitizerSpec(
                     prompt=sanitizer.prompt,

@@ -53,13 +53,20 @@ def update_lookupsanitizer(table: UnsanitizedTable, lookup_sanitizer: LookupSani
 
 def update_tablesanitizer(table: UnsanitizedTable, table_sanitizer: TableSanitizer):
     missing_columns = tuple(
-        LookupSanitizer(
-            name=c.id.unsafe_name,
-            prompt=re.sub(r'\s+', ' ', c.prompt),
-            map={},
-            header=(c.id, SanitizedColumnId(c.id.unsafe_name)),
-            checksum="",
-        ) for c in table.schema if c.id.unsafe_name not in table_sanitizer.sanitizers and not c.is_safe
+        (
+            IdentitySanitizer(
+                name=c.id.unsafe_name,
+                prompt=re.sub(r'\s+', ' ', c.prompt),
+                key_col_ids=(UnsanitizedColumnId(c.id.unsafe_name),),
+            ) if c.is_safe else
+            LookupSanitizer(
+                name=c.id.unsafe_name,
+                prompt=re.sub(r'\s+', ' ', c.prompt),
+                map={},
+                header=(c.id, SanitizedColumnId(c.id.unsafe_name)),
+                checksum="",
+            )
+        ) for c in table.schema if c.id.unsafe_name not in table_sanitizer.sanitizers
     )
 
     return TableSanitizer(

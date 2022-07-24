@@ -31,9 +31,9 @@ class OmitSanitizerSpec(ImmutableBaseModel):
 SanitizerSpec = t.Union[
     TableLookupSanitizerSpec,
     IdentitySanitizerSpec,
-#    SimpleSanitizerSpec,
-    OmitSanitizerSpec,
     MultilineSimpleSanitizerSpec,
+    SimpleSanitizerSpec,
+    OmitSanitizerSpec,
 ]
 
 class TableSanitizerSpec(ImmutableBaseModel):
