@@ -39,11 +39,11 @@ from ..sanitizedtable.model import (
 
 import re
 
-from ..sanitizer.io import hash_row,to_csv_value
+from ..sanitizer.io import hash_row,to_sanitizer_value
 
 def update_lookupsanitizer(table: UnsanitizedTable, lookup_sanitizer: LookupSanitizer) -> LookupSanitizer:
     missing_rows = {
-        hash_row(row): {'_': ",".join(to_csv_value(row.get(UnsanitizedColumnId(safeid.unsafe_name))) for safeid in lookup_sanitizer.key_col_ids)} for row in frozenset(table.data.subset(lookup_sanitizer.key_col_ids).rows)
+        hash_row(row): {'_': ",".join(to_sanitizer_value(row.get(UnsanitizedColumnId(safeid.unsafe_name))) for safeid in lookup_sanitizer.key_col_ids)} for row in frozenset(table.data.subset(lookup_sanitizer.key_col_ids).rows)
             if hash_row(row) not in lookup_sanitizer.map and row.has_some()
     }
     return LookupSanitizer(

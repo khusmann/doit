@@ -2,7 +2,6 @@ import typing as t
 
 from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
-    UnsanitizedTableRowView,
 )
 
 from ..sanitizedtable.model import (
@@ -44,18 +43,3 @@ class TableSanitizer(t.NamedTuple):
 
 class StudySanitizer(t.NamedTuple):
     table_sanitizers: t.Mapping[str, TableSanitizer]
-
-class SanitizerUpdate(t.NamedTuple):
-    table_name: str
-    sanitizer_name: str
-    header: t.Tuple[UnsanitizedColumnId | SanitizedColumnId, ...]
-    rows: t.Tuple[UnsanitizedTableRowView, ...]
-
-    @property
-    def key_col_ids(self):
-        return tuple(c for c in self.header if isinstance(c, UnsanitizedColumnId))
-    
-    @property
-    def new_col_ids(self):
-        return tuple(c for c in self.header if isinstance(c, SanitizedColumnId))
-

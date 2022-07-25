@@ -1,8 +1,5 @@
 import typing as t
-import csv
-import re
 import hashlib
-import io
 
 from ..sanitizer.spec import (
     IdentitySanitizerSpec,
@@ -33,50 +30,23 @@ from .model import (
     RowSanitizer,
     SanitizedColumnId,
     LookupSanitizer,
-    SanitizerUpdate,
     StudySanitizer,
     TableSanitizer,
 )
 
-def is_header_safe(header: str):
-    return re.match(r'^\(.+\)$', header) is None
-
-def rename_unsafe_header(header: str):
-    return header[1: -1]
-
-def to_csv_header(cid: SanitizedColumnId | UnsanitizedColumnId):
-    match cid:
-        case SanitizedColumnId():
-            return cid.name
-        case UnsanitizedColumnId():
-            return "({})".format(cid.unsafe_name)
-
 def hash_row(row: UnsanitizedTableRowView):
-    values=",".join(tuple(c.unsafe_name+to_csv_value(v) for c, v in sorted(row.items(), key=lambda c: c[0].unsafe_name)))
+    values=",".join(tuple(c.unsafe_name+to_sanitizer_value(v) for c, v in sorted(row.items(), key=lambda c: c[0].unsafe_name)))
     return hashlib.sha256(values.encode()).hexdigest()
 
-def to_csv_value(tv: TableValue[t.Any]):
+def to_sanitizer_value(tv: TableValue[t.Any]):
     match tv:
         case Some(value=value) if isinstance(value, str):
             return value
         case Omitted():
             return ""
         case _:
-            raise Exception("Error: cannot convert {} to csv value".format(tv))
+            raise Exception("Error: cannot convert {} to sanitizer value".format(tv))
             
-def write_sanitizer_update(f: io.TextIOBase, update: SanitizerUpdate, new: bool):
-    writer = csv.writer(f)
-
-    if new:
-        writer.writerow((to_csv_header(cid) for cid in update.header))
-
-    writer.writerows((
-        (
-            to_csv_value(row.get(cid)) if isinstance(cid, UnsanitizedColumnId) else ""
-                for cid in update.header
-        ) for row in update.rows
-    ))
-
 def sanitizer_fromspec(spec: SanitizerSpec):
     match spec:
         case IdentitySanitizerSpec():
