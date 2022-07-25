@@ -106,37 +106,29 @@ def sanitizer_list(instrument_str: str | None):
 
 @sanitizer_cli.command(name="add")
 @click.argument('instrument_name')
-@click.argument('remote_id')
-@click.argument('dst_remote_id', required=False)
-def sanitizer_add(instrument_name: str, remote_id: str, dst_remote_id: str | None):
+@click.argument('src_ids')
+@click.argument('dst_ids', required=False)
+def sanitizer_add(instrument_name: str, src_ids: str, dst_ids: str | None):
     """Create a new sanitizer"""
-
     from .unsanitizedtable.model import UnsanitizedColumnId
     from .sanitizedtable.model import SanitizedColumnId
     from .service.sanitize import update_lookupsanitizer
     from .sanitizer.io import sanitizer_tospec
+
+    if not dst_ids:
+        dst_ids = src_ids
 
     table = app.load_unsanitizedtable(
         instrument_name,
         defaults.blob_from_instrument_name,
     )
 
-    if dst_remote_id:
-        import json
-        src_remote_ids: t.Tuple[str] = json.loads(remote_id)
-        sanitizer = LookupSanitizer(
-            key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_remote_ids),
-            new_col_ids=(SanitizedColumnId(dst_remote_id),),
-            prompt=",".join((i.prompt for i in table.schema if i.id.unsafe_name in src_remote_ids)),
-            map={},
-        )
-    else:
-        sanitizer = LookupSanitizer(
-            key_col_ids=(UnsanitizedColumnId(remote_id),),
-            new_col_ids=(SanitizedColumnId(remote_id),),
-            prompt=",".join((i.prompt for i in table.schema if i.id.unsafe_name == remote_id)),
-            map={},
-        )
+    sanitizer = LookupSanitizer(
+        key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_ids.split()),
+        new_col_ids=tuple(SanitizedColumnId(i) for i in dst_ids.split()),
+        prompt=",".join((i.prompt for i in table.schema if i.id.unsafe_name in src_ids.split())),
+        map={},
+    )
 
     study_sanitizer = update_lookupsanitizer(table, sanitizer)
 

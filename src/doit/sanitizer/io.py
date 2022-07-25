@@ -8,15 +8,11 @@ from ..sanitizer.spec import (
     IdentitySanitizerSpec,
     MultiSanitizerSpec,
     OmitSanitizerSpec,
-    SafeSanitizerItemSpec,
     SanitizerSpec,
-    SimpleSanitizerSpec,
     StudySanitizerSpec,
-    UnsafeSanitizerItemSpec,
 )
 
 from ..common.table import (
-    Redacted,
     Omitted,
     Some,
     TableValue,
@@ -89,23 +85,12 @@ def sanitizer_fromspec(spec: SanitizerSpec):
                 key_col_ids=(UnsanitizedColumnId(spec.remote_id),),
                 prompt=spec.prompt,
             )
-        case SimpleSanitizerSpec():
-            return LookupSanitizer(
-                key_col_ids=(UnsanitizedColumnId(spec.remote_id),),
-                new_col_ids=(SanitizedColumnId(spec.remote_id),),
-                prompt=spec.prompt,
-                map={
-                    san.checksum: ((SanitizedColumnId(spec.remote_id), Some(san.safe) if isinstance(san, SafeSanitizerItemSpec) else Redacted(san.unsafe)),) for san in spec.sanitizer
-                },
-            )
         case MultiSanitizerSpec():
             return LookupSanitizer(
                 key_col_ids=tuple(UnsanitizedColumnId(i) for i in spec.src_remote_ids),
-                new_col_ids=(SanitizedColumnId(spec.dst_remote_id),),
+                new_col_ids=tuple(SanitizedColumnId(i) for i in spec.dst_remote_ids),
                 prompt=spec.prompt,
-                map={
-                    san.checksum: ((SanitizedColumnId(spec.dst_remote_id), Some(san.safe) if isinstance(san, SafeSanitizerItemSpec) else Redacted(san.unsafe)),) for san in spec.sanitizer
-                },
+                map=spec.sanitizer,
             )
         case OmitSanitizerSpec():
             return OmitSanitizer(
@@ -124,43 +109,16 @@ def studysanitizer_fromspec(spec: StudySanitizerSpec):
         }
     )
 
-def sanitizeritem_tospec(checksum: str, item: TableValue[t.Any]):
-    match item:
-        case Some(value=value) if isinstance(value, str):
-            return SafeSanitizerItemSpec(
-                checksum=checksum,
-                safe=value,
-            )
-        case Redacted(value=value):
-            return UnsafeSanitizerItemSpec(
-                checksum=checksum,
-                unsafe=value,
-            )
-        case _:
-            raise Exception("Error: cannot convert {} to csv value".format(item))
-
 def sanitizer_tospec(sanitizer: RowSanitizer):
     match sanitizer:
         case LookupSanitizer():
-            if len(sanitizer.key_col_ids) == 1:
-                return SimpleSanitizerSpec(
-                    remote_id=sanitizer.key_col_ids[0].unsafe_name,
-                    prompt=sanitizer.prompt,
-                    action="sanitize",
-                    sanitizer=tuple(
-                        sanitizeritem_tospec(checksum, item) for checksum, ((_, item),) in sanitizer.map.items()
-                    )
-                )
-            else:
-                return MultiSanitizerSpec(
-                    src_remote_ids=tuple(i.unsafe_name for i in sanitizer.key_col_ids),
-                    dst_remote_id=sanitizer.new_col_ids[0].name,
-                    prompt=sanitizer.prompt,
-                    action="sanitize",
-                    sanitizer=tuple(
-                        sanitizeritem_tospec(checksum, item) for checksum, ((_, item),) in sanitizer.map.items()
-                    )
-                )
+            return MultiSanitizerSpec(
+                src_remote_ids=tuple(i.unsafe_name for i in sanitizer.key_col_ids),
+                dst_remote_ids=tuple(i.name for i in sanitizer.new_col_ids),
+                prompt=sanitizer.prompt,
+                action="sanitize",
+                sanitizer=sanitizer.map,
+            )
         case IdentitySanitizer():
             return IdentitySanitizerSpec(
                 remote_id=sanitizer.name,

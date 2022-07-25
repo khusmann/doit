@@ -1,7 +1,5 @@
 import typing as t
 
-from doit.common.table import TableValue
-
 from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
     UnsanitizedTableRowView,
@@ -15,7 +13,7 @@ class LookupSanitizer(t.NamedTuple):
     key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
     prompt: str
-    map: t.Mapping[str, t.Tuple[t.Tuple[SanitizedColumnId, TableValue[t.Any]], ...]]
+    map: t.Mapping[str, t.Mapping[str, str]]
 
 class OmitSanitizer(t.NamedTuple):
     name: str

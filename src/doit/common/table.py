@@ -68,8 +68,8 @@ class Omitted:
         return self
 
 class Redacted:
-    value: str
-    def __init__(self, value: str):
+    value: str | None
+    def __init__(self, value: str | None = None):
         self.value=value
     def __hash__(self):
         return hash(())

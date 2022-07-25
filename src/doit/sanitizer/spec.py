@@ -2,42 +2,27 @@ import typing as t
 
 from ..common import ImmutableBaseModel
 
-class UnsafeSanitizerItemSpec(ImmutableBaseModel):
-    checksum: str
-    unsafe: str
-
-class SafeSanitizerItemSpec(ImmutableBaseModel):
-    checksum: str
-    safe: str
-
-class SimpleSanitizerSpec(ImmutableBaseModel):
-    remote_id: str
-    prompt: str
-    action: t.Literal['sanitize']
-    sanitizer: t.Tuple[t.Union[SafeSanitizerItemSpec, UnsafeSanitizerItemSpec], ...]
-
 class MultiSanitizerSpec(ImmutableBaseModel):
-    src_remote_ids: t.Tuple[str, ...]
-    dst_remote_id: str
     prompt: str
+    src_remote_ids: t.Tuple[str, ...]
+    dst_remote_ids: t.Tuple[str, ...]
     action: t.Literal['sanitize']
-    sanitizer: t.Tuple[t.Union[SafeSanitizerItemSpec, UnsafeSanitizerItemSpec], ...]
+    sanitizer: t.Mapping[str, t.Mapping[str, str]]
 
 class IdentitySanitizerSpec(ImmutableBaseModel):
-    remote_id: str
     prompt: str
+    remote_id: str
     action: t.Literal['bless']
 
 class OmitSanitizerSpec(ImmutableBaseModel):
-    remote_id: str
     prompt: str
+    remote_id: str
     action: t.Literal['omit']
 
 SanitizerSpec = t.Union[
     IdentitySanitizerSpec,
     OmitSanitizerSpec,
     MultiSanitizerSpec,
-    SimpleSanitizerSpec,
 ]
 
 class StudySanitizerSpec(ImmutableBaseModel):
