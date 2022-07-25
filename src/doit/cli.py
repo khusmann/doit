@@ -1,6 +1,7 @@
 import typing as t
 
 from dotenv import load_dotenv
+from doit.sanitizer.model import LookupSanitizer
 
 from doit.study.repo import StudyRepoReader
 
@@ -104,9 +105,56 @@ def sanitizer_list(instrument_str: str | None):
     pass
 
 @sanitizer_cli.command(name="add")
-def sanitizer_add():
+@click.argument('instrument_name')
+@click.argument('remote_id')
+@click.argument('dst_remote_id', required=False)
+def sanitizer_add(instrument_name: str, remote_id: str, dst_remote_id: str | None):
     """Create a new sanitizer"""
-    pass
+
+    from .unsanitizedtable.model import UnsanitizedColumnId
+    from .sanitizedtable.model import SanitizedColumnId
+    from .service.sanitize import update_lookupsanitizer
+    from .sanitizer.io import sanitizer_tospec
+
+    table = app.load_unsanitizedtable(
+        instrument_name,
+        defaults.blob_from_instrument_name,
+    )
+
+    if dst_remote_id:
+        import json
+        src_remote_ids: t.Tuple[str] = json.loads(remote_id)
+        sanitizer = LookupSanitizer(
+            key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_remote_ids),
+            new_col_ids=(SanitizedColumnId(dst_remote_id),),
+            prompt=",".join((i.prompt for i in table.schema if i.id.unsafe_name in src_remote_ids)),
+            map={},
+        )
+    else:
+        sanitizer = LookupSanitizer(
+            key_col_ids=(UnsanitizedColumnId(remote_id),),
+            new_col_ids=(SanitizedColumnId(remote_id),),
+            prompt=",".join((i.prompt for i in table.schema if i.id.unsafe_name == remote_id)),
+            map={},
+        )
+
+    study_sanitizer = update_lookupsanitizer(table, sanitizer)
+
+    import yaml
+
+    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
+        return dumper.represent_dict(data.items())
+
+    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
+        return dumper.represent_list(tuple)
+
+    yaml.add_representer(dict, ordered_dict_dumper)
+    yaml.add_representer(tuple, tuple_dumper)
+
+    print(yaml.dump(sanitizer_tospec(study_sanitizer).dict()))
+
+
+
 
 @sanitizer_cli.command(name="update")
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
