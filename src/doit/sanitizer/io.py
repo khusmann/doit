@@ -35,7 +35,7 @@ from .model import (
 )
 
 def hash_row(row: UnsanitizedTableRowView):
-    values=",".join(tuple(c.unsafe_name+to_sanitizer_value(v) for c, v in sorted(row.items(), key=lambda c: c[0].unsafe_name)))
+    values=",".join(tuple(to_sanitizer_value(v) for _, v in sorted(row.items(), key=lambda c: c[0].unsafe_name)))
     return hashlib.sha256(values.encode()).hexdigest()
 
 def to_sanitizer_value(tv: TableValue[t.Any]):
