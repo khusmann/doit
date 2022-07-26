@@ -1,10 +1,9 @@
 import typing as t
-import hashlib
-import re
 
 from ..sanitizer.spec import (
     IdentitySanitizerSpec,
-    MultiSanitizerSpec,
+    LookupSanitizerItemSpec,
+    LookupSanitizerSpec,
     OmitSanitizerSpec,
     SanitizerSpec,
     StudySanitizerSpec,
@@ -19,7 +18,6 @@ from ..common.table import (
 
 from ..unsanitizedtable.model import (
     UnsanitizedColumnId,
-    UnsanitizedTableRowView,
 )
 
 from ..sanitizedtable.model import (
@@ -35,22 +33,6 @@ from .model import (
     StudySanitizer,
     TableSanitizer,
 )
-
-def hash_row(row: UnsanitizedTableRowView):
-    values=",".join(tuple(to_sanitizer_value(v) for _, v in sorted(row.items(), key=lambda c: c[0].unsafe_name)))
-    return hashlib.sha256(values.encode()).hexdigest()
-
-def is_key_unsanitized(key: str):
-    return re.match(r'^__.+$', key) is None
-
-def unsanitized_key_to_str(key: str):
-    return key[2:]
-
-def str_to_unsanitized_key(s: str):
-    return "__"+s
-
-def get_unsanitized_row(san_map: t.Mapping[str, t.Optional[str]]) -> UnsanitizedTableRowView:
-    return UnsanitizedTableRowView(((UnsanitizedColumnId(k), from_sanitizer_value(v)) for k, v in san_map.items()))
 
 def from_sanitizer_value(v: str | None):
     if v is None:
@@ -68,9 +50,18 @@ def to_sanitizer_value(tv: TableValue[t.Any]):
             return value
         case Omitted():
             return ""
+        case Redacted():
+            return None
         case _:
             raise Exception("Error: cannot convert {} to sanitizer value".format(tv))
-            
+
+def ensure_tuple(v: None | str | t.Tuple[str]):
+    if v is None:
+        return (None,)
+    if isinstance(v, str):
+        return (v,)
+    return v
+
 def sanitizer_fromspec(spec: SanitizerSpec):
     match spec:
         case IdentitySanitizerSpec():
@@ -79,12 +70,16 @@ def sanitizer_fromspec(spec: SanitizerSpec):
                 key_col_ids=(UnsanitizedColumnId(spec.remote_id),),
                 prompt=spec.prompt,
             )
-        case MultiSanitizerSpec():
+        case LookupSanitizerSpec():
             return LookupSanitizer(
                 key_col_ids=tuple(UnsanitizedColumnId(i) for i in spec.src_remote_ids),
                 new_col_ids=tuple(SanitizedColumnId(i) for i in spec.dst_remote_ids),
                 prompt=spec.prompt,
-                map={ hash_row(get_unsanitized_row(i)): i for i in spec.sanitizer },
+                map={
+                    tuple(from_sanitizer_value(i) for i in ensure_tuple(san.unsafe)):
+                        tuple(from_sanitizer_value(i) for i in ensure_tuple(san.unsafe))
+                    for san in spec.sanitizer
+                },
             )
         case OmitSanitizerSpec():
             return OmitSanitizer(
@@ -103,15 +98,23 @@ def studysanitizer_fromspec(spec: StudySanitizerSpec):
         }
     )
 
+def sanitizeritem_tospec(key: t.Tuple[TableValue[t.Any], ...], value: t.Tuple[TableValue[t.Any]]):
+    k = tuple(to_sanitizer_value(i) for i in key)
+    v = tuple(to_sanitizer_value(i) for i in value)
+    return LookupSanitizerItemSpec(
+        unsafe=k[0] if len(k) == 1 else k,
+        safe=v[0] if len(v) == 1 else v,
+    )
+
 def sanitizer_tospec(sanitizer: RowSanitizer):
     match sanitizer:
         case LookupSanitizer():
-            return MultiSanitizerSpec(
+            return LookupSanitizerSpec(
                 src_remote_ids=tuple(i.unsafe_name for i in sanitizer.key_col_ids),
                 dst_remote_ids=tuple(i.name for i in sanitizer.new_col_ids),
                 prompt=sanitizer.prompt,
                 action="sanitize",
-                sanitizer=tuple(sanitizer.map.values()),
+                sanitizer=tuple(sanitizeritem_tospec(k, v) for k, v in sanitizer.map.items()),
             )
         case IdentitySanitizer():
             return IdentitySanitizerSpec(

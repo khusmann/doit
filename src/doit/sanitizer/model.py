@@ -8,11 +8,15 @@ from ..sanitizedtable.model import (
     SanitizedColumnId,
 )
 
+from ..common.table import (
+    TableValue
+)
+
 class LookupSanitizer(t.NamedTuple):
     key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
     prompt: str
-    map: t.Mapping[str, t.Mapping[str, str | None]]
+    map: t.Mapping[t.Tuple[TableValue[t.Any], ...], t.Tuple[TableValue[t.Any], ...]]
 
 class OmitSanitizer(t.NamedTuple):
     name: str

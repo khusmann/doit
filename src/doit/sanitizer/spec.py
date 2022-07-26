@@ -2,12 +2,16 @@ import typing as t
 
 from ..common import ImmutableBaseModel
 
-class MultiSanitizerSpec(ImmutableBaseModel):
+class LookupSanitizerItemSpec(ImmutableBaseModel):
+    unsafe: t.Union[None, str, t.Tuple[str, ...]]
+    safe: t.Union[None, str, t.Tuple[str, ...]]
+
+class LookupSanitizerSpec(ImmutableBaseModel):
     prompt: str
     src_remote_ids: t.Tuple[str, ...]
     dst_remote_ids: t.Tuple[str, ...]
     action: t.Literal['sanitize']
-    sanitizer: t.Tuple[t.Mapping[str, t.Optional[str]], ...]
+    sanitizer: t.Tuple[LookupSanitizerItemSpec, ...]
 
 class IdentitySanitizerSpec(ImmutableBaseModel):
     prompt: str
@@ -22,7 +26,7 @@ class OmitSanitizerSpec(ImmutableBaseModel):
 SanitizerSpec = t.Union[
     IdentitySanitizerSpec,
     OmitSanitizerSpec,
-    MultiSanitizerSpec,
+    LookupSanitizerSpec,
 ]
 
 class StudySanitizerSpec(ImmutableBaseModel):

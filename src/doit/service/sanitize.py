@@ -1,5 +1,7 @@
 import typing as t
 
+from ..sanitizer.io import to_sanitizer_value
+
 from ..common.table import (
     LookupSanitizerMiss,
     Omitted,
@@ -39,17 +41,16 @@ from ..sanitizedtable.model import (
 
 import re
 
-from ..sanitizer.io import hash_row, str_to_unsanitized_key,to_sanitizer_value
+def hash_row(row: UnsanitizedTableRowView, key_col_ids: t.Tuple[UnsanitizedColumnId, ...]):
+    return tuple(row.get(c) for c in key_col_ids)
 
 def update_lookupsanitizer(table: UnsanitizedTable, lookup_sanitizer: LookupSanitizer) -> LookupSanitizer:
     missing_rows = {
-        hash_row(row): {
-            **{ str_to_unsanitized_key(unsafeid.unsafe_name): to_sanitizer_value(row.get(UnsanitizedColumnId(unsafeid.unsafe_name))) for unsafeid in lookup_sanitizer.key_col_ids },
-            **{ safeid.name: None for safeid in lookup_sanitizer.new_col_ids }
-        } for row in frozenset(table.data.subset(lookup_sanitizer.key_col_ids).rows)
-            if hash_row(row) not in lookup_sanitizer.map and row.has_some()
+        hash_row(row, lookup_sanitizer.key_col_ids): tuple(Redacted() for _ in lookup_sanitizer.new_col_ids)
+        for row in frozenset(table.data.subset(lookup_sanitizer.key_col_ids).rows)
+            if hash_row(row, lookup_sanitizer.key_col_ids) not in lookup_sanitizer.map and row.has_some()
     }
-    missing_rows_sorted = dict(sorted(missing_rows.items(), key=lambda i: tuple(i[1].values())))
+    missing_rows_sorted = dict(sorted(missing_rows.items(), key=lambda i: tuple(to_sanitizer_value(j) for j in i[0])))
     return LookupSanitizer(
         key_col_ids=lookup_sanitizer.key_col_ids,
         new_col_ids=lookup_sanitizer.new_col_ids,
@@ -123,15 +124,15 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: RowSanitizer):
             if (all(isinstance(v, Omitted) for v in row_subset.values())):
                 return tuple((k, Omitted()) for k in sanitizer.new_col_ids)
 
-            san_map = sanitizer.map.get(hash_row(row_subset))
+            new_values = sanitizer.map.get(hash_row(row_subset, sanitizer.key_col_ids))
 
-            if san_map is None:
+            if new_values is None:
                 return tuple(
                     (k,ErrorValue(LookupSanitizerMiss(row_subset, sanitizer.map))) for k in sanitizer.new_col_ids
             )
 
             # Lookup the new sanitized columns using the key columns
-            return tuple((m, lookup_totableval(san_map.get(m.name))) for m in sanitizer.new_col_ids)
+            return tuple(zip(sanitizer.new_col_ids, new_values))
         case IdentitySanitizer():
             return tuple(
                 (new, row_subset.get(old))
