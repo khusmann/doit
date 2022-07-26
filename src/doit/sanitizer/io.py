@@ -41,13 +41,13 @@ def hash_row(row: UnsanitizedTableRowView):
     return hashlib.sha256(values.encode()).hexdigest()
 
 def is_key_unsanitized(key: str):
-    return re.match(r'^__.+__$', key) is None
+    return re.match(r'^__.+$', key) is None
 
 def unsanitized_key_to_str(key: str):
-    return key[2: -2]
+    return key[2:]
 
 def str_to_unsanitized_key(s: str):
-    return "__"+s+"__"
+    return "__"+s
 
 def get_unsanitized_row(san_map: t.Mapping[str, t.Optional[str]]) -> UnsanitizedTableRowView:
     return UnsanitizedTableRowView(((UnsanitizedColumnId(k), from_sanitizer_value(v)) for k, v in san_map.items()))
