@@ -1,5 +1,6 @@
 import typing as t
 import hashlib
+import re
 
 from ..sanitizer.spec import (
     IdentitySanitizerSpec,
@@ -13,6 +14,7 @@ from ..common.table import (
     Omitted,
     Some,
     TableValue,
+    Redacted,
 )
 
 from ..unsanitizedtable.model import (
@@ -38,6 +40,28 @@ def hash_row(row: UnsanitizedTableRowView):
     values=",".join(tuple(to_sanitizer_value(v) for _, v in sorted(row.items(), key=lambda c: c[0].unsafe_name)))
     return hashlib.sha256(values.encode()).hexdigest()
 
+def is_key_unsanitized(key: str):
+    return re.match(r'^__.+__$', key) is None
+
+def unsanitized_key_to_str(key: str):
+    return key[2: -2]
+
+def str_to_unsanitized_key(s: str):
+    return "__"+s+"__"
+
+def get_unsanitized_row(san_map: t.Mapping[str, t.Optional[str]]) -> UnsanitizedTableRowView:
+    return UnsanitizedTableRowView(((UnsanitizedColumnId(k), from_sanitizer_value(v)) for k, v in san_map.items()))
+
+def from_sanitizer_value(v: str | None):
+    if v is None:
+        return Redacted()
+
+    if v == '':
+        return Omitted()
+
+    return Some(v)
+
+
 def to_sanitizer_value(tv: TableValue[t.Any]):
     match tv:
         case Some(value=value) if isinstance(value, str):
@@ -60,7 +84,7 @@ def sanitizer_fromspec(spec: SanitizerSpec):
                 key_col_ids=tuple(UnsanitizedColumnId(i) for i in spec.src_remote_ids),
                 new_col_ids=tuple(SanitizedColumnId(i) for i in spec.dst_remote_ids),
                 prompt=spec.prompt,
-                map=spec.sanitizer,
+                map={ hash_row(get_unsanitized_row(i)): i for i in spec.sanitizer },
             )
         case OmitSanitizerSpec():
             return OmitSanitizer(
@@ -87,7 +111,7 @@ def sanitizer_tospec(sanitizer: RowSanitizer):
                 dst_remote_ids=tuple(i.name for i in sanitizer.new_col_ids),
                 prompt=sanitizer.prompt,
                 action="sanitize",
-                sanitizer=sanitizer.map,
+                sanitizer=tuple(sanitizer.map.values()),
             )
         case IdentitySanitizer():
             return IdentitySanitizerSpec(
