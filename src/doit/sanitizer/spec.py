@@ -7,7 +7,7 @@ class MultiSanitizerSpec(ImmutableBaseModel):
     src_remote_ids: t.Tuple[str, ...]
     dst_remote_ids: t.Tuple[str, ...]
     action: t.Literal['sanitize']
-    sanitizer: t.Mapping[str, t.Mapping[str, str]]
+    sanitizer: t.Mapping[str, t.Mapping[str, t.Optional[str]]]
 
 class IdentitySanitizerSpec(ImmutableBaseModel):
     prompt: str

@@ -1,9 +1,7 @@
 import typing as t
 
 from dotenv import load_dotenv
-from doit.sanitizer.model import LookupSanitizer
 
-from doit.study.repo import StudyRepoReader
 
 load_dotenv('.env')
 
@@ -113,6 +111,7 @@ def sanitizer_add(instrument_name: str, src_ids: str, dst_ids: str | None):
     from .unsanitizedtable.model import UnsanitizedColumnId
     from .sanitizedtable.model import SanitizedColumnId
     from .service.sanitize import update_lookupsanitizer
+    from .sanitizer.model import LookupSanitizer
     from .sanitizer.io import sanitizer_tospec
 
     if not dst_ids:
@@ -122,11 +121,13 @@ def sanitizer_add(instrument_name: str, src_ids: str, dst_ids: str | None):
         instrument_name,
         defaults.blob_from_instrument_name,
     )
+    
+    prompt_map = {i.id.unsafe_name: i.prompt for i in table.schema }
 
     sanitizer = LookupSanitizer(
         key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_ids.split()),
         new_col_ids=tuple(SanitizedColumnId(i) for i in dst_ids.split()),
-        prompt=",".join((i.prompt for i in table.schema if i.id.unsafe_name in src_ids.split())),
+        prompt=",".join((prompt_map[i] for i in src_ids.split())),
         map={},
     )
 
@@ -145,6 +146,78 @@ def sanitizer_add(instrument_name: str, src_ids: str, dst_ids: str | None):
 
     print(yaml.dump(sanitizer_tospec(study_sanitizer).dict()))
 
+
+@sanitizer_cli.command(name="add_batch")
+@click.argument('csvfile')
+def sanitizer_add_batch(csvfile: str):
+    """Create a new sanitizer"""
+    from .unsanitizedtable.model import UnsanitizedColumnId
+    from .sanitizedtable.model import SanitizedColumnId
+    from .service.sanitize import update_lookupsanitizer
+    from .sanitizer.model import LookupSanitizer, StudySanitizer, TableSanitizer
+    from .sanitizer.io import studysanitizer_tospec
+
+    import csv
+
+    m: t.Dict[str, t.List[t.Tuple[str, str]]] = {}
+    
+    with open(csvfile, newline='') as f:
+        reader = csv.reader(f)
+
+        for row in reader:
+            instrument_name = row[0]
+            src_ids = row[1]
+            dst_ids = row[2] if len(row) > 2 else src_ids
+
+            if instrument_name not in m:
+                m[instrument_name] = []
+
+            m[instrument_name].append((src_ids, dst_ids))
+
+    study_san = StudySanitizer(
+        table_sanitizers={}
+    )
+
+    for instrument_name, sanlist in m.items():
+        if instrument_name.startswith('*'):
+            continue
+
+        table = app.load_unsanitizedtable(
+            instrument_name,
+            defaults.blob_from_instrument_name,
+        )
+
+        prompt_map = {i.id.unsafe_name: i.prompt for i in table.schema }
+
+        sanitizers = tuple(
+            update_lookupsanitizer(
+                table,
+                LookupSanitizer(
+                    key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_ids.split()),
+                    new_col_ids=tuple(SanitizedColumnId(i) for i in dst_ids.split()),
+                    prompt=",".join((prompt_map[i] for i in src_ids.split())),
+                    map={},
+                )
+            ) for src_ids, dst_ids in sanlist
+        )
+        assert isinstance(study_san.table_sanitizers, dict)
+        study_san.table_sanitizers[instrument_name] = TableSanitizer(
+            table_name=instrument_name,
+            sanitizers=sanitizers,
+        )
+
+    import yaml
+
+    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
+        return dumper.represent_dict(data.items())
+
+    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
+        return dumper.represent_list(tuple)
+
+    yaml.add_representer(dict, ordered_dict_dumper)
+    yaml.add_representer(tuple, tuple_dumper)
+
+    print(yaml.dump(studysanitizer_tospec(study_san)))
 
 
 
@@ -320,6 +393,8 @@ def link():
         link_tableinfo,
         link_table,
     )
+
+    from .study.repo import StudyRepoReader
 
     from .common.table import TableErrorReport
     

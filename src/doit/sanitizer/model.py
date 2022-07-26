@@ -12,7 +12,7 @@ class LookupSanitizer(t.NamedTuple):
     key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
     new_col_ids: t.Tuple[SanitizedColumnId, ...]
     prompt: str
-    map: t.Mapping[str, t.Mapping[str, str]]
+    map: t.Mapping[str, t.Mapping[str, str | None]]
 
 class OmitSanitizer(t.NamedTuple):
     name: str
