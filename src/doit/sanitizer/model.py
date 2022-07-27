@@ -13,37 +13,43 @@ from ..common.table import (
 )
 
 class LookupSanitizer(t.NamedTuple):
-    key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
-    new_col_ids: t.Tuple[SanitizedColumnId, ...]
-    prompt: str
+    name: str
+    sources: t.Mapping[str, t.Tuple[str, ...]]
+    remote_ids: t.Tuple[str, ...]
+    prompt: t.Optional[str]
     map: t.Mapping[t.Tuple[TableValue[t.Any], ...], t.Tuple[TableValue[t.Any], ...]]
 
-class OmitSanitizer(t.NamedTuple):
-    name: str
-    prompt: str
-
-    @property
-    def key_col_ids(sef):
-        return ()
-
-    @property
-    def new_col_ids(self) -> t.Tuple[SanitizedColumnId, ...]:
-        return ()
-
-class IdentitySanitizer(t.NamedTuple):
-    name: str
-    key_col_ids: t.Tuple[UnsanitizedColumnId, ...]
-    prompt: str
+    def key_col_ids(self, table_name: str):
+        return tuple(UnsanitizedColumnId(i) for i in self.sources.get(table_name, ()))
 
     @property
     def new_col_ids(self):
-        return tuple(SanitizedColumnId(i.unsafe_name) for i in self.key_col_ids)
+        return (SanitizedColumnId(i) for i in self.remote_ids)
+
+class OmitSanitizer(t.NamedTuple):
+    name: str
+    source: str
+    prompt: str
+    remote_id: str
+
+    def key_col_ids(self, table_name: str) -> t.Tuple[UnsanitizedColumnId, ...]:
+        return (UnsanitizedColumnId(self.remote_id),) if self.source == table_name else ()
+
+    @property
+    def new_col_ids(self) -> t.Tuple[SanitizedColumnId, ...]:
+        return (SanitizedColumnId(self.remote_id),)
+
+class IdentitySanitizer(t.NamedTuple):
+    name: str
+    source: str
+    prompt: str
+    remote_id: str
+
+    def key_col_ids(self, table_name: str) -> t.Tuple[UnsanitizedColumnId, ...]:
+        return (UnsanitizedColumnId(self.remote_id),) if self.source == table_name else ()
+
+    @property
+    def new_col_ids(self) -> t.Tuple[SanitizedColumnId, ...]:
+        return (SanitizedColumnId(self.remote_id),)
 
 RowSanitizer = LookupSanitizer | IdentitySanitizer | OmitSanitizer
-
-class TableSanitizer(t.NamedTuple):
-    table_name: str
-    sanitizers: t.Tuple[RowSanitizer, ...]
-
-class StudySanitizer(t.NamedTuple):
-    table_sanitizers: t.Mapping[str, TableSanitizer]

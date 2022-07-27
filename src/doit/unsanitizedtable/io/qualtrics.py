@@ -244,7 +244,7 @@ class QualtricsBlock(ImmutableBaseModel):
 class QualtricsSurvey(ImmutableBaseModel):
     blocks: t.Mapping[str, QualtricsBlock]
 
-def load_unsanitizedtable_qualtrics(schema_json: str, data_json: str, survey_json: str) -> UnsanitizedTable:
+def load_unsanitizedtable_qualtrics(name: str, schema_json: str, data_json: str, survey_json: str) -> UnsanitizedTable:
     qs = QualtricsSchema.parse_raw(schema_json)
     qd = QualtricsData.parse_raw(data_json)
     qsurvey = QualtricsSurvey.parse_raw(survey_json)
@@ -261,6 +261,7 @@ def load_unsanitizedtable_qualtrics(schema_json: str, data_json: str, survey_jso
     schema_map = parse_qualtrics_schema(qs, column_sort_order)
 
     return UnsanitizedTable(
+        name=name,
         schema=schema_map.columns,
         data=parse_qualtrics_data(schema_map, qd),
         schema_checksum=hashlib.sha256(schema_json.encode()).hexdigest(),

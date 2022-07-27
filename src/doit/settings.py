@@ -41,8 +41,8 @@ class AppSettings(BaseSettings):
     def sanitizer_dir_from_instrument_name(self, instrument_name: str) -> Path:
         return self.sanitizer_repo_dir / instrument_name
 
-    def sanitizer_repo_bkup_path(self, old_date: datetime) -> Path:
-        return self.sanitizer_repo_filename.with_suffix(".{}{}".format(int(old_date.timestamp()), self.sanitizer_repo_filename.suffix))
+    def sanitizer_repo_bkup_path(self, filename: Path, old_date: datetime) -> Path:
+        return filename.with_suffix("{}.{}".format(filename.suffix, int(old_date.timestamp()))).with_stem("."+filename.stem)
 
     #def get_sanitizer_names(self, instrument_id: str) -> t.List[str]:
     #    return [ i.stem for i in self.sanitizer_workdir(instrument_id).glob("*.csv")]

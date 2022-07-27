@@ -2,7 +2,6 @@ import typing as t
 
 from dotenv import load_dotenv
 
-
 load_dotenv('.env')
 
 import click
@@ -38,29 +37,13 @@ def source_cli():
 @click.argument('uri')
 def source_add(instrument_name: str, uri: str):
     """Add an instrument source"""
-    from .service.sanitize import update_studysanitizers
-    from .remote.blob import load_blob
     click.secho()
     progress = progress_callback()
-    blob = app.add_source(
+    app.add_source(
         instrument_name,
         uri,
         progress,
         defaults.blob_from_instrument_name,
-    )
-
-    table = load_blob(blob)
-
-    existing_sanitizers = app.load_study_sanitizers(
-        defaults.sanitizer_repo_filename,
-    )
-
-    updated_sanitizers = update_studysanitizers(instrument_name, table, existing_sanitizers)
-
-    app.update_sanitizer(
-        updated_sanitizers,
-        defaults.sanitizer_repo_filename,
-        defaults.sanitized_repo_bkup_path,
     )
 
     click.secho()
@@ -104,120 +87,46 @@ def sanitizer_list(instrument_str: str | None):
 
 @sanitizer_cli.command(name="add")
 @click.argument('instrument_name')
-@click.argument('src_ids')
-@click.argument('dst_ids', required=False)
-def sanitizer_add(instrument_name: str, src_ids: str, dst_ids: str | None):
+@click.argument('remote_id')
+def sanitizer_add(instrument_name: str, remote_id: str):
     """Create a new sanitizer"""
-    from .unsanitizedtable.model import UnsanitizedColumnId
-    from .sanitizedtable.model import SanitizedColumnId
-    from .service.sanitize import update_lookupsanitizer
     from .sanitizer.model import LookupSanitizer
-    from .sanitizer.io import sanitizer_tospec
 
-    if not dst_ids:
-        dst_ids = src_ids
+    click.secho()
 
     table = app.load_unsanitizedtable(
         instrument_name,
         defaults.blob_from_instrument_name,
     )
-    
-    prompt_map = {i.id.unsafe_name: i.prompt for i in table.schema }
 
-    sanitizer = LookupSanitizer(
-        key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_ids.split()),
-        new_col_ids=tuple(SanitizedColumnId(i) for i in dst_ids.split()),
-        prompt=",".join((prompt_map[i] for i in src_ids.split())),
-        map={},
+    existing_sanitizers = app.load_study_sanitizers(
+        defaults.sanitizer_repo_dir,
     )
 
-    study_sanitizer = update_lookupsanitizer(table, sanitizer)
+    duplicates = any(i.key_col_ids(table.name) and any(j.name == remote_id for j in i.new_col_ids) for i in existing_sanitizers)
 
-    import yaml
-
-    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
-        return dumper.represent_dict(data.items())
-
-    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
-        return dumper.represent_list(tuple)
-
-    yaml.add_representer(dict, ordered_dict_dumper)
-    yaml.add_representer(tuple, tuple_dumper)
-
-    print(yaml.dump(sanitizer_tospec(study_sanitizer).dict()))
-
-
-@sanitizer_cli.command(name="add_batch")
-@click.argument('csvfile')
-def sanitizer_add_batch(csvfile: str):
-    """Create a new sanitizer"""
-    from .unsanitizedtable.model import UnsanitizedColumnId
-    from .sanitizedtable.model import SanitizedColumnId
-    from .service.sanitize import update_lookupsanitizer
-    from .sanitizer.model import LookupSanitizer, StudySanitizer, TableSanitizer
-    from .sanitizer.io import studysanitizer_tospec
-
-    import csv
-
-    m: t.Dict[str, t.List[t.Tuple[str, str]]] = {}
-    
-    with open(csvfile, newline='') as f:
-        reader = csv.reader(f)
-
-        for row in reader:
-            instrument_name = row[0]
-            src_ids = row[1]
-            dst_ids = row[2] if len(row) > 2 else src_ids
-
-            if instrument_name not in m:
-                m[instrument_name] = []
-
-            m[instrument_name].append((src_ids, dst_ids))
-
-    study_san = StudySanitizer(
-        table_sanitizers={}
-    )
-
-    for instrument_name, sanlist in m.items():
-        if instrument_name.startswith('*'):
-            continue
-
-        table = app.load_unsanitizedtable(
-            instrument_name,
-            defaults.blob_from_instrument_name,
+    if duplicates:
+        click.secho("Sanitizer already exists")
+    else:
+        click.secho("Creating new sanitizer in {}".format((defaults.sanitizer_repo_dir/table.name).with_suffix(".yaml")))
+        
+        sanitizer = LookupSanitizer(
+            name=table.name,
+            sources={ table.name: (remote_id, )},
+            remote_ids=(remote_id, ),
+            prompt={c.id.unsafe_name: c.prompt for c in table.schema}.get(remote_id),
+            map={},
+        )
+        
+        save_sanitizers = tuple(i for i in (*existing_sanitizers, sanitizer) if i.name == table.name)
+        
+        app.save_study_sanitizers(
+            save_sanitizers,
+            defaults.sanitizer_repo_dir,
+            defaults.sanitizer_repo_bkup_path,
         )
 
-        prompt_map = {i.id.unsafe_name: i.prompt for i in table.schema }
-
-        sanitizers = tuple(
-            update_lookupsanitizer(
-                table,
-                LookupSanitizer(
-                    key_col_ids=tuple(UnsanitizedColumnId(i) for i in src_ids.split()),
-                    new_col_ids=tuple(SanitizedColumnId(i) for i in dst_ids.split()),
-                    prompt=",".join((prompt_map[i] for i in src_ids.split())),
-                    map={},
-                )
-            ) for src_ids, dst_ids in sanlist
-        )
-        assert isinstance(study_san.table_sanitizers, dict)
-        study_san.table_sanitizers[instrument_name] = TableSanitizer(
-            table_name=instrument_name,
-            sanitizers=sanitizers,
-        )
-
-    import yaml
-
-    def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
-        return dumper.represent_dict(data.items())
-
-    def tuple_dumper(dumper: yaml.Dumper, tuple: t.Tuple[t.Any, ...]):
-        return dumper.represent_list(tuple)
-
-    yaml.add_representer(dict, ordered_dict_dumper)
-    yaml.add_representer(tuple, tuple_dumper)
-
-    print(yaml.dump(studysanitizer_tospec(study_san)))
+    click.secho()
 
 
 
@@ -225,7 +134,7 @@ def sanitizer_add_batch(csvfile: str):
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
 def sanitizer_update(instrument_name: str | None):
     """Update sanitizers with new data"""
-    from .service.sanitize import update_studysanitizers
+    from .service.sanitize import update_sanitizer, sort_sanitizer_map
     if instrument_name:
         items = (instrument_name,)
     else:
@@ -237,20 +146,31 @@ def sanitizer_update(instrument_name: str | None):
 
     click.secho()
 
-    study_sanitizer = app.load_study_sanitizers(
-        defaults.sanitizer_repo_filename,
+    study_sanitizers = app.load_study_sanitizers(
+        defaults.sanitizer_repo_dir,
     )
+
+    if instrument_name:
+        study_sanitizers = tuple(s for s in study_sanitizers if s.key_col_ids(instrument_name))
 
     for name in items:
         table = app.load_unsanitizedtable(
             name,
             defaults.blob_from_instrument_name,
         )
-        study_sanitizer = update_studysanitizers(name, table, study_sanitizer)
+        new_sanitizers = tuple(update_sanitizer(table, s) for s in study_sanitizers)
 
-    app.update_sanitizer(
-        study_sanitizer,
-        defaults.sanitizer_repo_filename,
+        for old, new in zip(study_sanitizers, new_sanitizers):
+            if old != new:
+                click.secho("Updated sanitizer: {} remote_ids: {} with table: {}".format(new.name, tuple(i.name for i in new.new_col_ids), table.name))
+
+        study_sanitizers = new_sanitizers
+
+    study_sanitizers = tuple(sort_sanitizer_map(i) for i in study_sanitizers)
+
+    app.save_study_sanitizers(
+        study_sanitizers,
+        defaults.sanitizer_repo_dir,
         defaults.sanitizer_repo_bkup_path,
     )
 
@@ -307,7 +227,6 @@ def stub(instrument_name: str | None):
 @click.argument('instrument_name', required=False, shell_complete=complete_instrument_name)
 def fetch(instrument_name: str | None):
     """Fetch data from sources"""
-    from .service.sanitize import update_studysanitizers
     click.secho()
 
     if instrument_name:
@@ -319,28 +238,15 @@ def fetch(instrument_name: str | None):
         )
         items = tuple(l.name for l in listing)
 
-    study_sanitizers = app.load_study_sanitizers(
-        defaults.sanitizer_repo_filename,
-    )
-
     for name in tqdm(items):
         progress = progress_callback(leave=False, desc=name)
 
-        table = app.fetch_source(
+        app.fetch_source(
             name,
             progress,
             defaults.blob_from_instrument_name,
             defaults.blob_bkup_filename,
         )
-
-        study_sanitizers = update_studysanitizers(name, table, study_sanitizers)
-
-
-    app.update_sanitizer(
-        study_sanitizers,
-        defaults.sanitizer_repo_filename,
-        defaults.sanitized_repo_bkup_path,
-    )
 
     click.secho()
 
@@ -363,7 +269,7 @@ def sanitize():
     errors: TableErrorReport = set()
 
     study_sanitizers = app.load_study_sanitizers(
-        defaults.sanitizer_repo_filename,
+        defaults.sanitizer_repo_dir,
     )
 
     click.secho()
@@ -373,7 +279,7 @@ def sanitize():
             defaults.blob_from_instrument_name
         )
 
-        sanitized = sanitize_table(unsanitized, study_sanitizers.table_sanitizers[entry.name])
+        sanitized = sanitize_table(unsanitized, study_sanitizers)
         new_errors = repo.write_table(sanitized)
         errors |= new_errors
 

@@ -9,7 +9,7 @@ from .model import (
     WearitSourceInfo,
 )
 
-def load_blob(blob: Blob):
+def load_blob(table_name: str, blob: Blob):
     match blob.info.source_info:
         case QualtricsSourceInfo():
             from ..unsanitizedtable.io.qualtrics import load_unsanitizedtable_qualtrics
@@ -17,6 +17,7 @@ def load_blob(blob: Blob):
             data = blob.lazydata['data.json']()
             survey = blob.lazydata['survey.json']()
             return load_unsanitizedtable_qualtrics(
+                table_name,
                 schema.decode('utf-8'),
                 data.decode('utf-8'),
                 survey.decode('utf-8')
@@ -55,9 +56,9 @@ def read_blob_info(tarfilename: Path | str):
     with tarfile.open(tarfilename, 'r:gz') as tf:
         return blob_from_tar(tf).info
 
-def read_blob(tarfilename: Path | str):
+def read_blob(table_name: str, tarfilename: Path | str):
      with tarfile.open(tarfilename, 'r:gz') as tf:
-        return load_blob(blob_from_tar(tf))
+        return load_blob(table_name, blob_from_tar(tf))
 
 def write_blob(blob: Blob, tarfilename: str | Path):
     tarfilename = Path(tarfilename)

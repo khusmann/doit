@@ -2,7 +2,9 @@ import typing as t
 from pathlib import Path
 from datetime import datetime, timezone
 
-from .sanitizer.model import StudySanitizer 
+from .sanitizer.spec import SanitizerSpec
+
+from .sanitizer.model import RowSanitizer
 
 from .unsanitizedtable.model import UnsanitizedTable
 
@@ -66,13 +68,13 @@ def fetch_source(
     if info.source_info == new_blob.info.source_info:
         bkup_filename.unlink()
 
-    return load_blob(new_blob)
+    return load_blob(instrument_name, new_blob)
 
 def load_unsanitizedtable(
     instrument_name: str,
     blob_from_instrument_name: t.Callable[[str], Path],
 ):
-    return read_blob(blob_from_instrument_name(instrument_name))
+    return read_blob(instrument_name, blob_from_instrument_name(instrument_name))
 
 def load_source_info(
     instrument_name: str,
@@ -103,28 +105,27 @@ def get_local_source_listing(
     )
 
 def load_study_sanitizers(
-    sanitizer_repo_filename: Path,
-) -> StudySanitizer:
-    from .sanitizer.spec import StudySanitizerSpec
-    from .sanitizer.io import studysanitizer_fromspec
+    sanitizer_repo_dir: Path,
+) -> t.Tuple[RowSanitizer, ...]:
+    from .sanitizer.io import sanitizer_fromspec
     from pydantic import parse_obj_as
     import yaml
 
-    if sanitizer_repo_filename.exists():
-        all_specs = parse_obj_as(StudySanitizerSpec, yaml.safe_load(sanitizer_repo_filename.read_text()))
-        return studysanitizer_fromspec(all_specs)
-    else:
-        return StudySanitizer(
-            table_sanitizers={},
-        )
+    all_objs = { i.stem: yaml.safe_load(i.read_text()) for i in sanitizer_repo_dir.glob("*.yaml") }
+    all_specs = { k: parse_obj_as(t.Tuple[SanitizerSpec, ...], v) for k, v in all_objs.items() }
 
+    return tuple(
+        sanitizer_fromspec(name, san)
+            for name, i in all_specs.items()
+                for san in i
+    )
 
-def update_sanitizer(
-    sanitizer_updates: StudySanitizer,
-    sanitizer_repo_filename: Path,
-    sanitizer_repo_bkup_path: t.Callable[[datetime], Path]
+def save_study_sanitizers(
+    study_sanitizers: t.Tuple[RowSanitizer, ...],
+    sanitizer_repo_dir: Path,
+    sanitizer_repo_bkup_path: t.Callable[[Path, datetime], Path],
 ):
-    from .sanitizer.io import studysanitizer_tospec
+    from .sanitizer.io import sanitizer_tospec
     import yaml
 
     def ordered_dict_dumper(dumper: yaml.Dumper, data: t.Dict[t.Any, t.Any]):
@@ -136,13 +137,30 @@ def update_sanitizer(
     yaml.add_representer(dict, ordered_dict_dumper)
     yaml.add_representer(tuple, tuple_dumper)
 
-    sanitizer_repo_filename.parent.mkdir(parents=True, exist_ok=True)
+    spec_map: t.Dict[str, t.List[SanitizerSpec]] = {}
 
-    if sanitizer_repo_filename.exists():
-        sanitizer_repo_filename.rename(sanitizer_repo_bkup_path(datetime.now(timezone.utc)))
+    for s in study_sanitizers:
+        if s.name not in spec_map:
+            spec_map[s.name] = []
+        spec_map[s.name].append(sanitizer_tospec(s)) 
 
-    with open(sanitizer_repo_filename, 'w') as f:
-        yaml.dump(studysanitizer_tospec(sanitizer_updates), f)
+    now = datetime.now(timezone.utc)
+
+    for name, san_list in spec_map.items():
+        filename = (sanitizer_repo_dir / name).with_suffix(".yaml")
+
+        yamlstr = str(yaml.dump(tuple(i.dict() for i in san_list)))
+
+        if filename.exists():
+            if yamlstr != filename.read_text():
+                filename.rename(sanitizer_repo_bkup_path(filename, now))
+                with open(filename, 'w') as f:
+                    f.write(yamlstr)
+        else:
+            with open(filename, 'w') as f:
+                f.write(yamlstr)
+
+
 
 def new_sanitizedtable_repo(
     sanitized_repo_name: Path,

@@ -15,8 +15,6 @@ from ..sanitizer.model import (
     RowSanitizer,
     LookupSanitizer,
     IdentitySanitizer,
-    StudySanitizer,
-    TableSanitizer,
 )
 
 from ..unsanitizedtable.model import (
@@ -39,68 +37,73 @@ from ..sanitizedtable.model import (
     SanitizedCodedColumnInfo,
 )
 
+from ..sanitizer.io import to_sanitizer_value
+
 import re
 
 def hash_row(row: UnsanitizedTableRowView, key_col_ids: t.Tuple[UnsanitizedColumnId, ...]):
     return tuple(row.get(c) for c in key_col_ids)
 
-def update_lookupsanitizer(table: UnsanitizedTable, lookup_sanitizer: LookupSanitizer) -> LookupSanitizer:
+def sort_sanitizer_map(sanitizer: RowSanitizer) -> RowSanitizer:
+    if not isinstance(sanitizer, LookupSanitizer):
+        return sanitizer
+
+    return LookupSanitizer(
+        name=sanitizer.name,
+        sources=sanitizer.sources,
+        remote_ids=sanitizer.remote_ids,
+        prompt=sanitizer.prompt,
+        map=dict(sorted(sanitizer.map.items(), key=lambda k: tuple(to_sanitizer_value(i) for i in k[0])))
+    )
+
+def update_sanitizer(table: UnsanitizedTable, sanitizer: RowSanitizer) -> RowSanitizer:
+    if not isinstance(sanitizer, LookupSanitizer):
+        return sanitizer
+
+    if not sanitizer.key_col_ids(table.name):
+        return sanitizer
+
     missing_rows = {
-        hash_row(row, lookup_sanitizer.key_col_ids): tuple(Redacted() for _ in lookup_sanitizer.new_col_ids)
-        for row in frozenset(table.data.subset(lookup_sanitizer.key_col_ids).rows)
-            if hash_row(row, lookup_sanitizer.key_col_ids) not in lookup_sanitizer.map and row.has_some()
+        hash_row(row, sanitizer.key_col_ids((table.name))): tuple(Redacted() for _ in sanitizer.new_col_ids)
+        for row in frozenset(table.data.subset(sanitizer.key_col_ids(table.name)).rows)
+            if hash_row(row, sanitizer.key_col_ids(table.name)) not in sanitizer.map and row.has_some()
     }
     missing_rows_sorted = dict(sorted(missing_rows.items(), key=lambda i: tuple(to_sanitizer_value(j) for j in i[0])))
     return LookupSanitizer(
-        key_col_ids=lookup_sanitizer.key_col_ids,
-        new_col_ids=lookup_sanitizer.new_col_ids,
-        prompt=lookup_sanitizer.prompt,
-        map={**lookup_sanitizer.map, **missing_rows_sorted},
+        name=sanitizer.name,
+        sources=sanitizer.sources,
+        remote_ids=sanitizer.remote_ids,
+        prompt=sanitizer.prompt,
+        map={**sanitizer.map, **missing_rows_sorted},
     )
 
-def update_tablesanitizer(table: UnsanitizedTable, table_sanitizer: TableSanitizer):
+def update_studysanitizers(table: UnsanitizedTable, existing_sanitizers: t.Tuple[RowSanitizer, ...]):
     existing_columns = {
-        s.key_col_ids[0] for s in table_sanitizer.sanitizers if len(s.key_col_ids) == 1
+        c 
+            for s in existing_sanitizers if len(s.key_col_ids(table.name)) == 1
+                for c in s.key_col_ids(table.name)
     }
-    missing_columns = tuple(
+
+    new_sanitizers = tuple(
         (
             IdentitySanitizer(
-                name=c.id.unsafe_name,
+                name=table.name,
+                source=table.name,
                 prompt=re.sub(r'\s+', ' ', c.prompt),
-                key_col_ids=(UnsanitizedColumnId(c.id.unsafe_name),),
+                remote_id=c.id.unsafe_name,
             ) if c.is_safe else
             LookupSanitizer(
-                key_col_ids=(c.id,),
-                new_col_ids=(SanitizedColumnId(c.id.unsafe_name),),
+                name=table.name,
+                sources={table.name: tuple(c.id.unsafe_name)},
+                remote_ids=tuple(c.id.unsafe_name),
                 prompt=re.sub(r'\s+', ' ', c.prompt),
                 map={},
             )
         ) for c in table.schema if c.id not in existing_columns
     )
 
-    return TableSanitizer(
-        table_name=table_sanitizer.table_name,
-        sanitizers=tuple(
-            update_lookupsanitizer(table, s) if (isinstance(s, LookupSanitizer)) else s
-                for s in (table_sanitizer.sanitizers + missing_columns)
-        )
-    )
-
-def update_studysanitizers(table_name: str, table: UnsanitizedTable, study_sanitizer: StudySanitizer):
-    missing_tables = {
-        table_name: TableSanitizer(
-            table_name=table_name,
-            sanitizers=()
-        )
-    } if table_name not in study_sanitizer.table_sanitizers else {}
-
-    return StudySanitizer(
-        table_sanitizers={
-            name: (update_tablesanitizer(table, san) if table_name == name else san)
-                for name, san in {**study_sanitizer.table_sanitizers, **missing_tables}.items()
-        }
-    )
-
+    return tuple(update_sanitizer(table, i) for i in (existing_sanitizers+new_sanitizers))
+    
 def lookup_totableval(v: str | None):
     if v is None:
         return Redacted()
@@ -110,8 +113,8 @@ def lookup_totableval(v: str | None):
 
     return Some(v)
 
-def sanitize_row(row: UnsanitizedTableRowView, sanitizer: RowSanitizer):
-    row_subset = row.subset(sanitizer.key_col_ids) # TODO: Only subset in the case of LookupSanitizer
+def sanitize_row(row: UnsanitizedTableRowView, sanitizer: RowSanitizer, table_name: str):
+    row_subset = row.subset(sanitizer.key_col_ids(table_name)) # TODO: Only subset in the case of LookupSanitizer
 
     # If any row keys are Error, return that Error for all new vals
     error = next((v for v in row_subset.values() if isinstance(v, ErrorValue)), None)
@@ -124,7 +127,7 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: RowSanitizer):
             if (all(isinstance(v, Omitted) for v in row_subset.values())):
                 return tuple((k, Omitted()) for k in sanitizer.new_col_ids)
 
-            new_values = sanitizer.map.get(hash_row(row_subset, sanitizer.key_col_ids))
+            new_values = sanitizer.map.get(hash_row(row_subset, sanitizer.key_col_ids(table_name)))
 
             if new_values is None:
                 return tuple(
@@ -136,10 +139,12 @@ def sanitize_row(row: UnsanitizedTableRowView, sanitizer: RowSanitizer):
         case IdentitySanitizer():
             return tuple(
                 (new, row_subset.get(old))
-                    for old, new in zip(sanitizer.key_col_ids, sanitizer.new_col_ids)
+                    for old, new in zip(sanitizer.key_col_ids(table_name), sanitizer.new_col_ids)
             )
         case OmitSanitizer():
-            return ()
+            return tuple(
+                (new, Redacted()) for new in sanitizer.new_col_ids
+            )
 
 def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo:
     id = SanitizedColumnId(column_info.id.unsafe_name)
@@ -161,25 +166,51 @@ def bless_column_info(column_info: UnsanitizedColumnInfo) -> SanitizedColumnInfo
                 sortkey=column_info.sortkey,
             )
 
-def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedColumnInfo], sanitizer: RowSanitizer) -> t.Tuple[SanitizedColumnInfo, ...]:
+def sanitize_columns(column_lookup: t.Mapping[UnsanitizedColumnId, UnsanitizedColumnInfo], sanitizer: RowSanitizer, table_name: str) -> t.Tuple[SanitizedColumnInfo, ...]:
     match sanitizer:
         case LookupSanitizer():
             return tuple(
                 SanitizedSimpleColumnInfo(
                     id=id,
-                    prompt="; ".join(column_lookup[c].prompt for c in sanitizer.key_col_ids),
+                    prompt="; ".join(column_lookup[c].prompt for c in sanitizer.key_col_ids(table_name)),
                     sanitizer_checksum="",
-                    sortkey="_".join(column_lookup[c].sortkey for c in sanitizer.key_col_ids)
+                    sortkey="_".join(column_lookup[c].sortkey for c in sanitizer.key_col_ids(table_name))
                 ) for id in sanitizer.new_col_ids
             )
         case IdentitySanitizer():
-            return tuple(bless_column_info(column_lookup[id]) for id in sanitizer.key_col_ids)
+            return tuple(bless_column_info(column_lookup[id]) for id in sanitizer.key_col_ids(table_name))
         case OmitSanitizer():
-            return ()
+            return tuple(bless_column_info(column_lookup[id]) for id in sanitizer.key_col_ids(table_name))
 
-def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> SanitizedTable:
-
+def sanitize_table(table: UnsanitizedTable, sanitizers: t.Tuple[RowSanitizer, ...]) -> SanitizedTable:
     # TODO: Guard against users making new columns with duplicate names
+
+    # Create identity sanitizers for safe columns if not already being sanitized
+
+    used_sanitizers = tuple(i for i in sanitizers if i.key_col_ids(table.name))
+
+    used_sanitizer_output = {
+        UnsanitizedColumnId(c.name)
+            for san in used_sanitizers
+                for c in san.new_col_ids
+    }
+
+    identity_sanitizers = tuple(
+        IdentitySanitizer(
+            name=table.name,
+            source=table.name,
+            prompt=c.prompt,
+            remote_id=c.id.unsafe_name,
+        ) if c.is_safe else
+        OmitSanitizer(
+            name=table.name,
+            source=table.name,
+            prompt=c.prompt,
+            remote_id=c.id.unsafe_name,
+        ) for c in table.schema if c.id not in used_sanitizer_output
+    )
+
+    all_sanitizers = used_sanitizers + identity_sanitizers
     
     # Sanitize columns and rows
 
@@ -187,8 +218,8 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
 
     sanitized_columns_unsorted = tuple(
         c
-            for sanitizer in table_sanitizer.sanitizers
-                for c in sanitize_columns(column_info_lookup, sanitizer)
+            for sanitizer in all_sanitizers
+                for c in sanitize_columns(column_info_lookup, sanitizer, table.name)
     )
 
     sanitized_columns = sorted(sanitized_columns_unsorted, key=lambda x: x.sortkey)
@@ -196,8 +227,8 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
     sanitized_rows = tuple(
         SanitizedTableRowView(
             v
-                for sanitizer in table_sanitizer.sanitizers
-                    for v in sanitize_row(row, sanitizer) 
+                for sanitizer in all_sanitizers
+                    for v in sanitize_row(row, sanitizer, table.name) 
         )
             for row in table.data.rows
     )
@@ -206,7 +237,7 @@ def sanitize_table(table: UnsanitizedTable, table_sanitizer: TableSanitizer) -> 
 
     return SanitizedTable(
         info=SanitizedTableInfo(
-            name=table_sanitizer.table_name,
+            name=table.name,
             title=table.source_title,
             data_checksum=table.data_checksum,
             schema_checksum=table.schema_checksum,

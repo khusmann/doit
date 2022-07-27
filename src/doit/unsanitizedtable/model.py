@@ -29,6 +29,7 @@ UnsanitizedTableRowView = TableRowView[UnsanitizedColumnId]
 UnsanitizedTableData = TableData[UnsanitizedColumnId]
 
 class UnsanitizedTable(t.NamedTuple):
+    name: str
     schema: t.Tuple[UnsanitizedColumnInfo, ...]
     schema_checksum: str
     data: UnsanitizedTableData
