@@ -68,7 +68,7 @@ def from_source_fn(
             column_info = column_lookup.get(src.source_column_name)
             
             if not column_info:
-                raise Exception("Error: cannot find column in instrument source table ({})".format(src.source_column_name))
+                raise Exception("Error: cannot find column in instrument source table {} {}".format(src.source_column_name, tuple(column_lookup.keys())))
 
             return partial(from_source_question, column_info, { k: v for k, v in src.source_value_map.items() if v is not None })
 
